@@ -1,0 +1,283 @@
+#!/usr/bin/env python
+# cryptech_muxd_server
+# Copyright (c) 2018, 2019 Diamond Key Security, NFP  All rights reserved.
+#
+#
+# Implementation of Cryptech RPC protocol multiplexer in Python.
+#
+# This implementation is by Diamond Key Security, NFP using code from
+# CrypTech's cryptech_muxd. It is an implementation of the CrypTech
+# multiplexer that accepts incoming TCP connections using the 
+# Tornado library. It then uses PySerial to communicate directly with
+# an Alpha.
+#
+# This Python script uses code from 'cryptech_muxd.'
+# The 'cryptech_muxd' copyright is below.
+#
+#---------------------------------------------------------------------
+# Original cryptech_muxd copyright
+#
+# Copyright (c) 2016-2017, NORDUnet A/S All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+# - Redistributions of source code must retain the above copyright notice,
+#   this list of conditions and the following disclaimer.
+#
+# - Redistributions in binary form must reproduce the above copyright
+#   notice, this list of conditions and the following disclaimer in the
+#   documentation and/or other materials provided with the distribution.
+#
+# - Neither the name of the NORDUnet nor the names of its contributors may
+#   be used to endorse or promote products derived from this software
+#   without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+# TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+"""
+Implementation of Cryptech RPC protocol multiplexer in Python.
+
+This implementation is by Diamond Key Security, NFP using code from
+CrypTech's cryptech_muxd. It is an implementation of the CrypTech
+multiplexer that accepts incoming TCP connections using the 
+Tornado library. It then uses PySerial to communicate directly with
+an Alpha.
+"""
+
+import os
+import sys
+import time
+import struct
+import atexit
+import weakref
+import logging
+import argparse
+import logging.handlers
+
+import serial
+import serial.tools.list_ports_posix
+
+import tornado.tcpserver
+import tornado.iostream
+import tornado.netutil
+import tornado.ioloop
+import tornado.queues
+import tornado.locks
+import tornado.gen
+
+# import classes from the original cryptech.muxd
+# cryptech_muxd has been renamed to cryptech/muxd.py
+import cryptech.muxd
+
+class TCPServer(tornado.tcpserver.TCPServer):
+    """
+    Variant on tornado.tcpserver.TCPServer
+    """
+
+    def __init__(self, serial_stream, port, ssl):
+        super(TCPServer, self).__init__(ssl_options=ssl)
+        self.serial = serial_stream
+        self.listen(port)
+        atexit.register(self.atexit_unlink)
+        print "TCP Server Started"
+
+    def atexit_unlink(self):
+        try:
+            self.stop()
+        except:
+            pass
+
+
+
+
+class RPCTCPServer(TCPServer):
+    """
+    Serve multiplexed Cryptech RPC over a TCP socket.
+    """
+
+    @tornado.gen.coroutine
+    def handle_stream(self, stream, address):
+        "Handle one network connection."
+        handle = self.next_client_handle()
+        queue  = tornado.queues.Queue()
+        cryptech.muxd.logger.info("RPC connected %r, handle 0x%x", stream, handle)
+        while True:
+            try:
+                cryptech.muxd.logger.debug("RPC socket read, handle 0x%x", handle)
+                query = yield stream.read_until(cryptech.muxd.SLIP_END)
+                if len(query) < 9:
+                    continue
+
+                # get the old handle
+                old_handle = cryptech.muxd.client_handle_get(cryptech.muxd.slip_decode(query))
+
+                query = cryptech.muxd.slip_encode(cryptech.muxd.client_handle_set(cryptech.muxd.slip_decode(query), handle))
+                yield self.serial.rpc_input(query, handle, queue)
+                cryptech.muxd.logger.debug("RPC queue wait, handle 0x%x", handle)
+                reply = yield queue.get()
+                if reply is None:
+                    raise cryptech.muxd.QueuedStreamClosedError()
+                cryptech.muxd.logger.debug("RPC socket write, handle 0x%x", handle)
+
+                #set old handle in reply
+                reply_old_handle = cryptech.muxd.slip_encode(cryptech.muxd.client_handle_set(cryptech.muxd.slip_decode(reply), old_handle))
+
+                yield stream.write(cryptech.muxd.SLIP_END + reply_old_handle)
+            except tornado.iostream.StreamClosedError:
+                cryptech.muxd.logger.info("RPC closing %r, handle 0x%x", stream, handle)
+                stream.close()
+                query = cryptech.muxd.slip_encode(cryptech.muxd.client_handle_set(cryptech.muxd.logout_msg, handle))
+                yield self.serial.rpc_input(query, handle)
+                return
+
+    client_handle = int(time.time()) << 4
+
+    @classmethod
+    def next_client_handle(cls):
+        cls.client_handle += 1
+        cls.client_handle &= 0xFFFFFFFF
+        return cls.client_handle
+
+
+
+class CTYTCPServer(TCPServer):
+    """
+    Serve Cryptech console over a TCP socket.
+    """
+
+    @tornado.gen.coroutine
+    def handle_stream(self, stream, address):
+        "Handle one network connection."
+
+        if self.serial.attached_cty is not None:
+            yield stream.write("[Console already in use, sorry]\n")
+            stream.close()
+            return
+
+        cryptech.muxd.logger.info("CTY connected to %r", stream)
+
+        try:
+            self.serial.attached_cty = stream
+            while self.serial.attached_cty is stream:
+                yield self.serial.write((yield stream.read_bytes(1024, partial = True)))
+        except tornado.iostream.StreamClosedError:
+            stream.close()
+        finally:
+            cryptech.muxd.logger.info("CTY disconnected from %r", stream)
+            if self.serial.attached_cty is stream:
+                self.serial.attached_cty = None
+
+@tornado.gen.coroutine
+def main():
+    # while in most cases, this code will be run without arguments, the argument parser
+    # is being kept to maintain compatibility with code inside of cryptech_muxd.
+    parser = argparse.ArgumentParser(formatter_class = argparse.ArgumentDefaultsHelpFormatter)
+
+    parser.add_argument("-v", "--verbose",
+                        action = "count",
+                        help = "blather about what we're doing")
+
+    parser.add_argument("-l", "--log-file",
+                        help = "log to file instead of stderr")
+
+    parser.add_argument("-L", "--console-log",
+                        type = argparse.FileType("a"),
+                        help = "log console output to file")
+
+    parser.add_argument("-p", "--probe",
+                        nargs = "*",
+                        metavar = "DEVICE",
+                        help = "probe for device UARTs")
+
+    parser.add_argument("--rpc-device",
+                        help    = "RPC serial device name",
+                        default = os.getenv("CRYPTECH_RPC_CLIENT_SERIAL_DEVICE"))
+
+    parser.add_argument("--cty-device",
+                        help    = "CTY serial device name",
+                        default = os.getenv("CRYPTECH_CTY_CLIENT_SERIAL_DEVICE"))
+
+    parser.add_argument("--certfile",
+                        help    = "TLS certificate",
+                        default = "certs/domain.crt")
+
+    parser.add_argument("--keyfile",
+                        help    = "TLS private key",
+                        default = "certs/domain.key")                        
+
+    args = parser.parse_args()
+
+    if args.log_file is not None:
+        logging.getLogger().handlers[:] = [logging.handlers.WatchedFileHandler(args.log_file)]
+
+    ch = logging.StreamHandler(sys.stdout)
+    ch.setLevel(logging.DEBUG)
+
+    logging.getLogger().handlers[0].setFormatter(
+        logging.Formatter("%(asctime)-15s %(name)s[%(process)d]:%(levelname)s: %(message)s",
+                          "%Y-%m-%d %H:%M:%S"))
+
+    if args.verbose:
+        logging.getLogger().setLevel(logging.DEBUG if args.verbose > 1 else logging.INFO)
+
+    # Always probe. Don't rely on cryptech_probe anymore
+    yield cryptech.muxd.ProbeIOStream.run_probes(args)
+
+    if args.console_log is not None:
+        console_log = tornado.iostream.PipeIOStream(args.console_log.fileno())
+    else:
+        console_log = None
+
+    futures = []
+
+    ssl_options={ "certfile": args.certfile, "keyfile": args.keyfile }
+
+    if args.rpc_device is None:
+        cryptech.muxd.logger.warn("No RPC device found")
+    else:
+        # send data directly to the alpha using SerialIOStream
+        rpc_stream = cryptech.muxd.RPCIOStream(device = args.rpc_device)
+
+        # Listen for incoming TCP/IP connections from remove cryptech.muxd_client
+        rpc_server = RPCTCPServer(rpc_stream, 8080, ssl_options)
+
+        futures.append(rpc_stream.rpc_output_loop())
+        futures.append(rpc_stream.logout_all())
+
+    if args.cty_device is None:
+        cryptech.muxd.logger.warn("No CTY device found")
+    else:
+        # send data directly to the alpha using SerialIOStream
+        cty_stream = cryptech.muxd.CTYIOStream(device = args.cty_device, console_log = console_log)
+
+        # Listen for incoming TCP/IP connections from remove cryptech.muxd_client
+        cty_server = CTYTCPServer(cty_stream, 8081, ssl_options)
+        
+        futures.append(cty_stream.cty_output_loop())
+
+    # Might want to use WaitIterator(dict(...)) here so we can
+    # diagnose and restart output loops if they fail?
+
+    if futures:
+        yield futures
+
+if __name__ == "__main__":
+    try:
+        tornado.ioloop.IOLoop.current().run_sync(main)
+    except (SystemExit, KeyboardInterrupt):
+        pass
+    except:
+        cryptech.muxd.logger.exception("Unhandled exception")
+    else:
+        cryptech.muxd.logger.debug("Main loop exited")

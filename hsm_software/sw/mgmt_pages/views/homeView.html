@@ -1,0 +1,17 @@
+<html>
+   <head>
+      <title>{{ title }}</title>
+   </head>
+   <body>
+     <h1>Diamond HSM Status</h1>
+     <h3>{{hsm.ipaddr}}</h3>
+     <ul>
+       {% for i in xrange(len(hsm.cryptech_device_state)) %}
+         <li>{{ escape('CypTech Device {}: {}'.format(i, hsm.cryptech_device_state[i])) }}</li>
+       {% end %}
+     </ul>
+     <br>
+     <br>
+     <img src="images/cropped-DiamondKeySecurity_480x420.png" width="96" height="84">
+   </body>
+ </html>
