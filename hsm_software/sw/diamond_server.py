@@ -84,6 +84,8 @@ from sync import Synchronizer
 
 from setup.security import HSMSecurity
 
+from tamper import TamperDetector
+
 def register_zeroconf(ip_addr, serial):
     hsm_tools.cryptech.muxd.logger.info("registered to zero config")
     zero_conf.register_zeroconf_sevice(ip_addr, serial)
@@ -204,6 +206,10 @@ def main():
 
     # LEDs -------------------------------------------
     led_container = start_leds(args.no_leds)
+
+    # Tamper -----------------------------------------
+    # initialize the tamper system
+    tamper = TamperDetector.get_object(test_only = True)
 
     # safe shutdown ----------------------------------
     global safe_shutdown
