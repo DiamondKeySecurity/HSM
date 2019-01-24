@@ -8,6 +8,8 @@ import time
 
 class Tamper_Test(observable):
     def __init__(self):
+        super(Tamper_Test, self).__init__()
+
         print 'tamper test'
         self.thread = stoppable_thread(self.tamper_test_loop, name='tamper test thread')
         self.thread.start()
@@ -17,6 +19,9 @@ class Tamper_Test(observable):
         time.sleep(180)
         self.notify()
         return False
+
+    def stop(self):
+        self.thread.stop()
 
 
     

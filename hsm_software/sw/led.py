@@ -238,6 +238,13 @@ class LEDContainer(object):
         self.system_led.blink()
         self.tamper_led.blink()
 
+    def on_tamper_notify(self, tamper_object):
+        if(tamper_object.get_tamper_state() == True):
+            self.led_error_tamper()
+        else:
+            # set to system and tamper blinking yellow
+            self.led_probe_for_cryptech()
+
     def test(self):
         print 'On Test'
         print 'Tamper'

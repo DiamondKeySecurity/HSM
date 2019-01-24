@@ -6,4 +6,6 @@ from hsm_tools.observerable import observable
 
 class Tamper_RPC(observable):
     def __init__(self):
+        super(Tamper_Test, self).__init__()
+        
         print 'tamper rpc'

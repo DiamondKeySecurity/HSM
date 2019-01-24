@@ -14,8 +14,9 @@ class TamperDetectionMethod(IntEnum):
 
 class TamperDetector(observable):
     def __init__(self, method):
+        super(TamperDetector, self).__init__()
+
         self.tamper_event_detected = False
-        self.ignore_next_tamper_event = False
         self.thread_lock = threading.Lock()
 
         # get the required tamper detection device
@@ -28,18 +29,21 @@ class TamperDetector(observable):
 
         assert self.detector is not None
 
-        # tell detector to notify our observers
-        self.detector.add_observer(self.notify)
+        # get notification from detector
+        self.detector.add_observer(self.__on_tamper)
 
-        # register our own tamper observer
-        self.add_observer(self.__on_tamper)
-
-    def __on_tamper(self):
+    def __on_tamper(self, object):
         with self.thread_lock:
-            if (not self.ignore_next_tamper_event):
-                self.tamper_event_detected = True
-            else:
-                self.ignore_next_tamper_event = False
+            if(self.tamper_event_detected):
+                # we've already handled the tamper event, don't keep sending it
+                return
+
+            self.tamper_event_detected = True
+
+        print "!!!!!!! TAMPER !!!!!!!!!!"
+
+        # tell our observers of the tamper event
+        self.notify()
 
     def get_tamper_state(self):
         with self.thread_lock:
@@ -49,26 +53,26 @@ class TamperDetector(observable):
         with self.thread_lock:
             self.tamper_event_detected = False
 
-            # set the ignore flag so the notification doesn't think this was a tamper event
-            self.ignore_next_tamper_event = True
-
         # notify changed state to all observers
         self.notify()
+
+    def stop(self):
+        self.detector.stop()
 
     @staticmethod
     def get_test_detector():
         import tamper_test
-        return tamper_test.Tamper_Test
+        return tamper_test.Tamper_Test()
 
     @staticmethod
     def get_rpc_detector():
         import tamper_rpc
-        return tamper_rpc.Tamper_RPC
+        return tamper_rpc.Tamper_RPC()
 
     @staticmethod
     def get_gpio_detector():
         try:
             import tamper_gpio
-            return tamper_gpio.Tamper_GPIO
+            return tamper_gpio.Tamper_GPIO()
         except ImportError:
             return None

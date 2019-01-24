@@ -21,3 +21,7 @@ class observable(object):
         with self.thread_lock:
             for observer in self.observers:
                 observer(self)
+
+    def stop(self):
+        # helper method if need to let object know it needs to stop
+        pass
