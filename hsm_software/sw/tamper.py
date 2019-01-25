@@ -18,7 +18,7 @@ class TamperDetector(observable):
         super(TamperDetector, self).__init__()
 
         self.tamper_event_detected = False
-        self.thread_lock = threading.Lock()
+        self.event_thread_lock = threading.Lock()
 
         # get the required tamper detection device
         if(method == TamperDetectionMethod.GPIO):
@@ -34,11 +34,7 @@ class TamperDetector(observable):
         self.detector.add_observer(self.on_tamper)
 
     def on_tamper(self, tamper_object):
-        with self.thread_lock:
-            # if(self.tamper_event_detected):
-            #     # we've already handled the tamper event, don't keep sending it
-            #     return
-
+        with self.event_thread_lock:
             self.tamper_event_detected = True
 
         print "!!!!!!! TAMPER !!!!!!!!!!"
@@ -48,11 +44,11 @@ class TamperDetector(observable):
         self.notify()
 
     def get_tamper_state(self):
-        with self.thread_lock:
+        with self.event_thread_lock:
             return self.tamper_event_detected
 
     def reset_tamper_state(self):
-        with self.thread_lock:
+        with self.event_thread_lock:
             self.tamper_event_detected = False
 
         # notify changed state to all observers

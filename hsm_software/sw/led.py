@@ -166,6 +166,7 @@ class LEDContainer(object):
         GPIO.setmode(GPIO.BCM)
         self.tamper_led = LED(red_gpio =  5, green_gpio =  6)
         self.system_led = LED(red_gpio = 26, green_gpio = 19)
+        self.tamper_detected = False
 
     def led_determine_network_adapter(self):
         self.system_led.off()
@@ -239,13 +240,15 @@ class LEDContainer(object):
         self.tamper_led.blink()
 
     def on_tamper_notify(self, tamper_object):
-        print 'LED GOT A TAMPER'
-        # if(tamper_object.get_tamper_state() == True):
-        #     self.led_error_tamper()
-        # else:
-        #     # set to system and tamper blinking yellow
-        #     self.led_probe_for_cryptech()
-        self.led_error_tamper()
+        print 'LED GOT A TAMPER'        
+        if(self.tamper_detected != tamper_object.get_tamper_state()):
+            self.tamper_detected = tamper_object.get_tamper_state()
+
+            if(self.tamper_detected):
+                self.led_error_tamper()
+            else:
+                self.led_probe_for_cryptech()
+
 
     def test(self):
         print 'On Test'

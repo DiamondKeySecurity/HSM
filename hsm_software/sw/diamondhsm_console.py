@@ -204,11 +204,17 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
         tamper_node = self.add_child('tamper')
 
         tamper_node.add_child(name = "test", num_args = 0, usage = ' - Test tamper functionality by simulating an event.', callback = self.dks_tamper_test)
+        tamper_node.add_child(name = "reset", num_args = 0, usage = ' - Attempt to reset the tamper flag. This will fail during an ongoing tamper event.', callback = self.dks_tamper_reset)
 
     def dks_tamper_test(self, args):
         self.tamper.on_tamper(None)
 
         return "TESTING TAMPER"
+
+    def dks_tamper_reset(self, args):
+        self.tamper.reset_tamper_state()
+
+        return "RESETING TAMPER"
 
     def add_show_commands(self):
         show_node = self.add_child('show')

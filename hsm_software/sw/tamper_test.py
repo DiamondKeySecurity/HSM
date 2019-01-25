@@ -20,7 +20,7 @@ class Tamper_Test(observable):
         # after 3 minutes yell tamper
         time.sleep(1)
         self.count += 1
-        if(self.count > 120):
+        if(self.count > 180):
             self.count = 0
             print 'Interesting'
             self.notify()
