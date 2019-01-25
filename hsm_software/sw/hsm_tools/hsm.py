@@ -42,13 +42,14 @@ class CtyArg(UploadArgs):
         self.separate_pins = False
 
 class CrypTechDeviceState(str, Enum):
-    HSMLocked   = 'The HSM must be unlocked. Please login using the setup console.'
-    HSMReady    = 'Active - Ready'
-    KEYGen      = 'Active - Generating a key'
-    BUSY        = 'Active - Busy'
-    HSMNotReady = 'Device not ready'
-    FAILED      = 'Device failure. Try restarting the HSM.'
-    TAMPER      = 'ERROR - Tamper detected'
+    HSMLocked    = 'The HSM must be unlocked. Please login using the setup console.'
+    HSMReady     = 'Active - Ready'
+    KEYGen       = 'Active - Generating a key'
+    BUSY         = 'Active - Busy'
+    HSMNotReady  = 'Device not ready'
+    FAILED       = 'Device failure. Try restarting the HSM.'
+    TAMPER       = 'ERROR - Tamper detected'
+    TAMPER_RESET = 'WARNING - A tamper event has stopped. Please check the HSM and restart it.'
 
 
 class HSMPortInfo:

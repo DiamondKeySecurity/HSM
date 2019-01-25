@@ -8,6 +8,8 @@ import hsm_tools.cryptech.muxd
 from enum import IntEnum
 from hsm_tools.observerable import observable
 
+from hsm_tools.threadsafevar import ThreadSafeVariable
+
 class TamperDetectionMethod(IntEnum):
     GPIO = 0,  # detect tamper events by polling a GPIO port
     RPC  = 1,  # detect tamper events by polling using a CrypTech RPC
@@ -17,8 +19,7 @@ class TamperDetector(observable):
     def __init__(self, method):
         super(TamperDetector, self).__init__()
 
-        self.tamper_event_detected = False
-        self.event_thread_lock = threading.Lock()
+        self.tamper_event_detected = ThreadSafeVariable(False)
 
         # get the required tamper detection device
         if(method == TamperDetectionMethod.GPIO):
@@ -34,8 +35,7 @@ class TamperDetector(observable):
         self.detector.add_observer(self.on_tamper)
 
     def on_tamper(self, tamper_object):
-        with self.event_thread_lock:
-            self.tamper_event_detected = True
+        self.tamper_event_detected.value = True
 
         print "!!!!!!! TAMPER !!!!!!!!!!"
         hsm_tools.cryptech.muxd.logger.info("!!!!!!! TAMPER !!!!!!!!!!")
@@ -44,12 +44,10 @@ class TamperDetector(observable):
         self.notify()
 
     def get_tamper_state(self):
-        with self.event_thread_lock:
-            return self.tamper_event_detected
+        return self.tamper_event_detected.value
 
     def reset_tamper_state(self):
-        with self.event_thread_lock:
-            self.tamper_event_detected = False
+        self.tamper_event_detected.value = False
 
         # notify changed state to all observers
         self.notify()

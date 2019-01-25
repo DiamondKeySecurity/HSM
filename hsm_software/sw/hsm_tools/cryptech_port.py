@@ -61,6 +61,9 @@ class DKS_HALError(IntEnum):
     HAL_ERROR_RPC_PROTOCOL_ERROR        = 44
     HAL_ERROR_NOT_IMPLEMENTED           = 45
 
+    # non-standard order 66. Give some space in case CrypTech adds more error codes
+    HAL_ERROR_TAMPER                    = 66
+
 class DKS_RPCFunc(IntEnum):
     RPC_FUNC_GET_VERSION                  = 0
     RPC_FUNC_GET_RANDOM                   = 1

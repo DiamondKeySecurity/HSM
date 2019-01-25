@@ -302,7 +302,7 @@ def main():
     safe_shutdown.addOnShutdown(cache.backup)
 
     # start the load balancer
-    rpc_preprocessor = RPCPreprocessor(rpc_list, cache, settings, netiface)
+    rpc_preprocessor = RPCPreprocessor(rpc_list, cache, settings, netiface, tamper)
     # Listen for incoming TCP/IP connections from remove cryptech.muxd_client
     rpc_server = RPCTCPServer(rpc_preprocessor, RPC_IP_PORT, ssl_options)
     # set the futures for all of our devices

@@ -18,6 +18,7 @@ from hsm_tools.cryptech.cryptech.libhal import ContextManagedUnpacker, xdrlib
 from hsm_tools.tcpserver import rpc_code_get
 from hsm_tools.rpc_action import RPCAction
 from hsm_tools.cryptech_port import DKS_RPCFunc, DKS_HSM, DKS_HALUser, DKS_HALKeyType, DKS_HALKeyFlag, DKS_HALError, DKS_HALDigestAlgorithm, DKS_HALCurve
+from hsm_tools.threadsafevar import ThreadSafeVariable
 
 from key_matching import KeyMatchDetails
 
@@ -75,7 +76,7 @@ class MuxSession:
 
 class RPCPreprocessor:
     """Able to load balance between multiple rpcs"""
-    def __init__(self, rpc_list, cache, settings, netiface):
+    def __init__(self, rpc_list, cache, settings, netiface, tamper):
         self.cache = cache
         self.settings = settings
         self.rpc_list = rpc_list
@@ -88,6 +89,10 @@ class RPCPreprocessor:
         self.netiface = netiface
         self.hsm_locked = True
         self.debug = False
+        self.tamper = tamper
+        self.tamper_detected = ThreadSafeVariable(False)
+
+        tamper.add_observer(self.on_tamper_event)
 
     def device_count(self):
         return len(self.rpc_list)
@@ -165,11 +170,23 @@ class RPCPreprocessor:
         for rpc in self.rpc_list:
             rpc.change_state(CrypTechDeviceState.HSMLocked)
 
-    def process_incoming_rpc(self, decoded_request):
-        if(self.debug and self.current_rpc >= 0):
-            # if we are debugging a connection, just send the request without any changes
-            return RPCAction(None, [self.rpc_list[self.current_rpc]], None, decoded_request)
+    def on_tamper_event(self, tamper_object):
+        new_tamper_state = tamper_object.get_tamper_state()
+        old_tamper_state = self.tamper_detected.value
 
+        if(new_tamper_state != old_tamper_state):
+            self.tamper_detected.value = new_tamper_state
+
+            if(new_tamper_state == True):
+                self.hsm_locked = True
+                for rpc in self.rpc_list:
+                    rpc.change_state(CrypTechDeviceState.TAMPER)
+            else:
+                self.hsm_locked = True
+                for rpc in self.rpc_list:
+                    rpc.clear_tamper(CrypTechDeviceState.TAMPER_RESET)
+    
+    def process_incoming_rpc(self, decoded_request):
         # handle the message normally
         unpacker = ContextManagedUnpacker(decoded_request)
 
@@ -184,6 +201,10 @@ class RPCPreprocessor:
 
         # save the current request in the session
         session.current_request = decoded_request
+
+        # check to see if there's an ongoing tamper event
+        if (self.tamper.get_tamper_state() and session.from_ethernet):
+            return self.create_error_response(code, client, DKS_HALError.HAL_ERROR_TAMPER)
 
         # process the RPC request
         action = self.function_table[code](code, client, unpacker, session)
