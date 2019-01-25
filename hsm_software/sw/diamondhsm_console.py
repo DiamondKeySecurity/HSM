@@ -34,6 +34,8 @@ from hsm_cache_db.alpha import CacheTableAlpha
 
 from setup.file_transfer import MGMTCodes, FileTransfer
 
+from hsm_tools.threadsafevar import ThreadSafeVariable
+
 import zero_conf
 
 class DiamondHSMConsole(console_interface.ConsoleInterface):
@@ -52,6 +54,7 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
         self.safe_shutdown = safe_shutdown
         self.led = led
         self.tamper = tamper
+        self.tamper_event_detected = ThreadSafeVariable(False)
 
         self.initial_login = True
 
@@ -75,7 +78,9 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
         self.tamper.add_observer(self.on_tamper_event)
 
     def on_tamper_event(self, tamper_detector):
-        self.cty_direct_call('!!!!!!!!!!TAMPER DETECTED!!!!!!!!!!!!!')
+        if(self.is_logged_in() and self.tamper_event_detected.value == False):
+            self.tamper_event_detected.value = True
+            self.cty_direct_call('!!!!!!!!!!TAMPER DETECTED!!!!!!!!!!!!!')
 
     def on_reset(self):
         """Override to add commands that must be executed to reset the system after a new user logs in"""
@@ -85,6 +90,8 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
         if(self.file_transfer is not None):
             self.file_transfer.close()
             self.file_transfer = None
+
+        self.tamper_event_detected.value = False
 
     def is_login_available(self):
         """Override and return true if there is a mechanism to login to the system"""

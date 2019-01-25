@@ -16,6 +16,8 @@ from setup.script import ScriptModule, script_node, ValueType
 
 from abc import abstractmethod, ABCMeta
 
+from hsm_tools.threadsafevar import ThreadSafeVariable
+
 # import Python compatibility layer incase we switch to Python 3 later
 import six
 
@@ -187,7 +189,7 @@ class ConsoleInterface(CommandNode):
 
 
     def reset(self):
-        self.console_state = ConsoleState.LoggedOut
+        self.console_state = ThreadSafeVariable(ConsoleState.LoggedOut)
         self.banner_shown = False
         self.attached_cty = None
         self.response_queue = Queue()
@@ -206,7 +208,7 @@ class ConsoleInterface(CommandNode):
 
     @property
     def prompt(self):
-        if (self.console_state == ConsoleState.PasswordRequested):
+        if (self.console_state.value == ConsoleState.PasswordRequested):
             return '\r\nPassword: '
         elif ((self.script_module is not None) and 
             (not self.script_module.is_done())):
@@ -356,11 +358,11 @@ class ConsoleInterface(CommandNode):
 
         if (self.is_login_available()):
             self.cty_direct_call(self.get_login_prompt())
-            self.console_state = ConsoleState.PasswordRequested
+            self.console_state.value = ConsoleState.PasswordRequested
         else:
             self.cty_direct_call(self.no_login_msg())
             self.hide_input = False
-            self.console_state = ConsoleState.LoggedIn
+            self.console_state.value = ConsoleState.LoggedIn
             self.cty_direct_call(self.prompt)
 
     def handle_password_entered(self, data):
@@ -373,15 +375,15 @@ class ConsoleInterface(CommandNode):
                 self.cty_direct_call("\r\nIncorrect password. Please try again\r\n\r\nPassword: ")
             else:
                 self.hide_input = False
-                self.console_state = ConsoleState.LoggedIn
+                self.console_state.value = ConsoleState.LoggedIn
                 self.on_login(pin)
 
     def process_user_input(self, data):
-        if(self.console_state == ConsoleState.LoggedOut):
+        if(self.console_state.value == ConsoleState.LoggedOut):
             self.handle_login()
         else:
             input = data.strip('\r\n')
-            if ((self.console_state == ConsoleState.LoggedIn) and
+            if ((self.console_state.value == ConsoleState.LoggedIn) and
                 (self.script_module is not None) and
                 (not self.script_module.is_done())):
                 validated_response = self.script_module.validate_response(input)
@@ -398,9 +400,9 @@ class ConsoleInterface(CommandNode):
                     self.cty_direct_call(self.prompt)
 
             elif(len(input) > 0):
-                if (self.console_state == ConsoleState.PasswordRequested):
+                if (self.console_state.value == ConsoleState.PasswordRequested):
                     self.handle_password_entered(input)
-                elif (self.console_state == ConsoleState.LoggedIn):
+                elif (self.console_state.value == ConsoleState.LoggedIn):
                     # add to history
                     self.history.appendleft(input)
                     self.history_index = -1
@@ -414,5 +416,8 @@ class ConsoleInterface(CommandNode):
                 self.cty_direct_call(self.prompt)
 
     def logout(self, message = None):
-        self.console_state = ConsoleState.LoggedOut
+        self.console_state.value = ConsoleState.LoggedOut
         self.allow_user_input(message)
+
+    def is_logged_in(self):
+        return self.console_state.value == ConsoleState.LoggedIn
