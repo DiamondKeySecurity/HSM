@@ -37,7 +37,7 @@ from setup.file_transfer import MGMTCodes, FileTransfer
 import zero_conf
 
 class DiamondHSMConsole(console_interface.ConsoleInterface):
-    def __init__(self, args, cty_list, rpc_preprocessor, synchronizer, cache, netiface, settings, safe_shutdown, led):
+    def __init__(self, args, cty_list, rpc_preprocessor, synchronizer, cache, netiface, settings, safe_shutdown, led, tamper):
         self.args = args
         self.cty_conn = CTYConnection(cty_list, args.binaries, self.quick_write)
         self.rpc_preprocessor = rpc_preprocessor
@@ -51,6 +51,7 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
         self.file_transfer = None
         self.safe_shutdown = safe_shutdown
         self.led = led
+        self.tamper = tamper
 
         self.initial_login = True
 
@@ -69,6 +70,12 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
         self.add_shutdown_commands()
         self.add_sync_commands()
         self.add_update_commands()
+        self.add_tamper_commands()
+
+        self.tamper.add_observer(self.on_tamper_event)
+
+    def on_tamper_event(self, tamper_detector):
+        self.cty_direct_call('!!!!!!!!!!TAMPER DETECTED!!!!!!!!!!!!!')
 
     def on_reset(self):
         """Override to add commands that must be executed to reset the system after a new user logs in"""
@@ -192,6 +199,16 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
                 self.cty_direct_call(None)
         else:
             self.readCTYUserData(data)
+
+    def add_tamper_commands(self):
+        tamper_node = self.add_child('tamper')
+
+        tamper_node.add_child(name = "test", num_args = 0, usage = ' - Test tamper functionality by simulating an event.', callback = self.dks_tamper_test)
+
+    def dks_tamper_test(self, args):
+        self.tamper.on_tamper(None)
+
+        return "TESTING TAMPER"
 
     def add_show_commands(self):
         show_node = self.add_child('show')

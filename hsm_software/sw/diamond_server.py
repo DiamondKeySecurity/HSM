@@ -213,7 +213,7 @@ def main():
 
     # Tamper -----------------------------------------
     # initialize the tamper system
-    tamper = TamperDetector(method = TamperDetectionMethod.TEST)
+    tamper = TamperDetector(method = TamperDetectionMethod.GPIO)
 
     safe_shutdown.addOnShutdown(tamper.stop)
 
@@ -321,7 +321,7 @@ def main():
         synchronizer.append_future(futures)
 
     # start the console
-    cty_stream = DiamondHSMConsole(args, cty_list, rpc_preprocessor, synchronizer, cache, netiface, settings, safe_shutdown, led_container)
+    cty_stream = DiamondHSMConsole(args, cty_list, rpc_preprocessor, synchronizer, cache, netiface, settings, safe_shutdown, led_container, tamper)
 
     # Listen for incoming TCP/IP connections from remove cryptech.muxd_client
     cty_server = CTYTCPServer(cty_stream, port = CTY_IP_PORT, ssl = ssl_options)

@@ -3,6 +3,7 @@
 #
 
 import threading
+import hsm_tools.cryptech.muxd
 
 from enum import IntEnum
 from hsm_tools.observerable import observable
@@ -30,17 +31,18 @@ class TamperDetector(observable):
         assert self.detector is not None
 
         # get notification from detector
-        self.detector.add_observer(self.__on_tamper)
+        self.detector.add_observer(self.on_tamper)
 
-    def __on_tamper(self, object):
+    def on_tamper(self, tamper_object):
         with self.thread_lock:
-            if(self.tamper_event_detected):
-                # we've already handled the tamper event, don't keep sending it
-                return
+            # if(self.tamper_event_detected):
+            #     # we've already handled the tamper event, don't keep sending it
+            #     return
 
             self.tamper_event_detected = True
 
         print "!!!!!!! TAMPER !!!!!!!!!!"
+        hsm_tools.cryptech.muxd.logger.info("!!!!!!! TAMPER !!!!!!!!!!")
 
         # tell our observers of the tamper event
         self.notify()

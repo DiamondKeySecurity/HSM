@@ -6,6 +6,6 @@ from hsm_tools.observerable import observable
 
 class Tamper_GPIO(observable):
     def __init__(self):
-        super(Tamper_Test, self).__init__()
-        
+        super(Tamper_GPIO, self).__init__()
+
         print 'tamper gpio'

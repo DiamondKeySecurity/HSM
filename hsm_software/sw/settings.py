@@ -7,7 +7,7 @@ import json
 
 from enum import Enum
 
-HSM_SOFTWARE_VERSION = '19.01.24.p0'
+HSM_SOFTWARE_VERSION = '19.01.24.tamper08'
 
 RPC_IP_PORT = 8080
 CTY_IP_PORT = 8081
