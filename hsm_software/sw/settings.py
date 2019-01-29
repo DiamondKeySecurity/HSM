@@ -7,7 +7,7 @@ import json
 
 from enum import Enum
 
-HSM_SOFTWARE_VERSION = '19.01.25.tamper11'
+HSM_SOFTWARE_VERSION = '19.01.29.tamper12'
 
 # this is the version of the firmware that's built into the current release
 BUILTIN_FIRMWARE_VERSION = '2018-09-06'
@@ -55,10 +55,10 @@ class Settings(object):
         except IOError:
             self.add_default_settings()
 
-        if (HSMSettings.HSMSettings.BUILTIN_FIRMWARE_VERSION not in self.dictionary):
+        if (HSMSettings.BUILTIN_FIRMWARE_VERSION not in self.dictionary):
             self.add_default_hardware_settings()
 
-        if (HSMSettings.HSMSettings.MASTERKEY_SET not in self.dictionary):
+        if (HSMSettings.MASTERKEY_SET not in self.dictionary):
             self.add_default_master_key_settings()
 
         self.check_master_key_settings()
@@ -104,7 +104,7 @@ class Settings(object):
 
     def add_default_hardware_settings(self):
         # this is the default CrypTech build used by the original prototypes
-        self.dictionary[HSMSettings.BUILTIN_FIRMWARE_VERSION] = '2018-09-05'
+        self.dictionary[HSMSettings.BUILTIN_FIRMWARE_VERSION] = '2018-09-06'
 
         # the original prototype builds did not use an upgradable tamper
         self.dictionary[HSMSettings.BUILTIN_TAMPER_VERSION] = None
@@ -159,6 +159,18 @@ class Settings(object):
     def on_restart(self):
         # hopefully we have a normal reset without a power failure
         self.dictionary[HSMSettings.HSM_RESET_NORMALLY] = True
+
+    def set_firmware_updated(self):
+        self.dictionary[HSMSettings.BUILTIN_FIRMWARE_VERSION] = BUILTIN_FIRMWARE_VERSION
+
+        # this is something that must be saved right away
+        self.save_settings()
+
+    def set_tamper_updated(self):
+        self.dictionary[HSMSettings.BUILTIN_TAMPER_VERSION] = BUILTIN_TAMPER_VERSION
+
+        # this is something that must be saved right away
+        self.save_settings()
 
     def save_settings(self):
         try:

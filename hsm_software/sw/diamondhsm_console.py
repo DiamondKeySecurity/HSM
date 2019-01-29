@@ -87,6 +87,8 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
         self.welcome_shown = False
         self.after_login_callback = None
 
+        self.on_cryptech_update_finished = None
+
         # when the console has been locked, no commands will be accepted
         self.console_locked = False
 
@@ -466,6 +468,7 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
         cryptech_node.add_child('bootloader', num_args=0, usage=' - Updates the bootloaders on the CrypTech devices.', callback=self.dks_update_cryptech_bootloader)
         cryptech_node.add_child('firmware', num_args=0, usage=' - Updates the firmware on the CrypTech devices.', callback=self.dks_update_cryptech_firmware)
         cryptech_node.add_child('fpga', num_args=0, usage=' - Updates the FPGA cores on the CrypTech devices.', callback=self.dks_update_cryptech_fpga)
+        cryptech_node.add_child('tamper', num_args=0, usage=' - Updates the tamper firmware on the CrypTech devices.', callback=self.dks_update_cryptech_tamper)
 
         update_node.add_child('HSM', num_args=1, usage='<path to file> - Updates the HSM firmware.', callback=self.dks_update_HSM)
 
@@ -502,7 +505,7 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
                               '\r\ncan cause the CrypTech device to become inoperable'
                               '\r\n!----------------------------------------------------------------------!\r\n'))
 
-        # self.redo_login(self.dks_update_firmware)
+        self.redo_login(self.dks_update_tamperfirmware)
 
         return True
 
@@ -518,7 +521,14 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
         self.redo_login(self.dks_update_bootloader)
         return True
 
+    def dks_update_tamperfirmware(self, pin):
+        self.on_cryptech_update_finished = self.settings.set_tamper_updated
+
+        return self.dks_do_update(self.cty_conn.uploadTamperFirmware, pin)
+
     def dks_update_firmware(self, pin):
+        self.on_cryptech_update_finished = self.settings.set_firmware_updated
+
         return self.dks_do_update(self.cty_conn.uploadFirmware, pin)
 
     def dks_update_bootloader(self, pin):
@@ -573,6 +583,9 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
         self.cty_direct_call(self.cty_conn.get_error_msg(result))
 
         if (result == CTYError.CTY_OK):
+            if(self.on_cryptech_update_finished is not None):
+                self.on_cryptech_update_finished()
+
             self.cty_direct_call("HSM Restarting in 5 seconds....")
             time.sleep(5)
 

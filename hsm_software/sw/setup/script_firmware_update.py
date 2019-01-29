@@ -12,12 +12,12 @@ class FirmwareUpdateScriptModule(ScriptModule):
 
         script_nodes = []
 
-        if (settings.hardware_firmware_match()):
+        if (not settings.hardware_firmware_match()):
             script_nodes.append(script_node('updateFirmware',
                                             'Because of an HSM update the firmware on the CrypTech devices may not be up-to-date.\r\nWould you like to set it now? (y/n) ',
                                             ValueType.YesNo, callback=self.updateFirmwarePromptCallback))
 
-        elif (settings.hardware_tamper_match()):
+        elif (not settings.hardware_tamper_match()):
             script_nodes.append(script_node('updateTamper',
                                             'Because of an HSM update the tamper firmware on the CrypTech devices may not be up-to-date.\r\nWould you like to set it now? (y/n) ',
                                             ValueType.YesNo, callback=self.updateTamperPromptCallback))
@@ -33,6 +33,8 @@ class FirmwareUpdateScriptModule(ScriptModule):
         else:
             self.cty_direct_call('The console will be locked until the firmware has been updated.')
 
+            self.cty_mux.console_locked = True
+
         return None
 
     def updateTamperPromptCallback(self, response):
@@ -43,6 +45,8 @@ class FirmwareUpdateScriptModule(ScriptModule):
             return None
         else:
             self.cty_direct_call('The console will be locked until the tamper firmware has been updated.')
+
+            self.cty_mux.console_locked = True
 
         return None
 
