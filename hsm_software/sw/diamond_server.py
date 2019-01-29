@@ -210,9 +210,7 @@ def main():
     safe_shutdown = SafeShutdown()
 
     # Settings ---------------------------------------
-    settings = Settings(args.settings)
-
-    safe_shutdown.addOnShutdown(settings.save_settings)
+    settings = Settings(args.settings, safe_shutdown)
 
     # Make sure the certs exist ----------------------
     HSMSecurity().create_certs_if_not_exist(private_key_name = args.keyfile,
