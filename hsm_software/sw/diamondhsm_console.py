@@ -29,6 +29,7 @@ from setup.script_ip_dhcp import DHCPScriptModule
 from setup.script_ip_static import StaticIPScriptModule
 from setup.script_updateRestart import UpdateRestartScriptModule
 from setup.script_password import PasswordScriptModule
+from setup.script_firmware_update import FirmwareUpdateScriptModule
 
 from hsm_cache_db.alpha import CacheTableAlpha
 
@@ -55,8 +56,7 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
         self.led = led
         self.tamper = tamper
         self.tamper_event_detected = ThreadSafeVariable(False)
-
-        self.initial_login = True
+        self.console_locked = False
 
         super(DiamondHSMConsole, self).__init__('Diamond HSM')
 
@@ -87,6 +87,9 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
         self.welcome_shown = False
         self.after_login_callback = None
 
+        # when the console has been locked, no commands will be accepted
+        self.console_locked = False
+
         if(self.file_transfer is not None):
             self.file_transfer.close()
             self.file_transfer = None
@@ -113,16 +116,27 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
         # don't show the password
         self.hide_input = True
 
-        if (self.initial_login):
-            if(self.synchronizer != None and self.cache != None):
-                if(not self.synchronizer.cache_initialized()):
-                    self.cty_direct_call(initial_login_msg)
+        # make sure the firmware and tamper are up-to-date
+        if (not self.settings.hardware_firmware_match() or
+            not self.settings.hardware_tamper_match()):
 
-                    self.after_login_callback = self.initialize_cache
+            self.cty_direct_call(initial_login_msg)
 
-                    self.script_module = MasterKeySetScriptModule(self.cty_conn, self.cty_direct_call)
+            # prompt the user to update the firmware and the tamper
+            # the HSM will remain locked until there's an update
+            self.script_module = FirmwareUpdateScriptModule(self, self.cty_direct_call, self.settings)
+        elif (self.synchronizer != None and self.cache != None):
+            if(not self.synchronizer.cache_initialized()):
+                self.cty_direct_call(initial_login_msg)
 
-            self.initial_login = False
+                # start up normally
+                self.after_login_callback = self.initialize_cache
+
+        # if the masterkey has not been set, prompt
+        if (self.script_module == None and 
+            self.settings.get_setting(HSMSettings.MASTERKEY_SET) == False):
+
+            self.script_module = MasterKeySetScriptModule(self.cty_conn, self.cty_direct_call)
 
         # show login msg
         return login_msg
@@ -193,17 +207,18 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
 
     @tornado.gen.coroutine
     def write(self, data):
+        if (self.console_locked):
+            self.cty_direct_call("This console has been locked.\r\nPlease restart the console to connect to the HSM.")
+            return
+
         """This method is name write because the calling method uses it to "write" to the CTY.
            Instead of directly writing to the CTY, this method processes the data and
            uses the CTY interface if needed"""
         if(self.file_transfer is not None):
             result = self.file_transfer.recv(data)
             if(result is not True):
-                # result will either be true or an error message
                 self.cty_direct_call(result)
-                self.cty_direct_call("You will be logged out in 5 seconds.")
-                time.sleep(5)
-                self.cty_direct_call(None)
+                self.console_locked = True
         else:
             self.readCTYUserData(data)
 
@@ -475,6 +490,19 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
                               '\r\n!----------------------------------------------------------------------!\r\n'))
 
         self.redo_login(self.dks_update_firmware)
+
+        return True
+
+    def dks_update_cryptech_tamper(self, args):
+        self.cty_direct_call(('\r\n!----------------------------------------------------------------------!'
+                              '\r\n!TAMPER FIRMWARE UPDATE WARNING!'
+                              '\r\nThis will update the firmware inside the CrypTech device. The firmware'
+                              '\r\nthat will be used was loaded into the HSM on the last HSM update and'
+                              '\r\nis probably already on the device. Failures during the firmware update'
+                              '\r\ncan cause the CrypTech device to become inoperable'
+                              '\r\n!----------------------------------------------------------------------!\r\n'))
+
+        # self.redo_login(self.dks_update_firmware)
 
         return True
 

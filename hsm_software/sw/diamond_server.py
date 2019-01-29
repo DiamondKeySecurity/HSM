@@ -221,9 +221,7 @@ def main():
         tamper.add_observer(led_container.on_tamper_notify)
 
     # Settings ---------------------------------------
-    settings = Settings(args.settings)
-
-    safe_shutdown.addOnShutdown(settings.save_settings)
+    settings = Settings(args.settings, safe_shutdown)
 
     # Make sure the certs exist ----------------------
     HSMSecurity().create_certs_if_not_exist(private_key_name = args.keyfile,
