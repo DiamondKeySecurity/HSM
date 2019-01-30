@@ -2,19 +2,13 @@
 # Copyright (c) 2018, 2019 Diamond Key Security, NFP  All rights reserved.
 #
 
-import threading
 import hsm_tools.cryptech.muxd
 
-from enum import IntEnum
 from hsm_tools.observerable import observable
 
 from hsm_tools.threadsafevar import ThreadSafeVariable
-from settings import Settings, HSMSettings
+from settings import HSMSettings
 
-class TamperDetectionMethod(IntEnum):
-    GPIO = 0,  # detect tamper events by polling a GPIO port
-    RPC  = 1,  # detect tamper events by polling using a CrypTech RPC
-    TEST = 2   # fake a tamper event after 3 minutes
 
 class TamperDetector(observable):
     def __init__(self, settings):
@@ -35,7 +29,7 @@ class TamperDetector(observable):
     def on_tamper(self, tamper_object):
         self.tamper_event_detected.value = True
 
-        print "!!!!!!! TAMPER !!!!!!!!!!"
+        print("!!!!!!! TAMPER !!!!!!!!!!")
         hsm_tools.cryptech.muxd.logger.info("!!!!!!! TAMPER !!!!!!!!!!")
 
         # tell our observers of the tamper event

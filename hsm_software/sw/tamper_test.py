@@ -6,14 +6,16 @@ from hsm_tools.observerable import observable
 from hsm_tools.stoppable_thread import stoppable_thread
 import time
 
+
 class Tamper_Test(observable):
     def __init__(self):
         super(Tamper_Test, self).__init__()
 
-        print ('tamper test')
+        print('tamper test')
         self.count = 0
         
-        self.thread = stoppable_thread(self.tamper_test_loop, name='tamper test thread')
+        self.thread = stoppable_thread(self.tamper_test_loop,
+                                       name='tamper test thread')
         self.thread.start()
 
     def tamper_test_loop(self):
@@ -22,7 +24,7 @@ class Tamper_Test(observable):
         self.count += 1
         if(self.count > 180):
             self.count = 0
-            print ('Interesting')
+            print('Interesting')
             self.notify()
 
         return True

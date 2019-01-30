@@ -9,6 +9,7 @@ import netifaces
 
 from settings import Settings, HSMSettings
 
+
 class IPConfig(object):
     """Program to start HSM software or update it"""
     def __init__(self, netiface, settings):
@@ -16,7 +17,8 @@ class IPConfig(object):
         self.settings = settings
 
     def do_ipconfig(self):
-        dhcp_or_static = self.settings.get_setting(HSMSettings.IP_ADDRESS_SETTINGS)
+        setting = HSMSettings.IP_ADDRESS_SETTINGS
+        dhcp_or_static = self.settings.get_setting(setting)
 
         if(dhcp_or_static == 'STATIC_IP'):
             self.startstatic_ip()
@@ -24,34 +26,38 @@ class IPConfig(object):
             self.startdhcp()
 
     def startdhcp(self):
-        print 'ipconfig.py is now setting the IP using the default DHCP settings.'
+        print('ipconfig.py is now setting the IP using'
+              ' the default DHCP settings.')
 
         subprocess.call(['/sbin/ifup', self.netiface])
 
     def startstatic_ip(self):
-        print 'ipconfig.py is now setting a static IP'
+        print('ipconfig.py is now setting a static IP')
 
         ipaddr = self.settings.get_setting(HSMSettings.STATICIP_IPADDR)
         netmask = self.settings.get_setting(HSMSettings.STATICIP_NETMASK)
         gateway = self.settings.get_setting(HSMSettings.STATICIP_GATEWAY)
         broadcast = self.settings.get_setting(HSMSettings.STATICIP_BROADCAST)
 
-        os.system('ifconfig %s %s'%(self.netiface, ipaddr))
-        os.system('ifconfig %s netmask %s'%(self.netiface, netmask))
-        os.system('ifconfig %s broadcast %s'%(self.netiface, broadcast))
-        os.system('route add default gw %s %s'%(gateway, self.netiface))
+        os.system('ifconfig %s %s' % (self.netiface, ipaddr))
+        os.system('ifconfig %s netmask %s' % (self.netiface, netmask))
+        os.system('ifconfig %s broadcast %s' % (self.netiface, broadcast))
+        os.system('route add default gw %s %s' % (gateway, self.netiface))
+
 
 class NetworkInterfaces(object):
     def __init__(self, netInterface, defaults_dir):
         self.addresses = netifaces.ifaddresses(netInterface)
         try:
-            self.ip4addr = self.addresses[netifaces.AF_INET][0]['addr'].encode('utf-8')
-        except:
+            addr = self.addresses[netifaces.AF_INET][0]['addr']
+            self.ip4addr = addr.encode('utf-8')
+        except Exception:
             self.ip4addr = None
 
         try:
-            self.aflink = self.addresses[netifaces.AF_LINK][0]['addr'].encode('utf-8')
-        except:
+            link = self.addresses[netifaces.AF_LINK][0]['addr']
+            self.aflink = link.encode('utf-8')
+        except Exception:
             self.aflink = None
         self.defaults_dir = defaults_dir
 
@@ -63,18 +69,20 @@ class NetworkInterfaces(object):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(formatter_class = argparse.ArgumentDefaultsHelpFormatter)
+    formatter_class = argparse.ArgumentDefaultsHelpFormatter
+    
+    parser = argparse.ArgumentParser(formatter_class=formatter_class)
 
     parser.add_argument("-n", "--netiface",
-                        help = "Network interface to use in reporting",
-                        default = "eth0")
+                        help="Network interface to use in reporting",
+                        default="eth0")
 
     parser.add_argument("-s", "--settings",
-                        help = "Persistant file to save settings to",
-                        default = "../settings.json")
+                        help="Persistant file to save settings to",
+                        default="../settings.json")
 
     args = parser.parse_args()
 
-    settings = Settings(args.settings, load_only = True)
+    settings = Settings(args.settings, load_only=True)
 
     IPConfig(args.netiface, settings).do_ipconfig()
