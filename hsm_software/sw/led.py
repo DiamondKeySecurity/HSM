@@ -163,7 +163,6 @@ class LEDCommand(object):
 
 class LEDContainer(object):
     def __init__(self):
-        GPIO.setmode(GPIO.BCM)
         self.tamper_led = LED(red_gpio =  5, green_gpio =  6)
         self.system_led = LED(red_gpio = 26, green_gpio = 19)
         self.tamper_detected = False

@@ -76,7 +76,7 @@ from cache import HSMCache
 from rpc_handling import RPCPreprocessor
 
 from ipconfig import NetworkInterfaces
-from settings import Settings, RPC_IP_PORT, CTY_IP_PORT
+from settings import Settings, RPC_IP_PORT, CTY_IP_PORT, HSMSettings
 
 from safe_shutdown import SafeShutdown
 
@@ -94,8 +94,8 @@ def register_zeroconf(ip_addr, serial):
 synchronizer = None
 safe_shutdown = None
 
-def start_leds(no_leds):
-    if (no_leds is False):
+def start_leds(use_leds):
+    if (use_leds is True):
         from led import LEDContainer
 
         leds = LEDContainer()
@@ -182,9 +182,9 @@ def main():
                         help = "The HSM's serial number",
                         default = "00-00-00")
 
-    parser.add_argument("--no-leds",
+    parser.add_argument("--gpio-available",
                          action = "store_true",
-                         help = "Use the leds",
+                         help = "Use the GPIO features",
                          )
 
     parser.add_argument("--no-web",
@@ -206,10 +206,16 @@ def main():
 
     # safe shutdown ----------------------------------
     global safe_shutdown
-    safe_shutdown = SafeShutdown()    
+    safe_shutdown = SafeShutdown()
+
+    # Settings ---------------------------------------
+    settings = Settings(settings_file = args.settings,
+                        gpio_available = args.gpio_available,
+                        safe_shutdown = safe_shutdown)
+
 
     # LEDs -------------------------------------------
-    led_container = start_leds(args.no_leds)
+    led_container = start_leds(settings.get_setting(HSMSettings.GPIO_LEDS))
 
     # Tamper -----------------------------------------
     # initialize the tamper system
@@ -219,9 +225,6 @@ def main():
 
     if(led_container is not None):
         tamper.add_observer(led_container.on_tamper_notify)
-
-    # Settings ---------------------------------------
-    settings = Settings(args.settings, safe_shutdown)
 
     # Make sure the certs exist ----------------------
     HSMSecurity().create_certs_if_not_exist(private_key_name = args.keyfile,

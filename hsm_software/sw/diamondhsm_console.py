@@ -63,17 +63,19 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
         self.banner = ("\r\n\r\n---------------------------------------------------------------------------\r\n"
                        "Diamond HSM powered by CrypTech\r\nThank you for using the Diamond HSM by Diamond Key Security, NFP")
 
-        self.add_debug_commands()
-        self.add_keystore_commands()
-        self.add_list_commands()
-        self.add_masterkey_commands()
-        self.add_restore_commands()
-        self.add_set_commands()
+        if (self.is_login_available()):
+            self.add_debug_commands()
+            self.add_keystore_commands()
+            self.add_list_commands()
+            self.add_masterkey_commands()
+            self.add_restore_commands()
+            self.add_set_commands()
+            self.add_sync_commands()
+            self.add_update_commands()
+            self.add_tamper_commands()
+
         self.add_show_commands()
         self.add_shutdown_commands()
-        self.add_sync_commands()
-        self.add_update_commands()
-        self.add_tamper_commands()
 
         self.tamper.add_observer(self.on_tamper_event)
 

@@ -46,7 +46,7 @@ HARDWARE_MAPPING = {
 }
 
 class Settings(object):
-    def __init__(self, settings_file, safe_shutdown):
+    def __init__(self, settings_file, gpio_available, safe_shutdown):
         self.settings_file = settings_file
 
         try:
@@ -60,6 +60,12 @@ class Settings(object):
 
         if (HSMSettings.MASTERKEY_SET not in self.dictionary):
             self.add_default_master_key_settings()
+
+        if (not gpio_available):
+            self.set_setting(HSMSettings.GPIO_LEDS, False)
+            self.set_setting(HSMSettings.GPIO_TAMPER, False)
+        else:
+            self.init_gpio()
 
         self.check_master_key_settings()
 
@@ -171,6 +177,15 @@ class Settings(object):
 
         # this is something that must be saved right away
         self.save_settings()
+
+    def init_gpio(self):
+        try:
+            import RPi.GPIO as GPIO
+            
+            GPIO.setmode(GPIO.BCM)
+        except:
+            self.set_setting(HSMSettings.GPIO_LEDS, False)
+            self.set_setting(HSMSettings.GPIO_TAMPER, False)
 
     def save_settings(self):
         try:
