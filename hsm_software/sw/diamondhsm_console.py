@@ -138,7 +138,7 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
         if (self.script_module == None and 
             self.settings.get_setting(HSMSettings.MASTERKEY_SET) == False):
 
-            self.script_module = MasterKeySetScriptModule(self.cty_conn, self.cty_direct_call)
+            self.script_module = MasterKeySetScriptModule(self.cty_conn, self.cty_direct_call, self.settings)
 
         # show login msg
         return login_msg
@@ -457,7 +457,7 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
 
     def dks_masterkey_set(self, args):
         # use script to set the master key
-        self.script_module = MasterKeySetScriptModule(self.cty_conn, self.cty_direct_call)
+        self.script_module = MasterKeySetScriptModule(self.cty_conn, self.cty_direct_call, self.settings)
 
         return ''
 

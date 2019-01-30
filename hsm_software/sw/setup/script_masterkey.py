@@ -2,12 +2,15 @@
 # Copyright (c) 2018, 2019 Diamond Key Security, NFP  All rights reserved.
 #
 
+from settings import HSMSettings
+
 from script import ScriptModule, script_node, ValueType
 
 class MasterKeySetScriptModule(ScriptModule):
-    def __init__(self, cty_conn, cty_direct_call):
+    def __init__(self, cty_conn, cty_direct_call, settings):
         self.cty_conn = cty_conn
         self.cty_direct_call = cty_direct_call
+        self.settings = settings
         super(MasterKeySetScriptModule, self).__init__([
                         script_node('setmasterkey',
                                     'Because of a system reset, the master key may not be set.\r\nWould you like to set it now? (y/n) ',
@@ -30,6 +33,8 @@ class MasterKeySetScriptModule(ScriptModule):
 
         if('Success' not in result):
             self.cty_direct_call('\r\nThere was an error setting the master key.\r\nPlease try again later using the "masterkey set" command.\r\n')
+        else:
+            self.settings.set_setting(HSMSettings.MASTERKEY_SET, True)
 
         return self
 
