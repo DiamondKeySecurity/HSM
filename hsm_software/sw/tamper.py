@@ -9,6 +9,7 @@ from enum import IntEnum
 from hsm_tools.observerable import observable
 
 from hsm_tools.threadsafevar import ThreadSafeVariable
+from settings import Settings, HSMSettings
 
 class TamperDetectionMethod(IntEnum):
     GPIO = 0,  # detect tamper events by polling a GPIO port
@@ -16,20 +17,17 @@ class TamperDetectionMethod(IntEnum):
     TEST = 2   # fake a tamper event after 3 minutes
 
 class TamperDetector(observable):
-    def __init__(self, method):
+    def __init__(self, settings):
         super(TamperDetector, self).__init__()
 
         self.tamper_event_detected = ThreadSafeVariable(False)
 
-        # get the required tamper detection device
-        if(method == TamperDetectionMethod.GPIO):
+        if (settings.get_setting(HSMSettings.GPIO_TAMPER)):
             self.detector = TamperDetector.get_gpio_detector()
-        elif(method == TamperDetectionMethod.RPC):
+        elif (settings.get_setting(HSMSettings.MGMGPORT_TAMPER)):
             self.detector = TamperDetector.get_rpc_detector()
-        elif(method == TamperDetectionMethod.TEST):
+        else:
             self.detector = TamperDetector.get_test_detector()
-
-        assert self.detector is not None
 
         # get notification from detector
         self.detector.add_observer(self.on_tamper)

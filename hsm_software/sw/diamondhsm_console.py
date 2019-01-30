@@ -593,7 +593,7 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
 
             self.safe_shutdown.restart()
         else:
-            print "finished"
+            print ("finished")
             self.logout("Finished upload")
 
         return True

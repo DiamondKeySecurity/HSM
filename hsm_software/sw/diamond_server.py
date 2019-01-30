@@ -219,7 +219,7 @@ def main():
 
     # Tamper -----------------------------------------
     # initialize the tamper system
-    tamper = TamperDetector(method = TamperDetectionMethod.GPIO)
+    tamper = TamperDetector(settings)
 
     safe_shutdown.addOnShutdown(tamper.stop)
 

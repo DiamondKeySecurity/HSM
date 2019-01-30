@@ -254,7 +254,7 @@ class RPCPreprocessor:
     def handle_enable_cache_keygen(self, code, client, unpacker, session):
         """Special DKS RPC to enable caching of generated keys"""
         logger.info("RPC code received %s, handle 0x%x",  DKS_RPCFunc.RPC_FUNC_ENABLE_CACHE_KEYGEN.name, client)
-        print 'caching enabled'
+        print ('caching enabled')
 
         session.cache_generated_keys = True
 
@@ -275,7 +275,7 @@ class RPCPreprocessor:
     def handle_disable_cache_keygen(self, code, client, unpacker, session):
         """Special DKS RPC to enable caching of generated keys"""
         logger.info("RPC code received %s, handle 0x%x",  DKS_RPCFunc.RPC_FUNC_DISABLE_CACHE_KEYGEN.name, client)
-        print 'caching disabled'
+        print ('caching disabled')
 
         session.cache_generated_keys = False
 
