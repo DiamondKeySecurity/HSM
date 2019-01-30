@@ -75,6 +75,6 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    settings = Settings(args.settings)
+    settings = Settings(args.settings, load_only = True)
 
     IPConfig(args.netiface, settings).do_ipconfig()

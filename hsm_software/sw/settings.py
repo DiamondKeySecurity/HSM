@@ -7,7 +7,7 @@ import json
 
 from enum import Enum
 
-HSM_SOFTWARE_VERSION = '19.01.29.tamper12'
+HSM_SOFTWARE_VERSION = '19.01.30.tamper14'
 
 # this is the version of the firmware that's built into the current release
 BUILTIN_FIRMWARE_VERSION = '2018-09-06'
@@ -46,7 +46,7 @@ HARDWARE_MAPPING = {
 }
 
 class Settings(object):
-    def __init__(self, settings_file, gpio_available, safe_shutdown):
+    def __init__(self, settings_file, gpio_available = None, safe_shutdown = None, load_only = False):
         self.settings_file = settings_file
 
         try:
@@ -55,17 +55,21 @@ class Settings(object):
         except IOError:
             self.add_default_settings()
 
+        if (load_only):
+            return
+
         if (HSMSettings.BUILTIN_FIRMWARE_VERSION not in self.dictionary):
             self.add_default_hardware_settings()
 
         if (HSMSettings.MASTERKEY_SET not in self.dictionary):
             self.add_default_master_key_settings()
 
-        if (not gpio_available):
-            self.set_setting(HSMSettings.GPIO_LEDS, False)
-            self.set_setting(HSMSettings.GPIO_TAMPER, False)
-        else:
-            self.init_gpio()
+        if (gpio_available is not None):
+            if (not gpio_available):
+                self.set_setting(HSMSettings.GPIO_LEDS, False)
+                self.set_setting(HSMSettings.GPIO_TAMPER, False)
+            else:
+                self.init_gpio()
 
         self.check_master_key_settings()
 
@@ -76,8 +80,9 @@ class Settings(object):
         atexit.register(self.save_settings)
 
         # make sure we shutdown correctly
-        safe_shutdown.addOnShutdown(self.save_settings)
-        safe_shutdown.addOnRestartOnly(self.on_restart)
+        if(safe_shutdown is not None):
+            safe_shutdown.addOnShutdown(self.save_settings)
+            safe_shutdown.addOnRestartOnly(self.on_restart)
 
     def get_setting(self, name):
         try:
@@ -181,7 +186,7 @@ class Settings(object):
     def init_gpio(self):
         try:
             import RPi.GPIO as GPIO
-            
+
             GPIO.setmode(GPIO.BCM)
         except:
             self.set_setting(HSMSettings.GPIO_LEDS, False)
