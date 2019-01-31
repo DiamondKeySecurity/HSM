@@ -35,7 +35,7 @@ from hsm_tools.threadsafevar import ThreadSafeVariable
 
 class DiamondHSMConsole(console_interface.ConsoleInterface):
     def __init__(self, args, cty_list, rpc_preprocessor, synchronizer, cache,
-                 netiface, settings, safe_shutdown, led, tamper):
+                 netiface, settings, safe_shutdown, led, tamper, gpio_tamper_setter):
         self.args = args
         self.cty_conn = CTYConnection(cty_list, args.binaries,
                                       self.quick_write)
@@ -53,6 +53,7 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
         self.tamper = tamper
         self.tamper_event_detected = ThreadSafeVariable(False)
         self.console_locked = False
+        self.gpio_tamper_setter = gpio_tamper_setter
 
         super(DiamondHSMConsole, self).__init__('Diamond HSM')
 
@@ -71,6 +72,8 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
             self.add_sync_commands()
             self.add_update_commands()
             self.add_tamper_commands()
+            if (self.gpio_tamper_setter is not None):
+                self.add_gpio_tamper_commands()
 
         self.add_show_commands()
         self.add_shutdown_commands()
@@ -250,6 +253,35 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
                 self.console_locked = True
         else:
             self.readCTYUserData(data)
+
+    def add_gpio_tamper_commands(self):
+        gpio_tamper_node = self.add_child_tree(['gpio', 'tamper'])
+
+        gpio_tamper_node.add_child_tree(['disable', 'tamper',
+                                         'masterkey', 'connection'],
+                                        num_args=0,
+                                        usage=(' - Stop the masterkey from'
+                                               ' being erased during a'
+                                               ' tamper event'),
+                                        callback=self.dks_gpio_disable_tamper)
+
+        gpio_tamper_node.add_child_tree(['enable', 'tamper',
+                                         'masterkey', 'connection'],
+                                        num_args=0,
+                                        usage=(' - Allow the masterkey to be'
+                                               ' erased during a'
+                                               ' tamper event'),
+                                        callback=self.dks_gpio_enable_tamper)
+
+    def dks_gpio_enable_tamper(self, args):
+        self.gpio_tamper_setter.enable_tamper()
+
+        return "Tamper connection to master key memory enabled."
+
+    def dks_gpio_disable_tamper(self, args):
+        self.gpio_tamper_setter.disable_tamper()
+
+        return "Tamper connection to master key memory disabled."
 
     def add_tamper_commands(self):
         tamper_node = self.add_child('tamper')

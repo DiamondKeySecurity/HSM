@@ -232,6 +232,16 @@ def main():
     if(led_container is not None):
         tamper.add_observer(led_container.on_tamper_notify)
 
+    # does this HSM support GPIO tamper?
+    gpio_tamper_setter = None
+    if(settings.get_setting(HSMSettings.GPIO_TAMPER)):
+        try:
+            import tampersetter_gpio
+            gpio_tamper_setter = tampersetter_gpio.tampersetter_gpio()
+        except Exception:
+            pass
+        
+
     # Make sure the certs exist ----------------------
     HSMSecurity().create_certs_if_not_exist(private_key_name=args.keyfile,
                                             certificate_name=args.certfile)
@@ -338,7 +348,7 @@ def main():
     cty_stream = DiamondHSMConsole(args, cty_list, rpc_preprocessor,
                                    synchronizer, cache, netiface,
                                    settings, safe_shutdown, led_container,
-                                   tamper)
+                                   tamper, gpio_tamper_setter)
 
     # Listen for incoming TCP/IP connections from remove cryptech.muxd_client
     cty_server = CTYTCPServer(cty_stream, port=CTY_IP_PORT, ssl=ssl_options)
