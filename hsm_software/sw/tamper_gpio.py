@@ -5,6 +5,8 @@
 import RPi.GPIO as GPIO
 
 from hsm_tools.observerable import observable
+from hsm_tools.stoppable_thread import stoppable_thread
+import time
 
 class Tamper_GPIO(observable):
     def __init__(self):

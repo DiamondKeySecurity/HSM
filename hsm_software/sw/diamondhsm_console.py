@@ -295,6 +295,24 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
                               ' will fail during an ongoing tamper event.',
                               callback=self.dks_tamper_reset)
 
+        # add parent nodes
+        threshold_node = tamper_node.add_child('threshold')
+        threshold_set_node = threshold_node.add_child('set')
+
+        # add thresholds
+        threshold_set_node.add_child('temperature', num_args=0, callback=self.dks_tamper_threshold_set_temp)
+        threshold_set_node.add_child('accel', num_args=0, callback=self.dks_tamper_threshold_set_accel)
+        threshold_set_node.add_child('light', num_args=0, callback=self.dks_tamper_threshold_set_light)
+
+    def dks_tamper_threshold_set_light(self, args):
+        return self.cty_conn.set_tamper_threshold_light(0)
+
+    def dks_tamper_threshold_set_temp(self, args):
+        return self.cty_conn.set_tamper_threshold_temperature(0, 0)
+
+    def dks_tamper_threshold_set_accel(self, args):
+        return self.cty_conn.set_tamper_threshold_accel(0)
+
     def dks_tamper_test(self, args):
         self.tamper.on_tamper(None)
 

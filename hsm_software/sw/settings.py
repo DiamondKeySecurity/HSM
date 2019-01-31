@@ -7,10 +7,10 @@ import json
 
 from enum import Enum
 
-HSM_SOFTWARE_VERSION = '19.01.30.tamper15'
+HSM_SOFTWARE_VERSION = '19.01.31.tamper20'
 
 # this is the version of the firmware that's built into the current release
-BUILTIN_FIRMWARE_VERSION = '2018-09-06'
+BUILTIN_FIRMWARE_VERSION = '2019-01-31v2'
 BUILTIN_TAMPER_VERSION = None
 
 RPC_IP_PORT = 8080

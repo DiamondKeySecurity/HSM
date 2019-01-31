@@ -75,6 +75,36 @@ class CTYConnection(object):
         if (self.feedback_function is not None):
             self.feedback_function(message)
 
+    def send_raw(self, cmd, delay):
+        response = '\r\n'
+
+        for i in xrange(0, len(self.cty_list)):
+            with WaitFeedback.Start(self.feedback):
+                management_port_serial = self.cty_list[i].serial
+
+                management_port_serial.write(cmd)
+
+                time.sleep(delay)
+
+                response = '%s\r\n%s'%(response, management_port_serial.read())
+
+        return response
+
+    def set_tamper_threshold_light(self, value):
+        cmd = 'tamper threshold set light\r'
+
+        return self.send_raw(cmd, 5)
+
+    def set_tamper_threshold_temperature(self, lo_value, hi_value):
+        cmd = 'tamper threshold set temperature\r'
+
+        return self.send_raw(cmd, 5)
+
+    def set_tamper_threshold_accel(self, value):
+        cmd = 'tamper threshold set accel\r'
+
+        return self.send_raw(cmd, 5)
+
     def login(self, PIN):
         # make sure we're actually connected to an alpha
         if(not self.is_cty_connected()): return CTYError.CTY_NOT_CONNECTED
