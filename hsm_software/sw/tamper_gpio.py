@@ -30,7 +30,7 @@ class Tamper_GPIO(observable):
         tamper_detected = False
 
         for pin in self.tamper_pins:
-            tamper_detected = tamper_detected or GPIO.input(pin)
+            tamper_detected = tamper_detected or (not GPIO.input(pin))
 
         if (tamper_detected):
             self.notify()

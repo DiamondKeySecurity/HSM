@@ -257,29 +257,25 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
     def add_gpio_tamper_commands(self):
         gpio_tamper_node = self.add_child_tree(['gpio', 'tamper'])
 
-        gpio_tamper_node.add_child_tree(['disable', 'tamper',
-                                         'masterkey', 'connection'],
-                                        num_args=0,
-                                        usage=(' - Stop the masterkey from'
-                                               ' being erased during a'
-                                               ' tamper event'),
-                                        callback=self.dks_gpio_disable_tamper)
+        gpio_tamper_node.add_child('tamper',
+                                   num_args=0,
+                                   usage=(' - Disable GPIO checking'
+                                          ' tamper events.'),
+                                   callback=self.dks_gpio_disable_tamper)
 
-        gpio_tamper_node.add_child_tree(['enable', 'tamper',
-                                         'masterkey', 'connection'],
+        gpio_tamper_node.add_child_tree(['reset', 'masterkey', 'connection'],
                                         num_args=0,
-                                        usage=(' - Allow the masterkey to be'
-                                               ' erased during a'
+                                        usage=(' - Reset tamper after a'
                                                ' tamper event'),
-                                        callback=self.dks_gpio_enable_tamper)
+                                        callback=self.dks_gpio_reset_tamper)
 
-    def dks_gpio_enable_tamper(self, args):
+    def dks_gpio_reset_tamper(self, args):
         self.gpio_tamper_setter.enable_tamper()
 
         return "Tamper connection to master key memory enabled."
 
     def dks_gpio_disable_tamper(self, args):
-        self.gpio_tamper_setter.disable_tamper()
+        self.tamper.stop()
 
         return "Tamper connection to master key memory disabled."
 

@@ -238,9 +238,9 @@ def main():
         try:
             import tampersetter_gpio
             gpio_tamper_setter = tampersetter_gpio.tampersetter_gpio()
-        except Exception:
+        except Exception as e:
+            print 'GPIO Exception %s'%e.message
             pass
-        
 
     # Make sure the certs exist ----------------------
     HSMSecurity().create_certs_if_not_exist(private_key_name=args.keyfile,
