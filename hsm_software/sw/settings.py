@@ -7,10 +7,10 @@ import json
 
 from enum import Enum
 
-HSM_SOFTWARE_VERSION = '19.02.01.tamper23'
+HSM_SOFTWARE_VERSION = '19.02.01.tamper24'
 
 # this is the version of the firmware that's built into the current release
-BUILTIN_FIRMWARE_VERSION = '2019-01-31v2'
+BUILTIN_FIRMWARE_VERSION = '2019-02-01v2'
 BUILTIN_TAMPER_VERSION = None
 
 RPC_IP_PORT = 8080
@@ -30,7 +30,7 @@ class HSMSettings(str, Enum):
     GPIO_TAMPER              = 'GPIO_TAMPER'
     GPIO_LEDS                = 'GPIO_LEDS'
     DATAPORT_TAMPER          = 'DATAPORT_TAMPER'
-    MGMGPORT_TAMPER          = 'MGMGPORT_TAMPER'
+    MGMTPORT_TAMPER          = 'MGMTPORT_TAMPER'
     FIRMWARE_OUT_OF_DATE     = 'FIRMWARE_OUT_OF_DATE'
     MASTERKEY_SET            = 'MASTERKEY_SET'
     HSM_RESET_NORMALLY       = 'HSM_RESET_NORMALLY'
@@ -39,10 +39,10 @@ class HSMSettings(str, Enum):
 HARDWARE_MAPPING = {
     HSMSettings.BUILTIN_FIRMWARE_VERSION : BUILTIN_FIRMWARE_VERSION,
     HSMSettings.BUILTIN_TAMPER_VERSION   : BUILTIN_TAMPER_VERSION,
-    HSMSettings.GPIO_TAMPER              : True,
+    HSMSettings.GPIO_TAMPER              : False,
     HSMSettings.GPIO_LEDS                : True,
-    HSMSettings.DATAPORT_TAMPER          : False,
-    HSMSettings.MGMGPORT_TAMPER          : False
+    HSMSettings.DATAPORT_TAMPER          : True,
+    HSMSettings.MGMTPORT_TAMPER          : True
 }
 
 class Settings(object):
@@ -72,6 +72,8 @@ class Settings(object):
                 self.init_gpio()
 
         self.check_master_key_settings()
+
+        self.check_hardware_settings()
 
         # save any adjustments that we may have made
         self.save_settings()
@@ -130,7 +132,7 @@ class Settings(object):
         self.dictionary[HSMSettings.DATAPORT_TAMPER] = False
 
         # the original prototypes could not request tamper status using an RPC
-        self.dictionary[HSMSettings.MGMGPORT_TAMPER] = False
+        self.dictionary[HSMSettings.MGMTPORT_TAMPER] = False
 
     def check_master_key_settings(self):
         # if we're starting up and not because of a normal reset, assume the masterkey has been lost

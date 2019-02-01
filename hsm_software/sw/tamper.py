@@ -16,10 +16,10 @@ class TamperDetector(observable):
 
         self.tamper_event_detected = ThreadSafeVariable(False)
 
-        if (settings.get_setting(HSMSettings.GPIO_TAMPER)):
-            self.detector = TamperDetector.get_gpio_detector()
-        elif (settings.get_setting(HSMSettings.MGMGPORT_TAMPER)):
+        if (settings.get_setting(HSMSettings.MGMTPORT_TAMPER)):
             self.detector = TamperDetector.get_rpc_detector()
+        elif (settings.get_setting(HSMSettings.GPIO_TAMPER)):
+            self.detector = TamperDetector.get_gpio_detector()
         else:
             self.detector = TamperDetector.get_test_detector()
 
