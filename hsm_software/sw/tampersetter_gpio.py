@@ -11,7 +11,7 @@ class tampersetter_gpio(object):
 
         # initialize
         for pin in self.tamper_pins:
-            GPIO.setup(pin, GPIO.OUT, GPIO.LOW)
+            GPIO.setup(pin, GPIO.OUT, initial = GPIO.LOW)
 
     def enable_tamper(self):
         for pin in self.tamper_pins:

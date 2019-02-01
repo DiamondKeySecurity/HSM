@@ -11,6 +11,8 @@ import threading
 
 from hsm_tools.stoppable_thread import stoppable_thread
 
+from hsm_tools.threadsafevar import ThreadSafeVariable
+
 import RPi.GPIO as GPIO
 
 from enum import Enum
@@ -165,68 +167,74 @@ class LEDContainer(object):
     def __init__(self):
         self.tamper_led = LED(red_gpio =  5, green_gpio =  6)
         self.system_led = LED(red_gpio = 26, green_gpio = 19)
-        self.tamper_detected = False
+        self.tamper_detected = ThreadSafeVariable(False)
 
     def led_determine_network_adapter(self):
-        self.system_led.off()
-        self.tamper_led.off()
+        if(self.tamper_detected.value is not True):
+            self.system_led.off()
+            self.tamper_led.off()
 
-        self.system_led.set_yellow()
-        self.tamper_led.set_yellow()
+            self.system_led.set_yellow()
+            self.tamper_led.set_yellow()
 
-        self.system_led.blink()
-        self.tamper_led.on()
+            self.system_led.blink()
+            self.tamper_led.on()
 
 
     def led_probe_for_cryptech(self):
-        self.system_led.off()
-        self.tamper_led.off()
+        if(self.tamper_detected.value is not True):
+            self.system_led.off()
+            self.tamper_led.off()
 
-        self.system_led.set_yellow()
-        self.tamper_led.set_yellow()
+            self.system_led.set_yellow()
+            self.tamper_led.set_yellow()
 
-        self.system_led.blink()
-        self.tamper_led.blink()
+            self.system_led.blink()
+            self.tamper_led.blink()
 
     def led_start_tcp_servers(self):
-        self.system_led.off()
-        self.tamper_led.off()
+        if(self.tamper_detected.value is not True):
+            self.system_led.off()
+            self.tamper_led.off()
 
-        self.system_led.set_green()
-        self.tamper_led.set_green()
+            self.system_led.set_green()
+            self.tamper_led.set_green()
 
-        self.system_led.blink()
-        self.tamper_led.blink()
+            self.system_led.blink()
+            self.tamper_led.blink()
 
     def led_ready(self):
-        self.system_led.off()
-        self.tamper_led.off()
+        if(self.tamper_detected.value is not True):
+            self.system_led.off()
+            self.tamper_led.off()
 
-        self.system_led.set_green()
-        self.tamper_led.set_green()
+            self.system_led.set_green()
+            self.tamper_led.set_green()
 
-        self.system_led.on()
-        self.tamper_led.on()
+            self.system_led.on()
+            self.tamper_led.on()
 
     def led_error_cryptech_failure(self):
-        self.system_led.off()
-        self.tamper_led.off()
+        if(self.tamper_detected.value is not True):
+            self.system_led.off()
+            self.tamper_led.off()
 
-        self.system_led.set_red()
-        self.tamper_led.set_yellow()
+            self.system_led.set_red()
+            self.tamper_led.set_yellow()
 
-        self.system_led.blink()
-        self.tamper_led.on()
+            self.system_led.blink()
+            self.tamper_led.on()
 
     def led_error_cryptech_partial_failure(self):
-        self.system_led.off()
-        self.tamper_led.off()
+        if(self.tamper_detected.value is not True):
+            self.system_led.off()
+            self.tamper_led.off()
 
-        self.system_led.set_yellow()
-        self.tamper_led.set_green()
+            self.system_led.set_yellow()
+            self.tamper_led.set_green()
 
-        self.system_led.blink()
-        self.tamper_led.on()
+            self.system_led.blink()
+            self.tamper_led.on()
 
     def led_error_tamper(self):
         self.system_led.off()
@@ -240,10 +248,10 @@ class LEDContainer(object):
 
     def on_tamper_notify(self, tamper_object):
         print 'LED GOT A TAMPER'        
-        if(self.tamper_detected != tamper_object.get_tamper_state()):
-            self.tamper_detected = tamper_object.get_tamper_state()
+        if(self.tamper_detected.value != tamper_object.get_tamper_state()):
+            self.tamper_detected.value = tamper_object.get_tamper_state()
 
-            if(self.tamper_detected):
+            if(self.tamper_detected.value):
                 self.led_error_tamper()
             else:
                 self.led_probe_for_cryptech()
