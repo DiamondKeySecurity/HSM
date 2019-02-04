@@ -87,7 +87,7 @@ class MuxSession:
 
 class RPCPreprocessor:
     """Able to load balance between multiple rpcs"""
-    def __init__(self, rpc_list, cache, settings, netiface, tamper):
+    def __init__(self, rpc_list, cache, settings, netiface):
         self.cache = cache
         self.settings = settings
         self.rpc_list = rpc_list
@@ -103,10 +103,7 @@ class RPCPreprocessor:
         self.netiface = netiface
         self.hsm_locked = True
         self.debug = False
-        self.tamper = tamper
         self.tamper_detected = ThreadSafeVariable(False)
-
-        tamper.add_observer(self.on_tamper_event)
 
     def device_count(self):
         return len(self.rpc_list)
@@ -222,7 +219,7 @@ class RPCPreprocessor:
         session.current_request = decoded_request
 
         # check to see if there's an ongoing tamper event
-        if (self.tamper.get_tamper_state() and session.from_ethernet):
+        if (self.tamper_detected.value and session.from_ethernet):
             return self.create_error_response(code, client,
                                               DKS_HALError.HAL_ERROR_TAMPER)
 

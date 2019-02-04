@@ -39,7 +39,6 @@ class HSMSettings(str, Enum):
 HARDWARE_MAPPING = {
     HSMSettings.BUILTIN_FIRMWARE_VERSION : BUILTIN_FIRMWARE_VERSION,
     HSMSettings.BUILTIN_TAMPER_VERSION   : BUILTIN_TAMPER_VERSION,
-    HSMSettings.GPIO_TAMPER              : False,
     HSMSettings.GPIO_LEDS                : True,
     HSMSettings.DATAPORT_TAMPER          : True,
     HSMSettings.MGMTPORT_TAMPER          : True
@@ -64,16 +63,16 @@ class Settings(object):
         if (HSMSettings.MASTERKEY_SET not in self.dictionary):
             self.add_default_master_key_settings()
 
+        self.check_master_key_settings()
+
+        self.check_hardware_settings()
+
         if (gpio_available is not None):
             if (not gpio_available):
                 self.set_setting(HSMSettings.GPIO_LEDS, False)
                 self.set_setting(HSMSettings.GPIO_TAMPER, False)
             else:
-                self.init_gpio()
-
-        self.check_master_key_settings()
-
-        self.check_hardware_settings()
+                self.init_gpio()        
 
         # save any adjustments that we may have made
         self.save_settings()

@@ -95,6 +95,7 @@ def register_zeroconf(ip_addr, serial):
 
 synchronizer = None
 safe_shutdown = None
+tamper = None
 
 
 def start_leds(use_leds):
@@ -213,6 +214,7 @@ def main():
 
     # safe shutdown ----------------------------------
     global safe_shutdown
+    global tamper
     safe_shutdown = SafeShutdown()
 
     # Settings ---------------------------------------
@@ -220,27 +222,9 @@ def main():
                         gpio_available=args.gpio_available,
                         safe_shutdown=safe_shutdown)
 
+
     # LEDs -------------------------------------------
     led_container = start_leds(settings.get_setting(HSMSettings.GPIO_LEDS))
-
-    # Tamper -----------------------------------------
-    # initialize the tamper system
-    tamper = TamperDetector(settings)
-
-    safe_shutdown.addOnShutdown(tamper.stop)
-
-    if(led_container is not None):
-        tamper.add_observer(led_container.on_tamper_notify)
-
-    # does this HSM support GPIO tamper?
-    gpio_tamper_setter = None
-    if(settings.get_setting(HSMSettings.GPIO_TAMPER)):
-        try:
-            import tampersetter_gpio
-            gpio_tamper_setter = tampersetter_gpio.tampersetter_gpio()
-        except Exception as e:
-            print 'GPIO Exception %s'%e.message
-            pass
 
     # Make sure the certs exist ----------------------
     HSMSecurity().create_certs_if_not_exist(private_key_name=args.keyfile,
@@ -323,8 +307,7 @@ def main():
     safe_shutdown.addOnShutdown(cache.backup)
 
     # start the load balancer
-    rpc_preprocessor = RPCPreprocessor(rpc_list, cache, settings, netiface,
-                                       tamper)
+    rpc_preprocessor = RPCPreprocessor(rpc_list, cache, settings, netiface)
     # Listen for incoming TCP/IP connections from remove cryptech.muxd_client
     rpc_server = RPCTCPServer(rpc_preprocessor, RPC_IP_PORT, ssl_options)
     # set the futures for all of our devices
@@ -337,6 +320,7 @@ def main():
 
     # only start synchronizer if we have connected RPC and CTYs
     if(len(cty_list) > 0 and len(rpc_list) > 0):
+        # Synchronizer -----------------------------------
         # connect to the secondary socket for mirroring
         global synchronizer
         synchronizer = Synchronizer(args.rpc_socket, cache)
@@ -344,11 +328,27 @@ def main():
         # start the mirrorer
         synchronizer.append_future(futures)
 
+        # Tamper -----------------------------------------
+        # initialize the tamper system
+        if(settings.get_setting(HSMSettings.DATAPORT_TAMPER)):
+            tamper = TamperDetector(args.rpc_socket, len(rpc_list))
+
+            safe_shutdown.addOnShutdown(tamper.stop)
+
+            if(led_container is not None):
+                tamper.add_observer(led_container.on_tamper_notify)
+
+            if (rpc_preprocessor is not None):
+                tamper.add_observer(rpc_preprocessor.on_tamper_event)
+
+            # start the listener
+            tamper.append_future(futures)
+
     # start the console
     cty_stream = DiamondHSMConsole(args, cty_list, rpc_preprocessor,
                                    synchronizer, cache, netiface,
                                    settings, safe_shutdown, led_container,
-                                   tamper, gpio_tamper_setter)
+                                   tamper)
 
     # Listen for incoming TCP/IP connections from remove cryptech.muxd_client
     cty_server = CTYTCPServer(cty_stream, port=CTY_IP_PORT, ssl=ssl_options)
@@ -401,6 +401,8 @@ if __name__ == "__main__":
     except (SystemExit, KeyboardInterrupt):
         if(synchronizer is not None):
             synchronizer.stop()
+        if(tamper is not None):
+            tamper.stop()
         if (safe_shutdown is not None):
             safe_shutdown.prepareForShutdown()
     except Exception:
