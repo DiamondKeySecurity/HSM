@@ -929,4 +929,4 @@ class RPCPreprocessor:
         self.function_table[DKS_RPCFunc.RPC_FUNC_SET_RPC_DEVICE] = self.handle_set_rpc
         self.function_table[DKS_RPCFunc.RPC_FUNC_ENABLE_CACHE_KEYGEN] = self.handle_enable_cache_keygen
         self.function_table[DKS_RPCFunc.RPC_FUNC_DISABLE_CACHE_KEYGEN] = self.handle_disable_cache_keygen
-        
+        self.function_table[DKS_RPCFunc.RPC_FUNC_CHECK_TAMPER] = self.handle_rpc_usecurrent

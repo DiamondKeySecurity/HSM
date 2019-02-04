@@ -8,6 +8,7 @@ from hsm_tools.threadsafevar import ThreadSafeVariable
 from hsm_tools.observerable import observable
 from hsm_tools.stoppable_thread import stoppable_thread
 from hsm_tools.hsm import PFUNIX_HSM
+from hsm_tools.cryptech_port import DKS_HALError
 
 import time
 
@@ -21,15 +22,13 @@ class TamperDetector(observable, PFUNIX_HSM):
         self.rpc_count = rpc_count
 
         print('tamper rpc')
-        self.count = 0
 
     def dowork(self, hsm):
-        # after 2 minutes yell tamper
-        time.sleep(1)
-        self.count += 1
-        if(self.count > 60):
-            self.count = 0
-            self.on_tamper()
+        for rpc_index in xrange(self.rpc_count):
+            hsm.rpc_set_device(rpc_index)
+            if (hsm.rpc_check_tamper() == DKS_HALError.HAL_ERROR_TAMPER):
+                self.on_tamper()
+                return
 
     def stop(self):
         PFUNIX_HSM.stop(self)
