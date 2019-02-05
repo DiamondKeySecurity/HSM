@@ -78,6 +78,8 @@ class CTYConnection(object):
     def send_raw(self, cmd, delay):
         response = '\r\n'
 
+        print cmd
+
         for i in xrange(0, len(self.cty_list)):
             with WaitFeedback.Start(self.feedback):
                 management_port_serial = self.cty_list[i].serial
@@ -91,17 +93,17 @@ class CTYConnection(object):
         return response
 
     def set_tamper_threshold_light(self, value):
-        cmd = 'tamper threshold set light\r'
+        cmd = 'tamper threshold set light %f\r'%(value)
 
         return self.send_raw(cmd, 5)
 
     def set_tamper_threshold_temperature(self, lo_value, hi_value):
-        cmd = 'tamper threshold set temperature\r'
+        cmd = 'tamper threshold set temperature %f %f\r'%(lo_value, hi_value)
 
         return self.send_raw(cmd, 5)
 
     def set_tamper_threshold_accel(self, value):
-        cmd = 'tamper threshold set accel\r'
+        cmd = 'tamper threshold set accel %f\r'%(value)
 
         return self.send_raw(cmd, 5)
 

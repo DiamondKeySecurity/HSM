@@ -269,18 +269,70 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
         threshold_set_node = threshold_node.add_child('set')
 
         # add thresholds
-        threshold_set_node.add_child('temperature', num_args=0, callback=self.dks_tamper_threshold_set_temp)
-        threshold_set_node.add_child('accel', num_args=0, callback=self.dks_tamper_threshold_set_accel)
-        threshold_set_node.add_child('light', num_args=0, callback=self.dks_tamper_threshold_set_light)
+        threshold_set_node.add_child('temperature', num_args=2, callback=self.dks_tamper_threshold_set_temp)
+        threshold_set_node.add_child('accel', num_args=1, callback=self.dks_tamper_threshold_set_accel)
+        threshold_set_node.add_child('light', num_args=1, callback=self.dks_tamper_threshold_set_light)
+
+    def CheckValue(self, value, name, lo_value, hi_value):
+        try:
+            result = float(value)
+        except ValueError:
+            return 'Error: %s entered is not a number'%name
+
+        if (result < lo_value):
+            return 'Error: %s entered is lower than the minimum value of %f'%(name, lo_value)
+
+        if (result > hi_value):
+            return 'Error: %s entered is greater than the maximum value of %f'%(name, hi_value)
+
+        return result
 
     def dks_tamper_threshold_set_light(self, args):
-        return self.cty_conn.set_tamper_threshold_light(0)
+        MIN_LIGHT_VALUE = 0.0
+        MAX_LIGHT_VALUE = 1.0
+
+        light_value = self.CheckValue(args[0], 
+                                      'Light threshold',
+                                      MIN_LIGHT_VALUE,
+                                      MAX_LIGHT_VALUE)
+        if(isinstance(light_value, (int, float)) is False):
+            return light_value
+
+        return self.cty_conn.set_tamper_threshold_light(light_value)
 
     def dks_tamper_threshold_set_temp(self, args):
-        return self.cty_conn.set_tamper_threshold_temperature(0, 0)
+        MIN_TEMPERATURE_VALUE = 0.0
+        MAX_TEMPERATURE_VALUE = 42.0
+
+        lo_temp_value = self.CheckValue(args[0], 
+                                        'Low temperature threshold',
+                                        MIN_TEMPERATURE_VALUE,
+                                        MAX_TEMPERATURE_VALUE)
+        if(isinstance(lo_temp_value, (int, float)) is False):
+            return lo_temp_value
+
+        hi_temp_value = self.CheckValue(args[1], 
+                                        'High temperature threshold',
+                                        MIN_TEMPERATURE_VALUE,
+                                        MAX_TEMPERATURE_VALUE)
+        if(isinstance(hi_temp_value, (int, float)) is False):
+            return hi_temp_value
+
+        return self.cty_conn.set_tamper_threshold_temperature(lo_temp_value,
+                                                              hi_temp_value)
 
     def dks_tamper_threshold_set_accel(self, args):
-        return self.cty_conn.set_tamper_threshold_accel(0)
+        MIN_ACCEL_VALUE = 0.0
+        MAX_ACCEL_VALUE = 1.0
+
+        accel_value = self.CheckValue(args[0],
+                                      'Accelerometer threshold',
+                                      MIN_ACCEL_VALUE,
+                                      MAX_ACCEL_VALUE)
+        if(isinstance(accel_value, (int, float)) is False):
+            return accel_value
+
+        return self.cty_conn.set_tamper_threshold_accel(accel_value)
 
     def dks_tamper_test(self, args):
         self.tamper.on_tamper(None)
