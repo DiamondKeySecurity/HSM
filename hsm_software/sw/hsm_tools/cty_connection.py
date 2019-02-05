@@ -272,8 +272,7 @@ class CTYConnection(object):
         ready_state = self.check_ready()
         if(ready_state is not CTYError.CTY_OK): return ready_state
 
-        return CTYError.CTY_OK
-        # return self._do_upload(self.binary_path + "/hsm.bin", UploadArgs(firmware = True, pin = PIN))
+        return self._do_upload(self.binary_path + "/tamper.bin", UploadArgs(tamper = True, pin = PIN))
 
     def check_ready(self):
         # make sure we're actually connected to an alpha
@@ -335,6 +334,7 @@ class CTYConnection(object):
                 args.fpga = upload_args.fpga
                 args.firmware = upload_args.firmware
                 args.bootloader = upload_args.bootloader
+                args.tamper = upload_args.tamper
                 args.pin = upload_args.pin
                 self.feedback("Uploading Binary")
                 send_file(src, size, args, dst)

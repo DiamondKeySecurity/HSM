@@ -5,12 +5,16 @@ import os
 
 class SafeShutdown(object):
     """Class to ensure the HSM shuts down correctly"""
-    def __init__(self):
+    def __init__(self, dont_shutdown = False):
         self.callbacks = []
         self.restart_callbacks = []
+        self.dont_shutdown = dont_shutdown
 
     def shutdown(self):        
         self.prepareForShutdown()
+        if (self.dont_shutdown):
+            exit(0)
+
         os.system('sudo shutdown -h now')
 
     def restart(self):  
@@ -20,6 +24,10 @@ class SafeShutdown(object):
 
         # normal shutdown callbacks
         self.prepareForShutdown()
+
+        if (self.dont_shutdown):
+            exit(0)
+
         os.system('sudo reboot')
 
     def prepareForShutdown(self):

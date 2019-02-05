@@ -215,7 +215,7 @@ def main():
     # safe shutdown ----------------------------------
     global safe_shutdown
     global tamper
-    safe_shutdown = SafeShutdown()
+    safe_shutdown = SafeShutdown(dont_shutdown = (args.verbose > 0))
 
     # Settings ---------------------------------------
     settings = Settings(settings_file=args.settings,
