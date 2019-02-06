@@ -399,13 +399,13 @@ class RPCPreprocessor:
 
         return RPCAction(None, [self.rpc_list[session.rpc_index]], None)
 
-    # def handle_rpc_usecurrent(self, code, client, unpacker, session):
-    #     """The manually selected RPC must be used"""
-    #     rpc_index = session.rpc_index
-    #     if(rpc_index < 0):
-    #         rpc_index = session.key_op_data.rpc_index
+    def handle_rpc_usecurrent(self, code, client, unpacker, session):
+        """The manually selected RPC must be used"""
+        rpc_index = session.rpc_index
+        if(rpc_index < 0):
+            rpc_index = session.key_op_data.rpc_index
 
-    #     return RPCAction(None, [self.rpc_list[rpc_index]], None)
+        return RPCAction(None, [self.rpc_list[rpc_index]], None)
 
     def handle_rpc_pkeyexport(self, code, client, unpacker, session):
         # make sure pkey export has been enabled. Always allow from internal non-ethernet sources
