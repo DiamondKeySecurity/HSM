@@ -109,7 +109,7 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
 
     def no_login_msg(self):
         """Override and return a message when login is not available"""
-        return ("\r\n\r\nWarning: No CrypTech devices have been detected. ",
+        return ("\r\n\r\nWarning: No CrypTech devices have been detected. "
                 "Only 'shutdown' is available.")
 
     def get_login_prompt(self):
