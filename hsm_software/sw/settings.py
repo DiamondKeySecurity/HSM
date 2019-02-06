@@ -4,6 +4,7 @@
 
 import atexit
 import json
+import threading
 
 from enum import Enum
 
@@ -21,10 +22,12 @@ class HSMSettings(str, Enum):
     STATICIP_NETMASK = 'STATICIP_NETMASK'
     STATICIP_GATEWAY = 'STATICIP_GATEWAY'
     STATICIP_BROADCAST = 'STATICIP_BROADCAST'
+    ENABLE_KEY_EXPORT = 'ENABLE_KEY_EXPORT'
 
 class Settings(object):
     def __init__(self, settings_file):
         self.settings_file = settings_file
+        self.dict_sync = threading.Lock()
 
         try:
             with open(settings_file, "r") as file:
@@ -32,19 +35,25 @@ class Settings(object):
         except IOError:
             self.add_default_settings()
 
+        self.check_security_settings()
+
+        self.save_settings()
+
         atexit.register(self.save_settings)
 
     def get_setting(self, name):
         try:
-            return self.dictionary[name]
+            with self.dict_sync:
+                return self.dictionary[name]
         except:
             return None
 
     def set_setting(self, name, value):
         try:
-            self.dictionary[name] = value
+            with self.dict_sync:
+                self.dictionary[name] = value
 
-            self.save_settings()
+                self.save_settings()
             return True
         except:
             return False
@@ -52,12 +61,18 @@ class Settings(object):
 
     def add_default_settings(self):
         self.dictionary = {}
-        self.dictionary[HSMSettings.ENABLE_EXPORTABLE_PRIVATE_KEYS] = False
         self.dictionary[HSMSettings.IP_ADDRESS_SETTINGS] = 'DHCP'
         self.dictionary[HSMSettings.STATICIP_IPADDR] = '10.10.10.2'
         self.dictionary[HSMSettings.STATICIP_NETMASK] = '255.255.255.0'
         self.dictionary[HSMSettings.STATICIP_GATEWAY] = '10.10.10.1'
         self.dictionary[HSMSettings.STATICIP_BROADCAST] = '10.10.10.255'
+
+    def check_security_settings(self):
+        if (HSMSettings.ENABLE_EXPORTABLE_PRIVATE_KEYS not in self.dictionary):
+            self.dictionary[HSMSettings.ENABLE_EXPORTABLE_PRIVATE_KEYS] = False
+
+        if (HSMSettings.ENABLE_KEY_EXPORT not in self.dictionary):
+            self.dictionary[HSMSettings.ENABLE_KEY_EXPORT] = False
 
     def save_settings(self):
         try:

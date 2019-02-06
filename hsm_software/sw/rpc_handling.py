@@ -399,7 +399,20 @@ class RPCPreprocessor:
 
         return RPCAction(None, [self.rpc_list[session.rpc_index]], None)
 
-    def handle_rpc_usecurrent(self, code, client, unpacker, session):
+    # def handle_rpc_usecurrent(self, code, client, unpacker, session):
+    #     """The manually selected RPC must be used"""
+    #     rpc_index = session.rpc_index
+    #     if(rpc_index < 0):
+    #         rpc_index = session.key_op_data.rpc_index
+
+    #     return RPCAction(None, [self.rpc_list[rpc_index]], None)
+
+    def handle_rpc_pkeyexport(self, code, client, unpacker, session):
+        # make sure pkey export has been enabled. Always allow from internal non-ethernet sources
+        if (session.from_ethernet and
+            self.settings.get_setting(HSMSettings.ENABLE_KEY_EXPORT) is False):
+           return self.create_error_response(code, client, DKS_HALError.HAL_ERROR_FORBIDDEN)
+
         """The manually selected RPC must be used"""
         rpc_index = session.rpc_index
         if(rpc_index < 0):
@@ -878,7 +891,7 @@ class RPCPreprocessor:
         self.function_table[DKS_RPCFunc.RPC_FUNC_PKEY_MATCH] = self.handle_rpc_pkeymatch
         self.function_table[DKS_RPCFunc.RPC_FUNC_PKEY_SET_ATTRIBUTES] = self.handle_rpc_pkey
         self.function_table[DKS_RPCFunc.RPC_FUNC_PKEY_GET_ATTRIBUTES] = self.handle_rpc_pkey
-        self.function_table[DKS_RPCFunc.RPC_FUNC_PKEY_EXPORT] = self.handle_rpc_usecurrent
+        self.function_table[DKS_RPCFunc.RPC_FUNC_PKEY_EXPORT] = self.handle_rpc_pkeyexport
         self.function_table[DKS_RPCFunc.RPC_FUNC_PKEY_IMPORT] = self.handle_rpc_pkeyimport
         self.function_table[DKS_RPCFunc.RPC_FUNC_PKEY_GENERATE_HASHSIG] = self.handle_rpc_keygen
         self.function_table[DKS_RPCFunc.RPC_FUNC_GET_HSM_STATE] = self.handle_rpc_getdevice_state
