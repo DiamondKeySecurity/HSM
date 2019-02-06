@@ -580,8 +580,6 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
             self.settings.set_setting(setting, False)
             return 'ENABLE_EXPORTABLE_PRIVATE_KEYS set to FALSE'
 
-<<<<<<< HEAD
-=======
     def dks_set_enable_key_export(self, args):
         if(args[0].lower() == 'true'):
             self.settings.set_setting(HSMSettings.ENABLE_KEY_EXPORT, True)
@@ -590,7 +588,6 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
             self.settings.set_setting(HSMSettings.ENABLE_KEY_EXPORT, False)
             return 'ENABLE_KEY_EXPORT set to FALSE'
 
->>>>>>> master
     def add_list_commands(self):
         set_node = self.add_child('list')
 
