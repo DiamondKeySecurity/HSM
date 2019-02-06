@@ -4,10 +4,11 @@
 
 import atexit
 import json
+import threading
 
 from enum import Enum
 
-HSM_SOFTWARE_VERSION = '19.02.06.tamper27'
+HSM_SOFTWARE_VERSION = '19.02.06.tamper28'
 
 # this is the version of the firmware that's built into the current release
 BUILTIN_FIRMWARE_VERSION = '2019-02-06v2'
@@ -34,6 +35,7 @@ class HSMSettings(str, Enum):
     FIRMWARE_OUT_OF_DATE     = 'FIRMWARE_OUT_OF_DATE'
     MASTERKEY_SET            = 'MASTERKEY_SET'
     HSM_RESET_NORMALLY       = 'HSM_RESET_NORMALLY'
+    ENABLE_KEY_EXPORT        = 'ENABLE_KEY_EXPORT'
 
 # Changes to hardware settings to apply after a firmware update
 HARDWARE_MAPPING = {
@@ -47,6 +49,7 @@ HARDWARE_MAPPING = {
 class Settings(object):
     def __init__(self, settings_file, gpio_available = None, safe_shutdown = None, load_only = False):
         self.settings_file = settings_file
+        self.dict_sync = threading.Lock()
 
         try:
             with open(settings_file, "r") as file:
@@ -63,6 +66,8 @@ class Settings(object):
         if (HSMSettings.MASTERKEY_SET not in self.dictionary):
             self.add_default_master_key_settings()
 
+        self.check_security_settings()
+        
         self.check_master_key_settings()
 
         self.check_hardware_settings()
@@ -87,15 +92,17 @@ class Settings(object):
 
     def get_setting(self, name):
         try:
-            return self.dictionary[name]
+            with self.dict_sync:
+                return self.dictionary[name]
         except:
             return None
 
     def set_setting(self, name, value):
         try:
-            self.dictionary[name] = value
+            with self.dict_sync:
+                self.dictionary[name] = value
 
-            self.save_settings()
+                self.save_settings()
             return True
         except:
             return False
@@ -103,7 +110,6 @@ class Settings(object):
 
     def add_default_settings(self):
         self.dictionary = {}
-        self.dictionary[HSMSettings.ENABLE_EXPORTABLE_PRIVATE_KEYS] = False
         self.dictionary[HSMSettings.IP_ADDRESS_SETTINGS] = 'DHCP'
         self.dictionary[HSMSettings.STATICIP_IPADDR] = '10.10.10.2'
         self.dictionary[HSMSettings.STATICIP_NETMASK] = '255.255.255.0'
@@ -192,6 +198,12 @@ class Settings(object):
         except:
             self.set_setting(HSMSettings.GPIO_LEDS, False)
             self.set_setting(HSMSettings.GPIO_TAMPER, False)
+    def check_security_settings(self):
+        if (HSMSettings.ENABLE_EXPORTABLE_PRIVATE_KEYS not in self.dictionary):
+            self.dictionary[HSMSettings.ENABLE_EXPORTABLE_PRIVATE_KEYS] = False
+
+        if (HSMSettings.ENABLE_KEY_EXPORT not in self.dictionary):
+            self.dictionary[HSMSettings.ENABLE_KEY_EXPORT] = False
 
     def save_settings(self):
         try:

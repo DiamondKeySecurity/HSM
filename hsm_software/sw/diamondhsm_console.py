@@ -485,6 +485,9 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
         set_node.add_child(name="ENABLE_EXPORTABLE_PRIVATE_KEYS",
                            num_args=1, usage="<'true' or 'false'>",
                            callback=self.dks_set_enable_exportable_privatekeys)
+        set_node.add_child(name = "ENABLE_KEY_EXPORT",
+                           num_args=1, usage="<'true' or 'false'>",
+                           callback=self.dks_set_enable_key_export)
 
     def dks_set_rpc(self, args):
         # make sure a rpc has been connected
@@ -577,6 +580,17 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
             self.settings.set_setting(setting, False)
             return 'ENABLE_EXPORTABLE_PRIVATE_KEYS set to FALSE'
 
+<<<<<<< HEAD
+=======
+    def dks_set_enable_key_export(self, args):
+        if(args[0].lower() == 'true'):
+            self.settings.set_setting(HSMSettings.ENABLE_KEY_EXPORT, True)
+            return 'ENABLE_KEY_EXPORT set to TRUE'
+        elif(args[0].lower() == 'false'):
+            self.settings.set_setting(HSMSettings.ENABLE_KEY_EXPORT, False)
+            return 'ENABLE_KEY_EXPORT set to FALSE'
+
+>>>>>>> master
     def add_list_commands(self):
         set_node = self.add_child('list')
 
