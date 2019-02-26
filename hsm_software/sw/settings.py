@@ -8,7 +8,7 @@ import threading
 
 from enum import Enum
 
-HSM_SOFTWARE_VERSION = '19.02.06.tamper28'
+HSM_SOFTWARE_VERSION = '19.02.26.tamper29'
 
 # this is the version of the firmware that's built into the current release
 BUILTIN_FIRMWARE_VERSION = '2019-02-06v2'
@@ -36,6 +36,15 @@ class HSMSettings(str, Enum):
     MASTERKEY_SET            = 'MASTERKEY_SET'
     HSM_RESET_NORMALLY       = 'HSM_RESET_NORMALLY'
     ENABLE_KEY_EXPORT        = 'ENABLE_KEY_EXPORT'
+    ZERO_CONFIG_ENABLED      = 'ZERO_CONFIG_ENABLED'
+    # for these firwall settings
+    # - True or None = accept all on port
+    # - False        = block all on port
+    # - tuple        = acceptable IP range
+    # - list         = list of acceptable IP address
+    DATA_FIREWALL_SETTINGS   = 'DATA_FIREWALL_SETTINGS'
+    MGMT_FIREWALL_SETTINGS   = 'MGMT_FIREWALL_SETTINGS'
+    WEB_FIREWALL_SETTINGS    = 'WEB_FIREWALL_SETTINGS'
 
 # Changes to hardware settings to apply after a firmware update
 HARDWARE_MAPPING = {
@@ -55,29 +64,29 @@ class Settings(object):
             with open(settings_file, "r") as file:
                 self.dictionary = json.load(file)
         except IOError:
-            self.add_default_settings()
+            self.__add_default_settings()
 
         if (load_only):
             return
 
         if (HSMSettings.BUILTIN_FIRMWARE_VERSION not in self.dictionary):
-            self.add_default_hardware_settings()
+            self.__add_default_hardware_settings()
 
         if (HSMSettings.MASTERKEY_SET not in self.dictionary):
-            self.add_default_master_key_settings()
+            self.__add_default_master_key_settings()
 
-        self.check_security_settings()
-        
-        self.check_master_key_settings()
+        self.__check_master_key_settings()
 
-        self.check_hardware_settings()
+        self.__check_security_settings()
+
+        self.__check_hardware_settings()
 
         if (gpio_available is not None):
             if (not gpio_available):
                 self.set_setting(HSMSettings.GPIO_LEDS, False)
                 self.set_setting(HSMSettings.GPIO_TAMPER, False)
             else:
-                self.init_gpio()        
+                self.__init_gpio()
 
         # save any adjustments that we may have made
         self.save_settings()
@@ -107,8 +116,37 @@ class Settings(object):
         except:
             return False
 
+    def hardware_firmware_match(self):
+        return self.get_setting(HSMSettings.BUILTIN_FIRMWARE_VERSION) == BUILTIN_FIRMWARE_VERSION
 
-    def add_default_settings(self):
+    def hardware_tamper_match(self):
+        if (BUILTIN_TAMPER_VERSION is None):
+            # we can't update if this version doesn't support tamper firmware
+            return True
+
+        return self.get_setting(HSMSettings.BUILTIN_TAMPER_VERSION) == BUILTIN_TAMPER_VERSION
+
+    def on_restart(self):
+        # hopefully we have a normal reset without a power failure
+        self.set_setting(HSMSettings.HSM_RESET_NORMALLY, True)
+
+    def set_firmware_updated(self):
+        self.set_setting(HSMSettings.BUILTIN_FIRMWARE_VERSION, BUILTIN_FIRMWARE_VERSION)
+        self.set_setting(HSMSettings.FIRMWARE_OUT_OF_DATE, True)
+
+    def set_tamper_updated(self):
+        self.set_setting(HSMSettings.BUILTIN_TAMPER_VERSION, BUILTIN_TAMPER_VERSION)
+        self.set_setting(HSMSettings.FIRMWARE_OUT_OF_DATE, True)
+
+    def save_settings(self):
+        try:
+            with open(self.settings_file, "w") as file:
+                json.dump(self.dictionary, file)
+        except IOError as e:
+            print "Unable to save settings: I/O error({0}): {1}".format(e.errno, e.strerror)
+
+    def __add_default_settings(self):
+        """Not thread-safe. Should only be called from __init__"""
         self.dictionary = {}
         self.dictionary[HSMSettings.IP_ADDRESS_SETTINGS] = 'DHCP'
         self.dictionary[HSMSettings.STATICIP_IPADDR] = '10.10.10.2'
@@ -116,11 +154,13 @@ class Settings(object):
         self.dictionary[HSMSettings.STATICIP_GATEWAY] = '10.10.10.1'
         self.dictionary[HSMSettings.STATICIP_BROADCAST] = '10.10.10.255'
 
-    def add_default_master_key_settings(self):
+    def __add_default_master_key_settings(self):
+        """Not thread-safe. Should only be called from __init__"""
         self.dictionary[HSMSettings.MASTERKEY_SET] = False
         self.dictionary[HSMSettings.HSM_RESET_NORMALLY] = False
 
-    def add_default_hardware_settings(self):
+    def __add_default_hardware_settings(self):
+        """Not thread-safe. Should only be called from __init__"""
         # this is the default CrypTech build used by the original prototypes
         self.dictionary[HSMSettings.BUILTIN_FIRMWARE_VERSION] = '2018-09-06'
 
@@ -139,7 +179,8 @@ class Settings(object):
         # the original prototypes could not request tamper status using an RPC
         self.dictionary[HSMSettings.MGMTPORT_TAMPER] = False
 
-    def check_master_key_settings(self):
+    def __check_master_key_settings(self):
+        """Not thread-safe. Should only be called from __init__"""
         # if we're starting up and not because of a normal reset, assume the masterkey has been lost
         if(self.dictionary[HSMSettings.HSM_RESET_NORMALLY] == False):
             self.dictionary[HSMSettings.MASTERKEY_SET] = False
@@ -147,7 +188,8 @@ class Settings(object):
         # we've handled the flag so set it to false
         self.dictionary[HSMSettings.HSM_RESET_NORMALLY] = False
 
-    def check_hardware_settings(self):
+    def __check_hardware_settings(self):
+        """Not thread-safe. Should only be called from __init__"""
         # make sure the setting actually exist
         if (HSMSettings.FIRMWARE_OUT_OF_DATE not in self.dictionary):
             self.dictionary[HSMSettings.FIRMWARE_OUT_OF_DATE] = False
@@ -156,7 +198,7 @@ class Settings(object):
             # we were previously out-of-date. See if that's still true
             if(self.hardware_firmware_match() and self.hardware_tamper_match()):
                 # we've been updated, change settings to reflect
-                self.update_hardware_settings()
+                self.__update_hardware_settings()
 
                 self.set_setting(HSMSettings.FIRMWARE_OUT_OF_DATE, False)
         else:
@@ -164,33 +206,12 @@ class Settings(object):
             if(not self.hardware_firmware_match() or not self.hardware_tamper_match()):
                 self.set_setting(HSMSettings.FIRMWARE_OUT_OF_DATE, True)
 
-    def update_hardware_settings(self):
+    def __update_hardware_settings(self):
+        """Not thread-safe. Should only be called from __init__"""
         for key, value in HARDWARE_MAPPING.iteritems():
             self.dictionary[key] = value
 
-    def hardware_firmware_match(self):
-        return self.dictionary[HSMSettings.BUILTIN_FIRMWARE_VERSION] == BUILTIN_FIRMWARE_VERSION
-
-    def hardware_tamper_match(self):
-        return self.dictionary[HSMSettings.BUILTIN_TAMPER_VERSION] == BUILTIN_TAMPER_VERSION
-
-    def on_restart(self):
-        # hopefully we have a normal reset without a power failure
-        self.dictionary[HSMSettings.HSM_RESET_NORMALLY] = True
-
-    def set_firmware_updated(self):
-        self.dictionary[HSMSettings.BUILTIN_FIRMWARE_VERSION] = BUILTIN_FIRMWARE_VERSION
-
-        # this is something that must be saved right away
-        self.save_settings()
-
-    def set_tamper_updated(self):
-        self.dictionary[HSMSettings.BUILTIN_TAMPER_VERSION] = BUILTIN_TAMPER_VERSION
-
-        # this is something that must be saved right away
-        self.save_settings()
-
-    def init_gpio(self):
+    def __init_gpio(self):
         try:
             import RPi.GPIO as GPIO
 
@@ -198,16 +219,23 @@ class Settings(object):
         except:
             self.set_setting(HSMSettings.GPIO_LEDS, False)
             self.set_setting(HSMSettings.GPIO_TAMPER, False)
-    def check_security_settings(self):
+
+    def __check_security_settings(self):
+        """Not thread-safe. Should only be called from __init__"""
         if (HSMSettings.ENABLE_EXPORTABLE_PRIVATE_KEYS not in self.dictionary):
             self.dictionary[HSMSettings.ENABLE_EXPORTABLE_PRIVATE_KEYS] = False
 
         if (HSMSettings.ENABLE_KEY_EXPORT not in self.dictionary):
             self.dictionary[HSMSettings.ENABLE_KEY_EXPORT] = False
 
-    def save_settings(self):
-        try:
-            with open(self.settings_file, "w") as file:
-                json.dump(self.dictionary, file)
-        except IOError as e:
-            print "Unable to save settings: I/O error({0}): {1}".format(e.errno, e.strerror)
+        if (HSMSettings.ZERO_CONFIG_ENABLED not in self.dictionary):
+            self.dictionary[HSMSettings.ZERO_CONFIG_ENABLED] = True
+
+        if (HSMSettings.DATA_FIREWALL_SETTINGS not in self.dictionary):
+            self.dictionary[HSMSettings.DATA_FIREWALL_SETTINGS] = True
+
+        if (HSMSettings.MGMT_FIREWALL_SETTINGS not in self.dictionary):
+            self.dictionary[HSMSettings.MGMT_FIREWALL_SETTINGS] = True
+
+        if (HSMSettings.WEB_FIREWALL_SETTINGS not in self.dictionary):
+            self.dictionary[HSMSettings.WEB_FIREWALL_SETTINGS] = True

@@ -11,9 +11,9 @@ import argparse
 import subprocess
 
 # version of the files included in this package
-firewall_version = '2018-12-10-05'
-hsm_startup_version = '2019-01-30-00'
-system_init_version = '2018-11-29-01'
+firewall_version = '2019-02-26-01'
+hsm_startup_version = '2019-02-26-02'
+system_init_version = '2019-02-26-01'
 
 # set all the paths we might need
 firewall_path = '/usr/bin/dkey-pi.firewall.sh'

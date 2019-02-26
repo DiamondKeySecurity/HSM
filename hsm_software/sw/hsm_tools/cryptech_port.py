@@ -70,6 +70,9 @@ class DKS_HALError(IntEnum):
     # non-standard tamper error
     HAL_ERROR_TAMPER                    = 50
 
+    # non-standard order 66. Give some space in case CrypTech adds more error codes
+    HAL_ERROR_TAMPER                    = 66
+
 class DKS_RPCFunc(IntEnum):
     RPC_FUNC_GET_VERSION                  = 0
     RPC_FUNC_GET_RANDOM                   = 1

@@ -57,15 +57,24 @@ class CommandNode(object):
         return current_node.add_child(token_list[0], num_args, usage, callback)
 
 
-    def show_usage(self, args=None):
+    def get_usage(self):
         leaves = self.__find_leaf_nodes()
 
-        usage = 'Usage:'
+        usage = []
 
         for leaf in leaves:
-            usage  = '%s\r\n%s'%(usage, leaf.__show_upstream_usage())
+            usage.append(leaf.__show_upstream_usage())
 
         return usage
+
+    def get_usage_str(self):
+        usage = self.get_usage()
+        result = ""
+
+        for line in usage:
+            result = '%s%s\r\n'%(result, line)
+
+        return result
 
     def process_input(self, input):
         input = input.strip('\r\n')
@@ -78,7 +87,7 @@ class CommandNode(object):
 
                 return child_node.do(tokens[1:])
 
-            return 'Invalid command'
+            return self.get_usage_str()
 
         return ''
 
@@ -97,7 +106,7 @@ class CommandNode(object):
 
             return child_node.do(command_tokens[1:])
 
-        return self.show_usage()
+        return self.get_usage_str()
 
 
     def __find_leaf_nodes(self):
@@ -123,7 +132,7 @@ class CommandNode(object):
         usage = '%s %s'%(usage, self.name)
 
         if(self.usage is not None):
-            usage = '%s %s'%(usage, self.usage)
+            usage = '{func: <41}{usage}'.format(func=usage, usage=self.usage)
 
         return usage
 
@@ -185,7 +194,7 @@ class ConsoleInterface(CommandNode):
 
         super(ConsoleInterface, self).__init__(name = '.', parent = None, num_args = None, usage = None, callback = None)
 
-        self.add_child('help', num_args=0, usage=None, callback=self.show_usage)
+        self.add_child('help', num_args=0, usage=None, callback=self.help)
 
 
     def reset(self):
@@ -215,6 +224,14 @@ class ConsoleInterface(CommandNode):
             return self.script_module.getPrompt()
         else:
             return self.host_prompt
+
+    def help(self, args=None):
+        # send one line at a time
+        self.cty_direct_call('Usage:')
+        for line in self.get_usage():
+            self.cty_direct_call(line)
+
+        return '-------'
 
     def set_hide_input(self, toggle):
         self.hide_input = toggle

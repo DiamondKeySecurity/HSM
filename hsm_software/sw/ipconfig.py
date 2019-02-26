@@ -9,12 +9,14 @@ import netifaces
 
 from settings import Settings, HSMSettings
 
+from firewall import Firewall
 
 class IPConfig(object):
     """Program to start HSM software or update it"""
-    def __init__(self, netiface, settings):
+    def __init__(self, netiface, settings, tmp):
         self.netiface = netiface
         self.settings = settings
+        self.tmp = tmp
 
     def do_ipconfig(self):
         setting = HSMSettings.IP_ADDRESS_SETTINGS
@@ -24,6 +26,8 @@ class IPConfig(object):
             self.startstatic_ip()
         else:
             self.startdhcp()
+
+        Firewall.generate_firewall_rules(self.settings, self.tmp)
 
     def startdhcp(self):
         print('ipconfig.py is now setting the IP using'
@@ -81,8 +85,12 @@ if __name__ == "__main__":
                         help="Persistant file to save settings to",
                         default="../settings.json")
 
+    parser.add_argument("--tmp",
+                        help = "temp folder",
+                        default = "/var/tmp")
+
     args = parser.parse_args()
 
     settings = Settings(args.settings, load_only=True)
 
-    IPConfig(args.netiface, settings).do_ipconfig()
+    IPConfig(args.netiface, settings, args.tmp).do_ipconfig()
