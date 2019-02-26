@@ -273,7 +273,7 @@ def main():
     ip = netiface.get_ip()
     if(ip != None):
         my_zero_conf = HSMZeroConfSetup(ip, args.serial_number)
-            
+
     # Prove for the devices --------------------------
     if(led_container is not None):
         led_container.led_probe_for_cryptech()
@@ -308,8 +308,7 @@ def main():
     safe_shutdown.addOnShutdown(cache.backup)
 
     # start the load balancer
-    rpc_preprocessor = RPCPreprocessor(rpc_list, cache, settings, netiface,
-                                       tamper)
+    rpc_preprocessor = RPCPreprocessor(rpc_list, cache, settings, netiface)
     # Listen for incoming TCP/IP connections from remove cryptech.muxd_client
     rpc_server = RPCTCPServer(rpc_preprocessor, RPC_IP_PORT, ssl_options)
     # set the futures for all of our devices
