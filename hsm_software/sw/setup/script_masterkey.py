@@ -21,7 +21,9 @@ class MasterKeySetScriptModule(ScriptModule):
         """Process user response about whether they want to set the master key"""
         if(response == True):
             self.node_list.insert(self.current, script_node('masterkey_value',
-                                                            'Please enter the master key or leave it blank to set it to a random value\r\n> ',
+                                                            ('Please enter the master key or leave it blank to set it to a random value\r\n'
+                                                             '  -------- -------- -------- -------- -------- -------- -------- --------\r\n'
+                                                             '> '),
                                                             ValueType.AnyString, callback=self.setMasterKeyCallback))
         return self
 

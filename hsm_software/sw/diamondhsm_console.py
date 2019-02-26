@@ -26,16 +26,23 @@ from setup.script_ip_dhcp import DHCPScriptModule
 from setup.script_ip_static import StaticIPScriptModule
 from setup.script_updateRestart import UpdateRestartScriptModule
 from setup.script_password import PasswordScriptModule
+from setup.script_firewall import FirewallChangeSettingScript
 from setup.script_firmware_update import FirmwareUpdateScript
+
+from hsm_cache_db.alpha import CacheTableAlpha
 
 from setup.file_transfer import MGMTCodes, FileTransfer
 
 from hsm_tools.threadsafevar import ThreadSafeVariable
 
+from firewall import Firewall
+
+import zero_conf
 
 class DiamondHSMConsole(console_interface.ConsoleInterface):
-    def __init__(self, args, cty_list, rpc_preprocessor, synchronizer, cache,
-                 netiface, settings, safe_shutdown, led, tamper, gpio_tamper_setter):
+    def __init__(self, args, cty_list, rpc_preprocessor, synchronizer,
+                 cache, netiface, settings, safe_shutdown, led,
+                 zero_conf_object, tamper, gpio_tamper_setter):
         self.args = args
         self.cty_conn = CTYConnection(cty_list, args.binaries,
                                       self.quick_write)
@@ -50,6 +57,7 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
         self.file_transfer = None
         self.safe_shutdown = safe_shutdown
         self.led = led
+        self.zero_conf_object = zero_conf_object
         self.tamper = tamper
         self.tamper_event_detected = ThreadSafeVariable(False)
         self.console_locked = False
@@ -344,6 +352,32 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
                             ' and versions.',
                             callback=self.dks_show_fpga_cores)
 
+        show_node.add_child_tree(token_list=['firewall', 'settings'],
+                                 num_args=1, usage=' - <mgmt, data, web> - Shows the firewall settings for a connection type.',
+                                 callback=self.dks_show_firewall_settings)
+
+    def dks_show_firewall_settings(self, args):
+        if (args[0].lower() == "mgmt"):
+            setting = self.settings.get_setting(HSMSettings.MGMT_FIREWALL_SETTINGS)
+        elif (args[0].lower() == "data"):
+            setting = self.settings.get_setting(HSMSettings.DATA_FIREWALL_SETTINGS)
+        elif (args[0].lower() == "web"):
+            setting = self.settings.get_setting(HSMSettings.WEB_FIREWALL_SETTINGS)
+        else:
+            return "Expected 'mgmt', 'data', or 'web'"
+
+        if ((setting is None) or (setting is True)):
+            return 'Accepting all connections on the %s port\r\n'%args[0]
+        elif (setting is False):
+            return 'Blocking all connections to the %s port\r\n'%args[0]
+        elif isinstance(setting, tuple):
+            return 'Accepting connections from ip range, %s to %s on the %s port\r\n'%(setting[0], setting[1], args[0])
+        elif isinstance(setting, list):
+            self.cty_direct_call('Accepting connections from the following ip address on the %s port\r\n'%args[0])
+            for line in setting:
+                self.cty_direct_call(str(line))
+            return '----'
+
     def dks_show_cache(self, args):
         results = self.cache.getVerboseMapping()
 
@@ -446,6 +480,31 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
                            usage="<'true' or 'false'>",
                            callback=self.dks_set_enable_key_export)
 
+        set_node.add_child(name="ENABLE_ZEROCONF", num_args=1,
+                           usage=" - <'true' or 'false'>",
+                           callback=self.dks_set_enable_zeroconf)
+
+        set_node.add_child_tree(token_list=['firewall', 'settings'], num_args=1,
+                                usage=' - <mgmt, data, web> - Sets the firewall settings for a connection type.',
+                                callback=self.dks_set_firewall_settings)
+
+    def dks_set_firewall_settings(self, args):
+        if (args[0].lower() == "mgmt"):
+            setting = HSMSettings.MGMT_FIREWALL_SETTINGS
+        elif (args[0].lower() == "data"):
+            setting = HSMSettings.DATA_FIREWALL_SETTINGS
+        elif (args[0].lower() == "web"):
+            setting = HSMSettings.WEB_FIREWALL_SETTINGS
+        else:
+            return "Expected 'mgmt', 'data', or 'web'"
+
+        # start the script
+        self.script_module = FirewallChangeSettingScript(self.settings, self.cty_direct_call, setting)
+
+        self.cty_direct_call(self.prompt)
+
+        return True
+
     def dks_set_rpc(self, args):
         # make sure a rpc has been connected
         rpc_result = self.check_has_rpc()
@@ -527,23 +586,36 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
             self.redo_login(self.dks_set_ip_static_onlogin)
             return True
 
-    def dks_set_enable_exportable_privatekeys(self, args):
-        setting = HSMSettings.ENABLE_EXPORTABLE_PRIVATE_KEYS
+    def toggle_settings(self, setting, value_str):
+        if(value_str.lower() == 'true'):
+            value = True
+        elif(value_str.lower() == 'false'):
+            value = False
 
-        if(args[0].lower() == 'true'):
-            self.settings.set_setting(setting, True)
-            return 'ENABLE_EXPORTABLE_PRIVATE_KEYS set to TRUE'
-        elif(args[0].lower() == 'false'):
-            self.settings.set_setting(setting, False)
-            return 'ENABLE_EXPORTABLE_PRIVATE_KEYS set to FALSE'
+        self.settings.set_setting(setting, value)
+
+        return value
+
+    def dks_set_enable_exportable_private_keys(self, args):
+        result = self.toggle_settings(HSMSettings.ENABLE_EXPORTABLE_PRIVATE_KEYS, args[0])
+        return 'ENABLE_EXPORTABLE_PRIVATE_KEYS set to %s'%str(result)
 
     def dks_set_enable_key_export(self, args):
-        if(args[0].lower() == 'true'):
-            self.settings.set_setting(HSMSettings.ENABLE_KEY_EXPORT, True)
-            return 'ENABLE_KEY_EXPORT set to TRUE'
-        elif(args[0].lower() == 'false'):
-            self.settings.set_setting(HSMSettings.ENABLE_KEY_EXPORT, False)
-            return 'ENABLE_KEY_EXPORT set to FALSE'
+        result = self.toggle_settings(HSMSettings.ENABLE_KEY_EXPORT, args[0])
+        return 'ENABLE_KEY_EXPORT set to %s'%str(result)
+
+    def dks_set_enable_zeroconf(self, args):
+        result = self.toggle_settings(HSMSettings.ZERO_CONFIG_ENABLED, args[0])
+
+        # update the firewall rules
+        Firewall.generate_firewall_rules(self.settings, '/var/tmp')
+
+        if (result is True):
+            self.zero_conf_object.register_service()
+        else:
+            self.zero_conf_object.unregister_service()
+
+        return 'ZERO_CONFIG_ENABLED set to %s'%str(result)
 
     def add_list_commands(self):
         set_node = self.add_child('list')
@@ -600,10 +672,10 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
                                 usage=' - Updates the FPGA cores on the'
                                 ' CrypTech devices.',
                                 callback=self.dks_update_cryptech_fpga)
-        cryptech_node.add_child('tamper', num_args=0,
-                                usage=' - Updates the tamper firmware on the'
-                                ' CrypTech devices.',
-                                callback=self.dks_update_cryptech_tamper)
+        # cryptech_node.add_child('tamper', num_args=0,
+        #                         usage=' - Updates the tamper firmware on the'
+        #                         ' CrypTech devices.',
+        #                         callback=self.dks_update_cryptech_tamper)
 
         update_node.add_child('HSM', num_args=1,
                               usage='<path to file> - Updates the HSM'
