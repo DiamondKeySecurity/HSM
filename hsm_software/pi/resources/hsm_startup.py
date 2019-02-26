@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # Copyright (c) 2018, 2019 Diamond Key Security, NFP  All rights reserved.
 #
-#VERSION 2019-01-21-01
+#VERSION 2019-01-30-00
 
 import os
 import shutil
@@ -10,12 +10,12 @@ import subprocess
 
 class HSM(object):
     """Program to start HSM software or update it"""
-    def __init__(self, readonly_dir, writable_dir, ethernet, publickey, verbose, no_leds, testing):
+    def __init__(self, readonly_dir, writable_dir, ethernet, publickey, verbose, no_gpio, testing):
         self.readonly_dir = readonly_dir
         self.writable_dir = writable_dir
         self.ethernet = ethernet
         self.publickey = publickey
-        self.no_leds = no_leds
+        self.no_gpio = no_gpio
         self.testing = testing
 
         # readonly
@@ -61,8 +61,8 @@ class HSM(object):
         if self.verbose:
             args.append('--verbose')
 
-        if (self.no_leds):
-            args.append('--no-leds')
+        if (not self.no_gpio):
+            args.append('--gpio-available')
 
         # the root command
         cmd = 'sudo python diamond_server.py'
@@ -150,9 +150,9 @@ parser.add_argument("--verbose",
                     help = "Show debug information.",
                     )
 
-parser.add_argument("--no-leds",
+parser.add_argument("--no-gpio",
                     action = "store_true",
-                    help = "Use the leds",
+                    help = "Don't use GPIO features",
                     )
 
 parser.add_argument("--testing",
@@ -167,7 +167,7 @@ hsm = HSM(readonly_dir = args.ro,
           ethernet = args.eth,
           publickey = args.publickey,
           verbose = args.verbose,
-          no_leds = args.no_leds,
+          no_gpio = args.no_gpio,
           testing = args.testing)
 
 if(args.no_update):

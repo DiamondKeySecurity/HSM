@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # Copyright (c) 2018, 2019 Diamond Key Security, NFP  All rights reserved.
 #
-import enum
 import struct
 
 from uuid import UUID
@@ -15,19 +14,23 @@ from hsm_tools.hsm import CrypTechDeviceState
 from settings import HSMSettings
 
 from hsm_tools.cryptech.cryptech.libhal import ContextManagedUnpacker, xdrlib
-from hsm_tools.tcpserver import rpc_code_get
 from hsm_tools.rpc_action import RPCAction
-from hsm_tools.cryptech_port import DKS_RPCFunc, DKS_HSM, DKS_HALUser, DKS_HALKeyType, DKS_HALKeyFlag, DKS_HALError, DKS_HALDigestAlgorithm, DKS_HALCurve
+from hsm_tools.cryptech_port import DKS_RPCFunc, DKS_HALKeyType,\
+                                    DKS_HALKeyFlag, DKS_HALError
+from hsm_tools.threadsafevar import ThreadSafeVariable
 
 from key_matching import KeyMatchDetails
+
 
 def rpc_get_int(msg, location):
     "Get an int from a location in an RPC message"
     return struct.unpack(">L", msg[location:location+4])[0]
 
+
 def rpc_set_int(msg, data, location):
     "Set an int from a location in an RPC message"
     return msg[:location] + struct.pack(">L", data) + msg[location+4:]
+
 
 class KeyHandleDetails:
     """Information on the key that a handle points to"""
@@ -35,21 +38,26 @@ class KeyHandleDetails:
         self.rpc_index = rpc_index
         self.uuid = uuid
 
+
 class KeyOperationData:
     def __init__(self, rpc_index, handle, uuid):
         self.rpc_index = rpc_index
         self.handle = handle
         self.uuid = uuid
 
+
 class MuxSession:
-    """Simple class for defining the state of a connection to the load balancer"""
+    """Simple class for defining the state of a
+       connection to the load balancer"""
     def __init__(self, rpc_index, cache, settings, from_ethernet):
         self.cache = cache
 
-        # if true, this session was started by a connection from outside the HSM and is not trusted
+        # if true, this session was started by a connection from
+        # outside the HSM and is not trusted
         self.from_ethernet = from_ethernet
 
-        # should new keys be added to the cache? The synchronizer manually adds keys
+        # should new keys be added to the cache? The synchronizer
+        # manually adds keys
         self.cache_generated_keys = True
 
         # complete unencoded request that we're working on
@@ -58,7 +66,8 @@ class MuxSession:
         # the current rpc_index to use for this session
         self.rpc_index = rpc_index
 
-        # the index of the rpc that is being used for the initializing hash op
+        # the index of the rpc that is being used for the
+        # initializing hash op
         self.cur_hashing_index = 0
 
         # dictionary mapping of hash rpc indexes by the hash handle
@@ -71,16 +80,22 @@ class MuxSession:
         self.key_op_data = KeyOperationData(None, None, None)
 
         # should exportable private keys be used for this session?
-        self.enable_exportable_private_keys = settings.get_setting(HSMSettings.ENABLE_EXPORTABLE_PRIVATE_KEYS)
+        # Use 's' for PEP8
+        s = settings.get_setting(HSMSettings.ENABLE_EXPORTABLE_PRIVATE_KEYS)
+        self.enable_exportable_private_keys = s
+
 
 class RPCPreprocessor:
     """Able to load balance between multiple rpcs"""
-    def __init__(self, rpc_list, cache, settings, netiface):
+    def __init__(self, rpc_list, cache, settings, netiface, tamper):
         self.cache = cache
         self.settings = settings
         self.rpc_list = rpc_list
-        self.current_rpc = -1 # this is the index of the RPC to use. When set to < 0, it will auto set
-        self.sessions = { }
+
+        # this is the index of the RPC to use. When set to < 0,
+        # it will auto set
+        self.current_rpc = -1
+        self.sessions = {}
         self.function_table = {}
         self.next_rpc = 0
         self.current_rpc_uses = 0
@@ -88,6 +103,10 @@ class RPCPreprocessor:
         self.netiface = netiface
         self.hsm_locked = True
         self.debug = False
+        self.tamper = tamper
+        self.tamper_detected = ThreadSafeVariable(False)
+
+        tamper.add_observer(self.on_tamper_event)
 
     def device_count(self):
         return len(self.rpc_list)
@@ -101,7 +120,7 @@ class RPCPreprocessor:
             return "INVALID RPC"
 
     def set_current_rpc(self, index):
-        if(isinstance(index, (int, long)) is False):
+        if(isinstance(index, (int, )) is False):
             return "Invalid index. The index must be a valid RPC index."
         elif (index > len(self.rpc_list)):
             return "Index out of range. The index must be a valid RPC index."
@@ -111,8 +130,11 @@ class RPCPreprocessor:
 
     def create_session(self, client, from_ethernet):
         # make sure we have a session for this handle
-        if(self.sessions.has_key(client) == False):
-            new_session = MuxSession(self.current_rpc, self.cache, self.settings, from_ethernet)
+        if(client not in self.sessions):
+            new_session = MuxSession(self.current_rpc,
+                                     self.cache,
+                                     self.settings,
+                                     from_ethernet)
             self.sessions[client] = new_session
 
     def delete_session(self, client):
@@ -165,25 +187,44 @@ class RPCPreprocessor:
         for rpc in self.rpc_list:
             rpc.change_state(CrypTechDeviceState.HSMLocked)
 
-    def process_incoming_rpc(self, decoded_request):
-        if(self.debug and self.current_rpc >= 0):
-            # if we are debugging a connection, just send the request without any changes
-            return RPCAction(None, [self.rpc_list[self.current_rpc]], None, decoded_request)
+    def on_tamper_event(self, tamper_object):
+        new_tamper_state = tamper_object.get_tamper_state()
+        old_tamper_state = self.tamper_detected.value
 
+        if(new_tamper_state != old_tamper_state):
+            self.tamper_detected.value = new_tamper_state
+
+            if(new_tamper_state is True):
+                self.hsm_locked = True
+                for rpc in self.rpc_list:
+                    rpc.change_state(CrypTechDeviceState.TAMPER)
+            else:
+                self.hsm_locked = True
+                for rpc in self.rpc_list:
+                    rpc.clear_tamper(CrypTechDeviceState.TAMPER_RESET)
+    
+    def process_incoming_rpc(self, decoded_request):
         # handle the message normally
         unpacker = ContextManagedUnpacker(decoded_request)
 
         # get the code of the RPC request
         code = unpacker.unpack_uint()
 
-        # get the handle which identifies the TCP connection that the request came from
+        # get the handle which identifies the TCP connection that the
+        # request came from
         client = unpacker.unpack_uint()
 
-        # get the session so we know where to put the response and which rpc to use
+        # get the session so we know where to put the response and
+        # which rpc to use
         session = self.get_session(client)
 
         # save the current request in the session
         session.current_request = decoded_request
+
+        # check to see if there's an ongoing tamper event
+        if (self.tamper.get_tamper_state() and session.from_ethernet):
+            return self.create_error_response(code, client,
+                                              DKS_HALError.HAL_ERROR_TAMPER)
 
         # process the RPC request
         action = self.function_table[code](code, client, unpacker, session)
@@ -206,7 +247,8 @@ class RPCPreprocessor:
 
     def handle_set_rpc(self, code, client, unpacker, session):
         """Special DKS RPC to set the RPC to use for all calls"""
-        logger.info("RPC code received %s, handle 0x%x",  DKS_RPCFunc.RPC_FUNC_SET_RPC_DEVICE, client)
+        logger.info("RPC code received %s, handle 0x%x",
+                    DKS_RPCFunc.RPC_FUNC_SET_RPC_DEVICE, client)
 
         # get the serial to switch to
         rpc_index = unpacker.unpack_uint()
@@ -216,7 +258,8 @@ class RPCPreprocessor:
         response.pack_uint(client)
 
         if (session.from_ethernet):
-            # the RPC can not be explicitly set from an outside ethernet connection
+            # the RPC can not be explicitly set from an outside
+            # ethernet connection
             response.pack_uint(DKS_HALError.HAL_ERROR_FORBIDDEN)
         elif (rpc_index < len(self.rpc_list)):
             # set the rpc to use for this session
@@ -232,8 +275,9 @@ class RPCPreprocessor:
 
     def handle_enable_cache_keygen(self, code, client, unpacker, session):
         """Special DKS RPC to enable caching of generated keys"""
-        logger.info("RPC code received %s, handle 0x%x",  DKS_RPCFunc.RPC_FUNC_ENABLE_CACHE_KEYGEN.name, client)
-        print 'caching enabled'
+        logger.info("RPC code received %s, handle 0x%x",
+                    DKS_RPCFunc.RPC_FUNC_ENABLE_CACHE_KEYGEN.name, client)
+        print('caching enabled')
 
         session.cache_generated_keys = True
 
@@ -242,7 +286,8 @@ class RPCPreprocessor:
         response.pack_uint(client)
 
         if (session.from_ethernet):
-            # keygen caching can not be explicitly set from an ethernet connection
+            # keygen caching can not be explicitly set from
+            # an ethernet connection
             response.pack_uint(DKS_HALError.HAL_ERROR_FORBIDDEN)
         else:
             response.pack_uint(DKS_HALError.HAL_OK)
@@ -253,8 +298,9 @@ class RPCPreprocessor:
 
     def handle_disable_cache_keygen(self, code, client, unpacker, session):
         """Special DKS RPC to enable caching of generated keys"""
-        logger.info("RPC code received %s, handle 0x%x",  DKS_RPCFunc.RPC_FUNC_DISABLE_CACHE_KEYGEN.name, client)
-        print 'caching disabled'
+        logger.info("RPC code received %s, handle 0x%x",
+                    DKS_RPCFunc.RPC_FUNC_DISABLE_CACHE_KEYGEN.name, client)
+        print('caching disabled')
 
         session.cache_generated_keys = False
 
@@ -263,7 +309,8 @@ class RPCPreprocessor:
         response.pack_uint(client)
 
         if (session.from_ethernet):
-            # keygen caching can not be explicitly set from an ethernet connection
+            # keygen caching can not be explicitly set from
+            # an ethernet connection
             response.pack_uint(DKS_HALError.HAL_ERROR_FORBIDDEN)
         else:
             response.pack_uint(DKS_HALError.HAL_OK)
@@ -278,7 +325,8 @@ class RPCPreprocessor:
             return None
         msg = ContextManagedUnpacker(msg)
 
-        # return the unpacker. the first uint is the code followed by the client
+        # return the unpacker. the first uint is the code followed
+        # by the client
         return msg
 
     def handle_rpc_any(self, code, client, unpacker, session):
@@ -312,7 +360,7 @@ class RPCPreprocessor:
             # get the client
             client = unpacker.unpack_uint()
 
-            if(code != None and new_code != code):
+            if(code is not None and new_code != code):
                 # error, the codes don't match
                 return self.create_error_response(new_code, client, DKS_HALError.HAL_ERROR_RPC_TRANSPORT)
 
@@ -367,8 +415,6 @@ class RPCPreprocessor:
         session.hash_rpcs[handle] = session.cur_hashing_index
 
         return RPCAction(reply_list[0], None, None)
-
-        
 
     def handle_rpc_hash(self, code, client, unpacker, session):
         """Once a hash has started, we have to continue with it the same RPC"""
