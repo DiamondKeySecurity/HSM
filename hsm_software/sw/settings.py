@@ -8,7 +8,7 @@ import threading
 
 from enum import Enum
 
-HSM_SOFTWARE_VERSION = '19.02.01.tamper23'
+HSM_SOFTWARE_VERSION = '19.02.25.esec19'
 
 # this is the version of the firmware that's built into the current release
 BUILTIN_FIRMWARE_VERSION = '2018-09-06'
@@ -36,6 +36,15 @@ class HSMSettings(str, Enum):
     MASTERKEY_SET            = 'MASTERKEY_SET'
     HSM_RESET_NORMALLY       = 'HSM_RESET_NORMALLY'
     ENABLE_KEY_EXPORT        = 'ENABLE_KEY_EXPORT'
+    ZERO_CONFIG_ENABLED      = 'ZERO_CONFIG_ENABLED'
+    # for these firwall settings
+    # - True or None = accept all on port
+    # - False        = block all on port
+    # - tuple        = acceptable IP range
+    # - list         = list of acceptable IP address
+    DATA_FIREWALL_SETTINGS   = 'DATA_FIREWALL_SETTINGS'
+    MGMT_FIREWALL_SETTINGS   = 'MGMT_FIREWALL_SETTINGS'
+    WEB_FIREWALL_SETTINGS    = 'WEB_FIREWALL_SETTINGS'
 
 # Changes to hardware settings to apply after a firmware update
 HARDWARE_MAPPING = {
@@ -203,6 +212,18 @@ class Settings(object):
 
         if (HSMSettings.ENABLE_KEY_EXPORT not in self.dictionary):
             self.dictionary[HSMSettings.ENABLE_KEY_EXPORT] = False
+
+        if (HSMSettings.ZERO_CONFIG_ENABLED not in self.dictionary):
+            self.dictionary[HSMSettings.ZERO_CONFIG_ENABLED] = True
+
+        if (HSMSettings.DATA_FIREWALL_SETTINGS not in self.dictionary):
+            self.dictionary[HSMSettings.DATA_FIREWALL_SETTINGS] = True
+
+        if (HSMSettings.MGMT_FIREWALL_SETTINGS not in self.dictionary):
+            self.dictionary[HSMSettings.MGMT_FIREWALL_SETTINGS] = True
+
+        if (HSMSettings.WEB_FIREWALL_SETTINGS not in self.dictionary):
+            self.dictionary[HSMSettings.WEB_FIREWALL_SETTINGS] = True
 
     def save_settings(self):
         try:

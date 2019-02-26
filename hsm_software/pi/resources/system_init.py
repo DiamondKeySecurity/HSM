@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # Copyright (c) 2018, 2019 Diamond Key Security, NFP  All rights reserved.
 #
-#VERSION 2018-11-29-01
+#VERSION 2019-02-08-01
 
 import os
 import shutil
@@ -18,6 +18,7 @@ class HSM(object):
 
     def run_network_script(self):
         args = ['--netiface eth0',
+                '--tmp %s'%self.settings_dir,
                 '--settings %s/settings.json'%self.settings_dir
                 ]
 

@@ -57,7 +57,6 @@ import atexit
 import logging
 import logging.handlers
 import argparse
-import zero_conf
 
 import tornado.netutil
 import tornado.ioloop
@@ -65,6 +64,8 @@ import tornado.ioloop
 # import classes from the original cryptech.muxd
 # cryptech_muxd has been renamed to cryptech/muxd.py
 from hsm_tools.cryptech import muxd
+
+from zero_conf import HSMZeroConfSetup
 
 from hsm_tools.probing import ProbeMultiIOStream
 from hsm_tools.tcpserver import RPCTCPServer, CTYTCPServer, \
@@ -85,13 +86,6 @@ from sync import Synchronizer
 from setup.security import HSMSecurity
 
 from tamper import TamperDetector
-
-
-def register_zeroconf(ip_addr, serial):
-    muxd.logger.info("registered to zero config")
-    zero_conf.register_zeroconf_sevice(ip_addr, serial)
-    atexit.register(zero_conf.unregister_zeroconf_sevice)
-
 
 synchronizer = None
 safe_shutdown = None
@@ -289,6 +283,12 @@ def main():
             print("Unable to establish network address.\r\nShutting down.")
             return
 
+    # create zero conf object ------------------------
+    my_zero_conf = None
+    ip = netiface.get_ip()
+    if(ip != None):
+        my_zero_conf = HSMZeroConfSetup(ip, args.serial_number)
+            
     # Prove for the devices --------------------------
     if(led_container is not None):
         led_container.led_probe_for_cryptech()
@@ -345,18 +345,27 @@ def main():
         synchronizer.append_future(futures)
 
     # start the console
-    cty_stream = DiamondHSMConsole(args, cty_list, rpc_preprocessor,
-                                   synchronizer, cache, netiface,
-                                   settings, safe_shutdown, led_container,
-                                   tamper, gpio_tamper_setter)
+    # holy, large number of parameters Batman!!!
+    cty_stream = DiamondHSMConsole(args = args,
+                                   cty_list = cty_list,
+                                   rpc_preprocessor = rpc_preprocessor,
+                                   synchronizer = synchronizer,
+                                   cache = cache,
+                                   netiface = netiface,
+                                   settings = settings,
+                                   safe_shutdown = safe_shutdown,
+                                   led = led_container,
+                                   zero_conf_object = my_zero_conf,
+                                   tamper = tamper,
+                                   gpio_tamper_setter = gpio_tamper_setter)
 
     # Listen for incoming TCP/IP connections from remove cryptech.muxd_client
     cty_server = CTYTCPServer(cty_stream, port=CTY_IP_PORT, ssl=ssl_options)
 
     # register for zeroconf if we are connected to a network
-    ip = netiface.get_ip()
-    if(ip is not None):
-        register_zeroconf(ip, args.serial_number)
+    if((my_zero_conf is not None) and 
+       (settings.get_setting(HSMSettings.ZERO_CONFIG_ENABLED) is True)):
+        my_zero_conf.register_service()
 
     # start web app ----------------------------------
     if(not args.no_web):

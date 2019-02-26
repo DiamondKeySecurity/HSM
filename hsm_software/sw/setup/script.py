@@ -72,6 +72,9 @@ class ScriptModule(object):
             else:
                 return None
         elif(node.value_type == ValueType.IP4Address):
+            if (response == '0'):
+                return '0.0.0.0'
+
             parts = response.split('.')
             if(len(parts) == 4):
                 for i in xrange(4):

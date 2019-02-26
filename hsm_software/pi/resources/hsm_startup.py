@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # Copyright (c) 2018, 2019 Diamond Key Security, NFP  All rights reserved.
 #
-#VERSION 2019-01-30-00
+#VERSION 2019-02-08-01
 
 import os
 import shutil
@@ -116,10 +116,14 @@ class HSM(object):
             if (command == 'UPDATE'):
                 self.update_hsm(path)
 
+                # we need to reboot the HSM to make sure the changes take effect
+                os.system('sudo reboot')
+                return
+
         except IOError:
             pass
 
-        # start up
+        # reboot
         self.start_main_program()
 
 
