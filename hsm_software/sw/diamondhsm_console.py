@@ -475,7 +475,7 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
                            callback=self.dks_set_ip)
         set_node.add_child(name="ENABLE_EXPORTABLE_PRIVATE_KEYS",
                            num_args=1, usage="<'true' or 'false'>",
-                           callback=self.dks_set_enable_exportable_privatekeys)
+                           callback=self.dks_set_enable_exportable_private_keys)
         set_node.add_child(name="ENABLE_KEY_EXPORT", num_args=1,
                            usage="<'true' or 'false'>",
                            callback=self.dks_set_enable_key_export)
