@@ -5,7 +5,6 @@
 import console_interface
 
 import os
-import collections
 import logging
 import shutil
 
@@ -13,7 +12,6 @@ import tornado.iostream
 import time
 import sync
 
-from enum import IntEnum, Enum
 from Queue import Queue
 
 from settings import HSMSettings, HSM_SOFTWARE_VERSION
@@ -23,23 +21,24 @@ from hsm_tools.cryptech_port import DKS_HALUser
 
 from sync import SyncCommandEnum, SyncCommand
 
-from setup.script import ScriptModule, script_node, ValueType
 from setup.script_masterkey import MasterKeySetScriptModule
 from setup.script_ip_dhcp import DHCPScriptModule
 from setup.script_ip_static import StaticIPScriptModule
 from setup.script_updateRestart import UpdateRestartScriptModule
 from setup.script_password import PasswordScriptModule
-
-from hsm_cache_db.alpha import CacheTableAlpha
+from setup.script_firmware_update import FirmwareUpdateScript
 
 from setup.file_transfer import MGMTCodes, FileTransfer
 
-import zero_conf
+from hsm_tools.threadsafevar import ThreadSafeVariable
+
 
 class DiamondHSMConsole(console_interface.ConsoleInterface):
-    def __init__(self, args, cty_list, rpc_preprocessor, synchronizer, cache, netiface, settings, safe_shutdown, led):
+    def __init__(self, args, cty_list, rpc_preprocessor, synchronizer, cache,
+                 netiface, settings, safe_shutdown, led, tamper, gpio_tamper_setter):
         self.args = args
-        self.cty_conn = CTYConnection(cty_list, args.binaries, self.quick_write)
+        self.cty_conn = CTYConnection(cty_list, args.binaries,
+                                      self.quick_write)
         self.rpc_preprocessor = rpc_preprocessor
         self.synchronizer = synchronizer
         self.cache = cache
@@ -51,74 +50,123 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
         self.file_transfer = None
         self.safe_shutdown = safe_shutdown
         self.led = led
-
-        self.initial_login = True
+        self.tamper = tamper
+        self.tamper_event_detected = ThreadSafeVariable(False)
+        self.console_locked = False
+        self.gpio_tamper_setter = gpio_tamper_setter
 
         super(DiamondHSMConsole, self).__init__('Diamond HSM')
 
-        self.banner = ("\r\n\r\n---------------------------------------------------------------------------\r\n"
-                       "Diamond HSM powered by CrypTech\r\nThank you for using the Diamond HSM by Diamond Key Security, NFP")
+        self.banner = ("\r\n\r\n----------------------------------------------"
+                       "-----------------------------\r\n"
+                       "Diamond HSM powered by CrypTech\r\nThank you for using"
+                       " the Diamond HSM by Diamond Key Security, NFP")
 
-        self.add_debug_commands()
-        self.add_keystore_commands()
-        self.add_list_commands()
-        self.add_masterkey_commands()
-        self.add_restore_commands()
-        self.add_set_commands()
+        if (self.is_login_available()):
+            self.add_debug_commands()
+            self.add_keystore_commands()
+            self.add_list_commands()
+            self.add_masterkey_commands()
+            self.add_restore_commands()
+            self.add_set_commands()
+            self.add_sync_commands()
+            self.add_update_commands()
+            self.add_tamper_commands()
+            if (self.gpio_tamper_setter is not None):
+                self.add_gpio_tamper_commands()
+
         self.add_show_commands()
         self.add_shutdown_commands()
-        self.add_sync_commands()
-        self.add_update_commands()
+
+        self.tamper.add_observer(self.on_tamper_event)
+
+    def on_tamper_event(self, tamper_detector):
+        if((self.is_logged_in()) and
+           (not self.tamper_event_detected.value)):
+
+            self.tamper_event_detected.value = True
+            self.cty_direct_call('!!!!!!!!!!TAMPER DETECTED!!!!!!!!!!!!!')
 
     def on_reset(self):
-        """Override to add commands that must be executed to reset the system after a new user logs in"""
+        """Override to add commands that must be executed to reset the system
+         after a new user logs in"""
         self.welcome_shown = False
         self.after_login_callback = None
+
+        self.on_cryptech_update_finished = None
+
+        # when the console has been locked, no commands will be accepted
+        self.console_locked = False
 
         if(self.file_transfer is not None):
             self.file_transfer.close()
             self.file_transfer = None
 
+        self.tamper_event_detected.value = False
+
     def is_login_available(self):
-        """Override and return true if there is a mechanism to login to the system"""
+        """Override and return true if there is a mechanism
+        to login to the system"""
         return self.is_cty_connected()
 
     def no_login_msg(self):
         """Override and return a message when login is not available"""
-        return "\r\n\r\nWarning: No CrypTech devices have been detected. Only 'shutdown' is available."
+        return ("\r\n\r\nWarning: No CrypTech devices have been detected. ",
+                "Only 'shutdown' is available.")
 
     def get_login_prompt(self):
         """Override to provide the prompt for logging in"""
-        initial_login_msg = ("Before using the HSM, you will need to perform a basic setup.\r\n"
-                             "Parts of this setup will need to be done every time the HSM powers up\r\n"
+        initial_login_msg = ("Before using the HSM, you will need to perform"
+                             " a basic setup.\r\n"
+                             "Parts of this setup will need to be done every"
+                             " time the HSM powers up\r\n"
                              "to ensure that is is running properly.\r\n\r\n"
-                             "The HSM will not be operational until this setup has completed.")
+                             "The HSM will not be operational until this"
+                             " setup has completed.")
 
-        login_msg         = ("Please login using the 'wheel' user account password\r\n\r\nPassword: ")
+        login_msg = ("Please login using the 'wheel' user account password"
+                     "\r\n\r\nPassword: ")
 
         # don't show the password
         self.hide_input = True
 
-        if (self.initial_login):
-            if(self.synchronizer != None and self.cache != None):
-                if(not self.synchronizer.cache_initialized()):
-                    self.cty_direct_call(initial_login_msg)
+        # make sure the firmware and tamper are up-to-date
+        if(not self.settings.hardware_firmware_match() or
+           not self.settings.hardware_tamper_match()):
 
-                    self.after_login_callback = self.initialize_cache
+            self.cty_direct_call(initial_login_msg)
 
-                    self.script_module = MasterKeySetScriptModule(self.cty_conn, self.cty_direct_call)
+            # prompt the user to update the firmware and the tamper
+            # the HSM will remain locked until there's an update
+            self.script_module = FirmwareUpdateScript(self, 
+                                                      self.cty_direct_call,
+                                                      self.settings)
+        elif ((self.synchronizer is not None) and (self.cache is not None)):
+            if(not self.synchronizer.cache_initialized()):
+                self.cty_direct_call(initial_login_msg)
 
-            self.initial_login = False
+                # start up normally
+                self.after_login_callback = self.initialize_cache
+
+        # if the masterkey has not been set, prompt
+        if((self.script_module is None) and 
+           (not self.settings.get_setting(HSMSettings.MASTERKEY_SET))):
+
+            self.script_module = MasterKeySetScriptModule(self.cty_conn,
+                                                          self.cty_direct_call,
+                                                          self.settings)
 
         # show login msg
         return login_msg
 
     def on_login_pin_entered(self, pin):
-        """Override to handle the user logging in. Returns true if the login was successful"""
+        """Override to handle the user logging in.
+        Returns true if the login was successful"""
         return (self.cty_conn.login(pin) == CTYError.CTY_OK)
 
     def on_login(self, pin):
-        """Override to handle the user logging in. Called after a successful login"""
+        """Override to handle the user logging in.
+        Called after a successful login"""
         self.rpc_preprocessor.unlock_hsm()
 
         if(self.after_login_callback is not None):
@@ -129,18 +177,23 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
             self.cty_direct_call(self.prompt)
 
     def redo_login(self, after_login_callback):
-        self.cty_direct_call(('\r\n!----------------------------------------------------------------------!'
+        self.cty_direct_call(('\r\n!-----------------------------------------'
+                              '-----------------------------!'
                               '\r\n!WARNING!'
-                              '\r\nYou will need to re-enter the wheel password to complete this operation.'
-                              '\r\nIf this was a mistake, please restart the console.'
-                              '\r\n!----------------------------------------------------------------------!\r\n'))
+                              '\r\nYou will need to re-enter the wheel'
+                              ' password to complete this operation.'
+                              '\r\nIf this was a mistake, please restart the'
+                              ' console.'
+                              '\r\n!-----------------------------------------'
+                              '-----------------------------!\r\n'))
 
         self.after_login_callback = after_login_callback
 
         self.logout()
 
     def crypTechAvailable(self):
-        return (self.cty_conn.is_cty_connected() and self.rpc_preprocessor is not None)
+        return (self.cty_conn.is_cty_connected() and
+                self.rpc_preprocessor is not None)
 
     def is_cty_connected(self):
         return self.cty_conn.is_cty_connected()
@@ -159,8 +212,8 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
 
     def initialize_cache(self, pin):
         # start the synchronizer
-        self.synchronizer.initialize(self.rpc_preprocessor.device_count(), pin, self.synchronizer_init_callback)
-
+        self.synchronizer.initialize(self.rpc_preprocessor.device_count(), pin,
+                                     self.synchronizer_init_callback)
 
     def synchronizer_init_callback(self, cmd, result):
         if(result != self.synchronizer.sync_init_success):
@@ -172,43 +225,124 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
 
     def build_cache(self, src, dest):
         self.set_ignore_user("Building HSM Cache\r\n")
-        self.synchronizer.queue_command(SyncCommand(SyncCommandEnum.BuildCache, src, dest, self.generate_cache_callback, console=self.cty_direct_call))
+        self.synchronizer.queue_command(SyncCommand(SyncCommandEnum.BuildCache,
+                                        src,
+                                        dest,
+                                        self.generate_cache_callback,
+                                        console=self.cty_direct_call))
 
     def generate_cache_callback(self, cmd, result):
         self.allow_user_input(result)
 
     @tornado.gen.coroutine
     def write(self, data):
-        """This method is name write because the calling method uses it to "write" to the CTY.
-           Instead of directly writing to the CTY, this method processes the data and
-           uses the CTY interface if needed"""
+        if (self.console_locked):
+            self.cty_direct_call("This console has been locked."
+                                 "\r\nPlease restart the console"
+                                 " to connect to the HSM.")
+            return
+
+        # This method is name write because the calling method
+        # uses it to "write" to the CTY. Instead of directly
+        # writing to the CTY, this method processes the data and
+        # uses the CTY interface if needed"""
         if(self.file_transfer is not None):
             result = self.file_transfer.recv(data)
             if(result is not True):
-                # result will either be true or an error message
                 self.cty_direct_call(result)
-                self.cty_direct_call("You will be logged out in 5 seconds.")
-                time.sleep(5)
-                self.cty_direct_call(None)
+                self.console_locked = True
         else:
             self.readCTYUserData(data)
+
+    def add_gpio_tamper_commands(self):
+        gpio_tamper_node = self.add_child_tree(['gpio', 'tamper'])
+
+        gpio_tamper_node.add_child('disable',
+                                   num_args=0,
+                                   usage=(' - Disable GPIO checking'
+                                          ' tamper events.'),
+                                   callback=self.dks_gpio_disable_tamper)
+
+        gpio_tamper_node.add_child_tree(['reset', 'masterkey', 'connection'],
+                                        num_args=0,
+                                        usage=(' - Reset tamper after a'
+                                               ' tamper event'),
+                                        callback=self.dks_gpio_reset_tamper)
+
+    def dks_gpio_reset_tamper(self, args):
+        self.gpio_tamper_setter.enable_tamper()
+
+        return "Tamper connection to master key memory enabled."
+
+    def dks_gpio_disable_tamper(self, args):
+        self.tamper.stop()
+
+        return "Tamper connection to master key memory disabled."
+
+    def add_tamper_commands(self):
+        tamper_node = self.add_child('tamper')
+
+        tamper_node.add_child(name="test", num_args=0,
+                              usage=' - Test tamper functionality by '
+                                    'simulating an event.',
+                              callback=self.dks_tamper_test)
+        tamper_node.add_child(name="reset", num_args=0,
+                              usage=' - Attempt to reset the tamper flag. This'
+                              ' will fail during an ongoing tamper event.',
+                              callback=self.dks_tamper_reset)
+
+    def dks_tamper_test(self, args):
+        self.tamper.on_tamper(None)
+
+        return "TESTING TAMPER"
+
+    def dks_tamper_reset(self, args):
+        self.tamper.reset_tamper_state()
+
+        return "RESETING TAMPER"
 
     def add_show_commands(self):
         show_node = self.add_child('show')
 
-        show_node.add_child(name = "rpc", num_args = 0, usage = ' - Displays the current CrypTech device RPC selection mode.', callback = self.dks_show_rpc)
-        show_node.add_child(name = "time", num_args = 0, usage = ' - Shows the current HSM system time.', callback = self.dks_show_time)
-        show_node.add_child(name = "devices", num_args = 0, usage = ' - Shows the currently connected CrypTech devices.', callback = self.dks_show_devices)
-        show_node.add_child(name = "ipaddr", num_args = 0, usage = ' - Shows the current HSM IP address.', callback = self.dks_show_ipaddr)
-        show_node.add_child(name = "macaddr", num_args = 0, usage = " - Shows the HSM's MAC address.", callback = self.dks_show_macaddr)
-        show_node.add_child(name = "settings", num_args = 0, usage = ' - Lists all HSM overridable settings.', callback = self.dks_show_settings)
-        show_node.add_child(name = "serial-number", num_args = 0, usage = " - Shows the HSM's serial number.", callback = self.dks_show_serialnumber)
-        show_node.add_child(name = "version", num_args = 0, usage = ' - Shows the HSM firmware version.', callback = self.dks_show_version)
-        show_node.add_child(name = "log", num_args = 0, usage = ' - Displays the system log.', callback = self.dks_show_log)
-        show_node.add_child(name = "cache", num_args = 0, usage = ' - Shows all of the keys that have been mapped in the system cache.', callback = self.dks_show_cache)
+        show_node.add_child(name="rpc", num_args=0,
+                            usage=' - Displays the current CrypTech device'
+                                  ' RPC selection mode.',
+                            callback=self.dks_show_rpc)
+        show_node.add_child(name="time", num_args=0,
+                            usage=' - Shows the current HSM system time.',
+                            callback=self.dks_show_time)
+        show_node.add_child(name="devices", num_args=0,
+                            usage=' - Shows the currently connected'
+                                  ' CrypTech devices.',
+                            callback=self.dks_show_devices)
+        show_node.add_child(name="ipaddr", num_args=0,
+                            usage=' - Shows the current HSM IP address.',
+                            callback=self.dks_show_ipaddr)
+        show_node.add_child(name="macaddr", num_args=0,
+                            usage=" - Shows the 'HSM's MAC address.",
+                            callback=self.dks_show_macaddr)
+        show_node.add_child(name="settings", num_args=0,
+                            usage=' - Lists all HSM overridable settings.',
+                            callback=self.dks_show_settings)
+        show_node.add_child(name="serial-number", num_args=0,
+                            usage=" - Shows the HSM's serial number.",
+                            callback=self.dks_show_serialnumber)
+        show_node.add_child(name="version", num_args=0,
+                            usage=' - Shows the HSM firmware version.',
+                            callback=self.dks_show_version)
+        show_node.add_child(name="log", num_args=0,
+                            usage=' - Displays the system log.',
+                            callback=self.dks_show_log)
+        show_node.add_child(name="cache", num_args=0,
+                            usage=' - Shows all of the keys that have been '
+                                  'mapped in the system cache.',
+                            callback=self.dks_show_cache)
 
-        fpga_node = show_node.add_child(name = "fpga")
-        fpga_node.add_child(name = "cores", num_args = 0, usage = ' - Shows the loaded FGPA cores and versions.', callback = self.dks_show_fpga_cores)
+        fpga_node = show_node.add_child(name="fpga")
+        fpga_node.add_child(name="cores", num_args=0,
+                            usage=' - Shows the loaded FGPA cores'
+                            ' and versions.',
+                            callback=self.dks_show_fpga_cores)
 
     def dks_show_cache(self, args):
         results = self.cache.getVerboseMapping()
@@ -256,7 +390,7 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
     def dks_show_settings(self, args):
         result = '\r\n\r\nDiamond HSM Settings:\r\n\r\n'
         for key, value in self.settings.dictionary.iteritems():
-            setting = "[%s] = %s\r\n"%(str(key), str(value))
+            setting = "[%s] = %s\r\n" % (str(key), str(value))
             result += setting
 
         return result
@@ -270,20 +404,20 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
     def dks_show_log(self, args):
         try:
             # make a copy of the log to avoid issues
-            logfile_read = "%s.2"%self.args.log_file
+            logfile_read = "%s.2" % self.args.log_file
 
             try:
                 os.remove(logfile_read)
-            except:
+            except Exception:
                 pass
 
             shutil.copyfile(self.args.log_file, logfile_read)
 
             with open(logfile_read) as log:
                 for line in log:
-                    self.cty_direct_call(' > %s'%line.rstrip("\r\n"))
+                    self.cty_direct_call(' > %s' % line.rstrip("\r\n"))
 
-            return "\r\n\r\n%s\r\n"%self.args.log_file
+            return "\r\n\r\n%s\r\n" % self.args.log_file
         except Exception as e:
             return e.message
 
@@ -297,11 +431,20 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
     def add_set_commands(self):
         set_node = self.add_child('set')
 
-        set_node.add_child(name = "rpc", num_args = 1, usage = "<rpc index or 'auto'>", callback = self.dks_set_rpc)
-        set_node.add_child(name = "pin" , num_args = 1, usage = "<user name - 'wheel', 'so', or 'user'>", callback = self.dks_set_pin)
-        set_node.add_child(name = "ip", num_args = 1, usage = "<'static' or 'dhcp'>", callback = self.dks_set_ip)
-        set_node.add_child(name = "ENABLE_EXPORTABLE_PRIVATE_KEYS", num_args = 1, usage = "<'true' or 'false'>", callback = self.dks_set_enable_exportable_private_keys)
-        set_node.add_child(name = "ENABLE_KEY_EXPORT", num_args = 1, usage = "<'true' or 'false'>", callback = self.dks_set_enable_key_export)
+        set_node.add_child(name="rpc", num_args=1,
+                           usage="<rpc index or 'auto'>",
+                           callback=self.dks_set_rpc)
+        set_node.add_child(name="pin", num_args=1,
+                           usage="<user name - 'wheel', 'so', or 'user'>",
+                           callback=self.dks_set_pin)
+        set_node.add_child(name="ip", num_args=1, usage="<'static' or 'dhcp'>",
+                           callback=self.dks_set_ip)
+        set_node.add_child(name="ENABLE_EXPORTABLE_PRIVATE_KEYS",
+                           num_args=1, usage="<'true' or 'false'>",
+                           callback=self.dks_set_enable_exportable_privatekeys)
+        set_node.add_child(name="ENABLE_KEY_EXPORT", num_args=1,
+                           usage="<'true' or 'false'>",
+                           callback=self.dks_set_enable_key_export)
 
     def dks_set_rpc(self, args):
         # make sure a rpc has been connected
@@ -316,7 +459,7 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
             if (args[0].lower() == "auto"):
                 index = -1
             else:
-                return 'invalid argument "%s"'%args[0]
+                return 'invalid argument "%s"' % args[0]
 
         return self.rpc_preprocessor.set_current_rpc(index)
 
@@ -324,7 +467,9 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
         user = DKS_HALUser.from_name(args[0])
         if(user is not None):
             # start the script
-            self.script_module = PasswordScriptModule(self.cty_direct_call, self.set_hide_input, self.cty_conn, user)
+            self.script_module = PasswordScriptModule(self.cty_direct_call,
+                                                      self.set_hide_input,
+                                                      self.cty_conn, user)
 
             self.cty_direct_call(self.prompt)
 
@@ -335,8 +480,9 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
     def dks_set_ip_dhcp_onlogin(self, pin):
         message = ['This will set the HSM to use a DHCP server for IP',
                    'address selection. It is recommended to always use DHCP.',
-                   'When a static ip is needed, it is recommended to configure',
-                   'the DHCP server to reserve a specific IP address for the HSM.',
+                   'When a static ip is needed, it is recommended to',
+                   'configure the DHCP server to reserve a specific IP',
+                   'address for the HSM.',
                    'If a DHCP cannot be found, the default static IP,',
                    "'10.10.10.2' will be used\r\n"]
 
@@ -344,7 +490,9 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
             self.cty_direct_call(line)
 
         # start the script
-        self.script_module = DHCPScriptModule(self.settings, self.cty_direct_call, self.safe_shutdown)
+        self.script_module = DHCPScriptModule(self.settings,
+                                              self.cty_direct_call,
+                                              self.safe_shutdown)
 
         self.cty_direct_call(self.prompt)
 
@@ -355,8 +503,9 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
                    'with the HSM.\r\n',
                    'While manual static IP selection is supported,',
                    'it is recommended to always use DHCP.',
-                   'When a static ip is needed, it is recommended to configure',
-                   'the DHCP server to reserve a specific IP address for the HSM.',
+                   'When a static ip is needed, it is recommended to',
+                   'configure the DHCP server to reserve a specific IP',
+                   'address for the HSM.',
                    'If a DHCP cannot be found, the default static IP,',
                    "'10.10.10.2' will be used\r\n"]
 
@@ -364,7 +513,9 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
             self.cty_direct_call(line)
 
         # start the script
-        self.script_module = StaticIPScriptModule(self.settings, self.cty_direct_call, self.safe_shutdown)
+        self.script_module = StaticIPScriptModule(self.settings,
+                                                  self.cty_direct_call,
+                                                  self.safe_shutdown)
 
         self.cty_direct_call(self.prompt)
 
@@ -376,12 +527,14 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
             self.redo_login(self.dks_set_ip_static_onlogin)
             return True
 
-    def dks_set_enable_exportable_private_keys(self, args):
+    def dks_set_enable_exportable_privatekeys(self, args):
+        setting = HSMSettings.ENABLE_EXPORTABLE_PRIVATE_KEYS
+
         if(args[0].lower() == 'true'):
-            self.settings.set_setting(HSMSettings.ENABLE_EXPORTABLE_PRIVATE_KEYS, True)
+            self.settings.set_setting(setting, True)
             return 'ENABLE_EXPORTABLE_PRIVATE_KEYS set to TRUE'
         elif(args[0].lower() == 'false'):
-            self.settings.set_setting(HSMSettings.ENABLE_EXPORTABLE_PRIVATE_KEYS, False)
+            self.settings.set_setting(setting, False)
             return 'ENABLE_EXPORTABLE_PRIVATE_KEYS set to FALSE'
 
     def dks_set_enable_key_export(self, args):
@@ -395,7 +548,9 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
     def add_list_commands(self):
         set_node = self.add_child('list')
 
-        set_node.add_child(name = "keys", num_args = 0, usage = " - list the keys in the CrypTech devices.", callback = self.dks_list_keys)
+        set_node.add_child(name="keys", num_args=0,
+                           usage=" - list the keys in the CrypTech devices.",
+                           callback=self.dks_list_keys)
 
     def dks_list_keys(self, args):
         cache = self.cache
@@ -403,9 +558,12 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
 
         self.cty_direct_call("CrypTech Device Cached UUIDs---")
 
-        for rpc_index in xrange(0, rpc_count):
+        for rpc_index in range(0, rpc_count):
             alphaTable = cache.alphaTables[rpc_index]
-            self.cty_direct_call("%sDevice:%i------------%s"%(self.initial_space, rpc_index, self.initial_space))
+            self.cty_direct_call("%sDevice:%i------------%s" %
+                                 (self.initial_space,
+                                  rpc_index,
+                                  self.initial_space))
             for key in alphaTable.get_keys():
                 self.cty_direct_call(key)
 
@@ -414,11 +572,15 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
     def add_masterkey_commands(self):
         masterkey_node = self.add_child('masterkey')
 
-        masterkey_node.add_child(name = "set", num_args = 0, usage = " - sets the master key.", callback = self.dks_masterkey_set)
+        masterkey_node.add_child(name="set", num_args=0,
+                                 usage=" - sets the master key.",
+                                 callback=self.dks_masterkey_set)
 
     def dks_masterkey_set(self, args):
         # use script to set the master key
-        self.script_module = MasterKeySetScriptModule(self.cty_conn, self.cty_direct_call)
+        self.script_module = MasterKeySetScriptModule(self.cty_conn,
+                                                      self.cty_direct_call,
+                                                      self.settings)
 
         return ''
 
@@ -426,49 +588,107 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
         update_node = self.add_child('update')
 
         cryptech_node = update_node.add_child('cryptech')
-        cryptech_node.add_child('bootloader', num_args=0, usage=' - Updates the bootloaders on the CrypTech devices.', callback=self.dks_update_cryptech_bootloader)
-        cryptech_node.add_child('firmware', num_args=0, usage=' - Updates the firmware on the CrypTech devices.', callback=self.dks_update_cryptech_firmware)
-        cryptech_node.add_child('fpga', num_args=0, usage=' - Updates the FPGA cores on the CrypTech devices.', callback=self.dks_update_cryptech_fpga)
+        cryptech_node.add_child('bootloader', num_args=0,
+                                usage=' - Updates the bootloaders on the'
+                                ' CrypTech devices.',
+                                callback=self.dks_update_cryptech_bootloader)
+        cryptech_node.add_child('firmware', num_args=0,
+                                usage=' - Updates the firmware on the'
+                                ' CrypTech devices.',
+                                callback=self.dks_update_cryptech_firmware)
+        cryptech_node.add_child('fpga', num_args=0,
+                                usage=' - Updates the FPGA cores on the'
+                                ' CrypTech devices.',
+                                callback=self.dks_update_cryptech_fpga)
+        cryptech_node.add_child('tamper', num_args=0,
+                                usage=' - Updates the tamper firmware on the'
+                                ' CrypTech devices.',
+                                callback=self.dks_update_cryptech_tamper)
 
-        update_node.add_child('HSM', num_args=1, usage='<path to file> - Updates the HSM firmware.', callback=self.dks_update_HSM)
+        update_node.add_child('HSM', num_args=1,
+                              usage='<path to file> - Updates the HSM'
+                                    ' firmware.',
+                              callback=self.dks_update_HSM)
 
     def dks_update_cryptech_fpga(self, args):
-        self.cty_direct_call(('\r\n!----------------------------------------------------------------------!'
+        self.cty_direct_call(('\r\n!------------------------------------------'
+                              '----------------------------!'
                               '\r\n!FPGA UPDATE WARNING!'
-                              '\r\nThis will update the FPGA inside the CrypTech device. The FPGA bit steam'
-                              '\r\nthat will be used was loaded into the HSM on the last HSM update and'
+                              '\r\nThis will update the FPGA inside the '
+                              'CrypTech device. The FPGA bit steam'
+                              '\r\nthat will be used was loaded into the HSM '
+                              'on the last HSM update and'
                               '\r\nis probably already on the device.'
-                              '\r\n!----------------------------------------------------------------------!\r\n'))
+                              '\r\n!------------------------------------------'
+                              '----------------------------!\r\n'))
 
         self.redo_login(self.dks_update_fpga)
         return True
 
     def dks_update_cryptech_firmware(self, args):
-        self.cty_direct_call(('\r\n!----------------------------------------------------------------------!'
+        self.cty_direct_call(('\r\n!------------------------------------------'
+                              '----------------------------!'
                               '\r\n!FIRMWARE UPDATE WARNING!'
-                              '\r\nThis will update the firmware inside the CrypTech device. The firmware'
-                              '\r\nthat will be used was loaded into the HSM on the last HSM update and'
-                              '\r\nis probably already on the device. Failures during the firmware update'
-                              '\r\ncan cause the CrypTech device to become inoperable'
-                              '\r\n!----------------------------------------------------------------------!\r\n'))
+                              '\r\nThis will update the firmware inside the '
+                              'CrypTech device. The firmware'
+                              '\r\nthat will be used was loaded into the HSM '
+                              'on the last HSM update and'
+                              '\r\nis probably already on the device. Failures'
+                              ' during the firmware update'
+                              '\r\ncan cause the CrypTech device to become '
+                              'inoperable'
+                              '\r\n!------------------------------------------'
+                              '----------------------------!\r\n'))
 
         self.redo_login(self.dks_update_firmware)
 
         return True
 
+    def dks_update_cryptech_tamper(self, args):
+        self.cty_direct_call(('\r\n!-----------------------------------------'
+                              '-----------------------------!'
+                              '\r\n!TAMPER FIRMWARE UPDATE WARNING!'
+                              '\r\nThis will update the firmware inside the '
+                              'CrypTech device. The firmware'
+                              '\r\nthat will be used was loaded into the HSM '
+                              'on the last HSM update and'
+                              '\r\nis probably already on the device. Failures'
+                              ' during the firmware update'
+                              '\r\ncan cause the CrypTech device to become '
+                              'inoperable'
+                              '\r\n!-----------------------------------------'
+                              '-----------------------------!\r\n'))
+
+        self.redo_login(self.dks_update_tamperfirmware)
+
+        return True
+
     def dks_update_cryptech_bootloader(self, args):
-        self.cty_direct_call(('\r\n!----------------------------------------------------------------------!'
+        self.cty_direct_call(('\r\n!-----------------------------------------'
+                              '-----------------------------!'
                               '\r\n!BOOTLOADER UPDATE WARNING!'
-                              '\r\nThis will update the bootloader inside the CrypTech device. The bootloader'
-                              '\r\nthat will be used was loaded into the HSM on the last HSM update and'
-                              '\r\nis probably already on the device. Failures during the bootloader update'
-                              '\r\ncan cause the CrypTech device to become inoperable'
-                              '\r\n!----------------------------------------------------------------------!\r\n'))
+                              '\r\nThis will update the bootloader inside the'
+                              ' CrypTech device. The bootloader'
+                              '\r\nthat will be used was loaded into the HSM'
+                              ' on the last HSM update and'
+                              '\r\nis probably already on the device. Failures'
+                              ' during the bootloader update'
+                              '\r\ncan cause the CrypTech device to become'
+                              ' inoperable'
+                              '\r\n!-----------------------------------------'
+                              '-----------------------------!\r\n'))
 
         self.redo_login(self.dks_update_bootloader)
         return True
 
+    def dks_update_tamperfirmware(self, pin):
+        self.on_cryptech_update_finished = self.settings.set_tamper_updated
+
+        return self.dks_do_update(self.cty_conn.uploadTamperFirmware, pin)
+
     def dks_update_firmware(self, pin):
+        self.on_cryptech_update_finished = self.settings.set_firmware_updated
+
         return self.dks_do_update(self.cty_conn.uploadFirmware, pin)
 
     def dks_update_bootloader(self, pin):
@@ -479,9 +699,11 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
 
     def dks_update_HSM(self, args):
         if('~' in args[0]):
-            return "You cannot use '~' in the path. You must use the full path."
+            return ("You cannot use '~' in the path. "
+                    "You must use the full path.")
         if(not args[0].endswith('.tar.gz.signed')):
-            return "You must use a '.tar.gz.signed' file from Diamond Key Security, NFP"
+            return ("You must use a '.tar.gz.signed' "
+                    "file from Diamond Key Security, NFP")
 
         self.request_file_path = args[0]
         self.redo_login(self.dks_do_HSM_update)
@@ -494,18 +716,20 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
 
             mgmt_code = MGMTCodes.MGMTCODE_RECEIVEHSM_UPDATE.value
             # setup a file transfer object
-            self.file_transfer = FileTransfer(requested_file_path = self.request_file_path, 
-                                            mgmt_code = mgmt_code,
-                                            uploads_dir = self.args.uploads,
-                                            restart_file = self.args.restart,
-                                            public_key = self.args.hsmpublickey,
-                                            finished_callback = self.dks_hsm_update_finished)
+            ft = FileTransfer(requested_file_path=self.request_file_path,
+                              mgmt_code=mgmt_code,
+                              uploads_dir=self.args.uploads,
+                              restart_file=self.args.restart,
+                              public_key=self.args.hsmpublickey,
+                              finished_callback=self.dks_hsm_update_finished)
 
+            self.file_transfer = ft
             # tell dks_setup_console that it can send the data now
-            msg = "%s:RECV:%s\r"%(mgmt_code, self.request_file_path)
+            msg = "%s:RECV:%s\r" % (mgmt_code, self.request_file_path)
             self.cty_direct_call(msg)
         except Exception as e:
-            self.cty_direct_call('\nThere was an error while receiving the update.\r\n\r\n%s'%e.message)
+            self.cty_direct_call('\nThere was an error while receiving the'
+                                 ' update.\r\n\r\n%s' % e.message)
 
     def dks_hsm_update_finished(self, result, msg):
         # we don't need to close the file_transfer object because it will
@@ -513,22 +737,26 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
         self.file_transfer = None
 
         if(result is True):
-            self.script_module = UpdateRestartScriptModule(self.cty_direct_call, self.safe_shutdown)
+            mod = UpdateRestartScriptModule(self.cty_direct_call,
+                                            self.safe_shutdown)
+            self.script_module = mod
 
         self.allow_user_input(msg)
-
 
     def dks_do_update(self, command, pin):
         result = command(pin)
         self.cty_direct_call(self.cty_conn.get_error_msg(result))
 
         if (result == CTYError.CTY_OK):
+            if(self.on_cryptech_update_finished is not None):
+                self.on_cryptech_update_finished()
+
             self.cty_direct_call("HSM Restarting in 5 seconds....")
             time.sleep(5)
 
             self.safe_shutdown.restart()
         else:
-            print "finished"
+            print("finished")
             self.logout("Finished upload")
 
         return True
@@ -536,9 +764,20 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
     def add_sync_commands(self):
         sync_node = self.add_child('sync')
 
-        sync_node.add_child(name = "cache", num_args = 0, usage = " - Scans the CrypTech devices to rebuild the cache.", callback = self.dks_sync_cache)
-        sync_node.add_child(name = "oneway", num_args = 3, usage = "<source RPC index> <destination RPC index> <max copies>  - copies keys from one CrypTech device to another.", callback = self.dks_sync_oneway)
-        sync_node.add_child(name = "twoway", num_args = 3, usage = "<source RPC index> <destination RPC index> <max copies>  - copies keys from one CrypTech device to another.", callback = self.dks_sync_twoway)
+        sync_node.add_child(name="cache", num_args=0,
+                            usage=" - Scans the CrypTech devices to rebuild"
+                            " the cache.",
+                            callback=self.dks_sync_cache)
+        sync_node.add_child(name="oneway", num_args=3,
+                            usage="<source RPC index> <destination RPC index>"
+                            " <max copies>  - copies keys from one CrypTech"
+                            " device to another.",
+                            callback=self.dks_sync_oneway)
+        sync_node.add_child(name="twoway", num_args=3,
+                            usage="<source RPC index> <destination RPC index>"
+                            " <max copies>  - copies keys from one CrypTech"
+                            " device to another.",
+                            callback=self.dks_sync_twoway)
 
     def sync_callback(self, cmd, result):
         self.cty_direct_call(result)        
@@ -550,7 +789,7 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
     def parse_index(self, index_string, max_value):
         try:
             index = int(index_string)
-        except:
+        except Exception:
             index = -1
 
         if (max_value > 0 and index >= max_value):
@@ -561,17 +800,20 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
     def dks_sync_oneway(self, args):
         src = self.parse_index(args[0], self.rpc_preprocessor.device_count())
         if (src < 0):
-            return "Invalid source parameter. Got '%s'."%args[0]
+            return "Invalid source parameter. Got '%s'." % args[0]
 
         dest = self.parse_index(args[1], self.rpc_preprocessor.device_count())
         if (dest < 0):
-            return "Invalid destination parameter. Got '%s'."%args[1]
+            return "Invalid destination parameter. Got '%s'." % args[1]
 
         max_keys = self.parse_index(args[2], 0)
         if (max_keys < 0):
-            return "Invalid max keys parameter. Got '%s'."%args[2]
+            return "Invalid max keys parameter. Got '%s'." % args[2]
 
-        cmd = sync.SyncCommand(sync.SyncCommandEnum.OneWayBackup, src, dest, self.sync_callback, param=max_keys, console=self.cty_direct_call)
+        cmd = sync.SyncCommand(sync.SyncCommandEnum.OneWayBackup, src, dest,
+                               self.sync_callback,
+                               param=max_keys,
+                               console=self.cty_direct_call)
 
         self.synchronizer.queue_command(cmd)
 
@@ -580,17 +822,20 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
     def dks_sync_twoway(self, args):
         src = self.parse_index(args[0], self.rpc_preprocessor.device_count())
         if (src < 0):
-            return "Invalid source parameter. Got '%s'."%args[0]
+            return "Invalid source parameter. Got '%s'." % args[0]
 
         dest = self.parse_index(args[1], self.rpc_preprocessor.device_count())
         if (dest < 0):
-            return "Invalid destination parameter. Got '%s'."%args[1]
+            return "Invalid destination parameter. Got '%s'." % args[1]
 
         max_keys = self.parse_index(args[2], 0)
         if (max_keys < 0):
-            return "Invalid max keys parameter. Got '%s'."%args[2]
+            return "Invalid max keys parameter. Got '%s'." % args[2]
 
-        cmd = sync.SyncCommand(sync.SyncCommandEnum.TwoWayBackup, src, dest, self.sync_callback, param=max_keys, console=self.cty_direct_call)
+        cmd = sync.SyncCommand(sync.SyncCommandEnum.TwoWayBackup, src, dest,
+                               self.sync_callback,
+                               param=max_keys,
+                               console=self.cty_direct_call)
 
         self.synchronizer.queue_command(cmd)
 
@@ -599,8 +844,18 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
     def add_keystore_commands(self):
         keystore_node = self.add_child('keystore')
         keystore_erase_node = keystore_node.add_child('erase')
-        keystore_erase_node.add_child('YesIAmSure', num_args=0, usage=' - Erases the entire keystore including PINs.', callback = self.dks_keystore_erase)
-        keystore_erase_node.add_child_tree(['preservePINs','YesIAmSure'], num_args=0, usage=' - Erases the keystore. Preserves PINs.', callback = self.dks_keystore_erase_preservePINs)
+        keystore_erase_node.add_child('YesIAmSure', num_args=0,
+                                      usage=' - Erases the entire keystore'
+                                            ' including PINs.',
+                                      callback=self.dks_keystore_erase)
+
+        # use erase_callback to meet PEP8 style
+        erase_callback = self.dks_keystore_erase_preservePINs
+        keystore_erase_node.add_child_tree(['preservePINs', 'YesIAmSure'],
+                                           num_args=0,
+                                           usage=' - Erases the keystore.'
+                                                 ' Preserves PINs.',
+                                           callback=erase_callback)
 
     def dks_keystore_erase(self, args):
         if(self.cty_conn.clearKeyStore(preservePINs=False) == CTYError.CTY_OK):
@@ -618,8 +873,17 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
 
     def add_restore_commands(self):
         restore_node = self.add_child('restore')
-        restore_node.add_child_tree(['preservePINs-KEYs','YesIAmSure'], num_args=0, usage=' - Restores the HSM to factory settings without downgrading the HSM software. Will not delete keys or PINS.', callback = self.dks_restore_settingsonly)
-        restore_node.add_child('YesIAmSure', num_args=0, usage=' - Restores the HSM to factory settings without downgrading the HSM software.', callback = self.dks_restore)
+        restore_node.add_child_tree(['preservePINs-KEYs', 'YesIAmSure'],
+                                    num_args=0,
+                                    usage=' - Restores the HSM to factory'
+                                          ' settings without downgrading the'
+                                          ' HSM software. Will not delete'
+                                          ' keys or PINS.',
+                                    callback=self.dks_restore_settingsonly)
+        restore_node.add_child('YesIAmSure', num_args=0,
+                               usage=' - Restores the HSM to factory settings'
+                                     ' without downgrading the HSM software.',
+                               callback=self.dks_restore)
 
     def dks_restore(self, args):
         # clear the settings
@@ -638,8 +902,12 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
 
     def add_shutdown_commands(self):
         shutdown_node = self.add_child('shutdown')
-        shutdown_node.add_child_tree(['restart','YesIAmSure'], num_args=0, usage=' - Restarts the HSM.', callback = self.dks_shutdown_restart)
-        shutdown_node.add_child('YesIAmSure', num_args=0, usage=' - Shuts down the HSM.', callback = self.dks_shutdown)
+        shutdown_node.add_child_tree(['restart', 'YesIAmSure'], num_args=0,
+                                     usage=' - Restarts the HSM.',
+                                     callback=self.dks_shutdown_restart)
+        shutdown_node.add_child('YesIAmSure', num_args=0,
+                                usage=' - Shuts down the HSM.',
+                                callback=self.dks_shutdown)
 
     def dks_shutdown(self, args):
         self.cty_direct_call('Shutting Down HSM')
@@ -654,11 +922,17 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
     def add_debug_commands(self):
         debug_node = self.add_child('debug')
 
-        debug_node.add_child_tree(['flash','system', 'led'], num_args=0, usage=' - Flashes the system LED.', callback = self.dks_debug_flash_led)
+        debug_node.add_child_tree(['flash', 'system', 'led'], num_args=0,
+                                  usage=' - Flashes the system LED.',
+                                  callback=self.dks_debug_flash_led)
 
-        debug_node.add_child_tree(['reboot','cryptech'], num_args=0, usage=' - Reboots the CrypTech devices.', callback = self.dks_reboot_cryptech)
+        debug_node.add_child_tree(['reboot', 'cryptech'], num_args=0,
+                                  usage=' - Reboots the CrypTech devices.',
+                                  callback=self.dks_reboot_cryptech)
 
-        debug_node.add_child('verbose', num_args=0, usage=' - Add verbose debugging to log.', callback = self.dks_debug_verbose)
+        debug_node.add_child('verbose', num_args=0,
+                             usage=' - Add verbose debugging to log.',
+                             callback=self.dks_debug_verbose)
 
     def dks_debug_flash_led(self, args):
         if (self.led is not None):

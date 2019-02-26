@@ -202,7 +202,7 @@ class CTYConnection(object):
             cmd += ' preservePINs'
         cmd += '\r'
 
-        self.feedback('\r\Clearing the keystore. This may take upto 45 seconds.')
+        self.feedback('\r\nClearing the keystore. This may take upto 45 seconds.')
 
         with WaitFeedback.Start(self.feedback):
             for hsm_cty in self.cty_list:
@@ -236,6 +236,14 @@ class CTYConnection(object):
         if(ready_state is not CTYError.CTY_OK): return ready_state
 
         return self._do_upload(self.binary_path + "/hsm.bin", UploadArgs(firmware = True, pin = PIN))
+
+    def uploadTamperFirmware(self, PIN):
+        # make sure we have an alpha that's ready to receive commands
+        ready_state = self.check_ready()
+        if(ready_state is not CTYError.CTY_OK): return ready_state
+
+        return CTYError.CTY_OK
+        # return self._do_upload(self.binary_path + "/hsm.bin", UploadArgs(firmware = True, pin = PIN))
 
     def check_ready(self):
         # make sure we're actually connected to an alpha
