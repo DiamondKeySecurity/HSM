@@ -34,22 +34,12 @@ def byteify(input):
 
 def findMatchingMasterListID(new_uuid, matching_map, master_rows):
     """Uses the matching map to find the masterListID of a matching key"""
-    for match in matching_map:
-        if(new_uuid in match):
-            # we found the row with the new uuid
-            for uuid in match:
-                # look through the matches to find in master rows
-                if (uuid != new_uuid):
-                    print 'looking for %s in master rows to match %s'%(uuid, new_uuid)
-                    for key, value in master_rows.iteritems():
-                        uuid_list = value.uuid_list
-                        if(uuid in uuid_list):
-                            print 'found %i'%key
-                            return key
+    if (new_uuid in matching_map):
+        return matching_map[new_uuid]
                 
     return None
 
-def addAlphaData(rpc_index, cache_worker, matching_map, first, cache_folder):
+def addAlphaData(rpc_index, cache_worker, matching_map, cache_folder):
     master = CacheTableMaster(cache_worker)
     master_rows = master.get_rows()
 
@@ -63,8 +53,9 @@ def addAlphaData(rpc_index, cache_worker, matching_map, first, cache_folder):
                     split = line.split(':')
                     if(len(split) > 1):
                         new_uuid = split[0].strip()
+                        new_uuid = uuid.UUID(new_uuid.strip('"{'))
 
-                        if(first or matching_map is None):
+                        if(matching_map is None):
                             # add uuid without matching
                             masterListID = None
                         else:
@@ -73,41 +64,40 @@ def addAlphaData(rpc_index, cache_worker, matching_map, first, cache_folder):
                         cache_worker.add_key_to_alpha(rpc_index, new_uuid, 0, 0, param_masterListID = masterListID)
 
     except Exception as e:
-        print 'exception %s'%e.message
+        print '[exception %s]'%e.message
 
 def loadSavedCache(num_alphas, cache_folder, worker):
     # get the mapping
     try:
         with open('%s/cache_mapping.db'%cache_folder, 'r') as fh:
-            matching_map = byteify(json.load(fh))
+            base_matching_map = byteify(json.load(fh))
+
+        # convert to UUIDs
+        matching_map = {}
+
+        for key, val in base_matching_map.iteritems():
+            matching_map[uuid.UUID(key)] = uuid.UUID(val)
     except:
         matching_map = None
-    
-    first = True
+
     # load complete saved history
     for rpc_index in xrange(num_alphas):
-        addAlphaData(rpc_index, worker, matching_map, first, cache_folder)
-
-        first = False
+        addAlphaData(rpc_index, worker, matching_map, cache_folder)
 
 def createNewUUIDs(num_alphas, worker):
     # load complete saved history
     for alpha_index in xrange(num_alphas):
         # create new 10 uuids on each alpha
         for _ in xrange(10):
-            worker.add_key_to_alpha(alpha_index, str(uuid.uuid4()), 0, 0, param_masterListID = None)
+            worker.add_key_to_alpha(alpha_index, uuid.uuid4(), 0, 0, param_masterListID = None)
 
 def buildUUIDCopyList(worker, src_index, dest_index, max_uuids):
     """get a list of uuids to copy from one alpha to another"""
 
     # this function has been generalized to work on an HSM with n alphas
-    source =  CacheTableAlpha(worker, src_index)
-    destination = CacheTableAlpha(worker, dest_index)
     master = CacheTableMaster(worker)
 
     # get a copy of the data that won't be affected if there are changes on another thread
-    source_list = source.get_rows()
-    destination_list = destination.get_rows()
     master_rows = master.get_rows()
 
     # look through all of the uuids in the source and add them to our list if they don't
@@ -116,35 +106,27 @@ def buildUUIDCopyList(worker, src_index, dest_index, max_uuids):
     results = []
     count = 0
 
-    for key, row in source_list.iteritems():
-        masterListID = row.masterListID
-        if(masterListID in master_rows):
-            master_row = master_rows[masterListID]
-            found = False
+    # look through the master list for uuids that have a src uuid, but not a dest uuid
+    for row in master_rows.itervalues():
+        if (src_index in row.uuid_dict and
+            dest_index not in row.uuid_dict):
 
-            # look at the uuids in the master list and see if
-            # they match a key in the destination list
-            for uuid in master_row.uuid_list:
-                if(uuid != key and uuid in destination_list):
-                    found = True
-            if (not found):
-                # if the uuid doesn't match anything in the destination,
-                # add it to our results
-                count += 1
-                results.append(key)
+            results.append(row.uuid_dict[src_index])
+            count += 1
+
         if (count == max_uuids):
             break
 
     return results
 
-def CopyUUIDs(worker, list, src_index, dest_index):
+def CopyUUIDs(worker, list_uuid, src_index, dest_index):
     # get the source alpha
-    source =  CacheTableAlpha(worker, src_index)
+    source = CacheTableAlpha(worker, src_index)
 
     # get a copy of the data that won't be affected if there are changes on another thread
     source_list = source.get_rows()
 
-    for key_uuid in list:
+    for key_uuid in list_uuid:
         # get the masterlistID
         try:
             masterlistID = source_list[key_uuid].masterListID
@@ -152,7 +134,7 @@ def CopyUUIDs(worker, list, src_index, dest_index):
             continue
 
         # copy the KEY
-        copy = str(uuid.uuid4())
+        copy = uuid.uuid4()
         worker.add_key_to_alpha(dest_index, copy, 0, 0, param_masterListID = masterlistID)
 
         print '%s linked to %s'%(copy, key_uuid)
@@ -169,12 +151,11 @@ def main():
     cache_folder = '/home/douglas/Documents/CACHE_TEST'
 
     cache = HSMCache(num_alphas, cache_folder)
-    worker = cache.get_cache_object()
 
-    loadSavedCache(num_alphas, cache_folder, worker)
-    createNewUUIDs(num_alphas, worker)
+    loadSavedCache(num_alphas, cache_folder, cache)
+    createNewUUIDs(num_alphas, cache)
 
-    synchronize(worker)
+    synchronize(cache)
 
     cache.backup()
 

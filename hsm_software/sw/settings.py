@@ -8,7 +8,7 @@ import threading
 
 from enum import Enum
 
-HSM_SOFTWARE_VERSION = '19.02.26.tamper29'
+HSM_SOFTWARE_VERSION = '19.02.28.tamper30'
 
 # this is the version of the firmware that's built into the current release
 BUILTIN_FIRMWARE_VERSION = '2019-02-06v2'
