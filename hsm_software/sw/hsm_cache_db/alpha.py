@@ -17,7 +17,7 @@ class AlphaCacheRow(object):
 
     def __str__(self):
         """Provide override of _str__ for testing"""
-        return '{"masterListID":%d}'%(self.masterListID)
+        return '{"masterListID":%s}'%str(self.masterListID)
 
 class CacheTableAlpha(CacheTable):
     """Uses a dictionary to hold table data for keys on an alpha

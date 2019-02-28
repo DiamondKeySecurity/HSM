@@ -143,14 +143,12 @@ class Synchronizer(PFUNIX_HSM):
         master = self.cache.get_master_table_object()
 
         # get a copy of the data that won't be affected if there are changes on another thread
-        source_list = source.get_rows()
-        destination_list = destination.get_rows()
         master_rows = master.get_rows()
 
         # get the list of keys to copy
         uuid_list = self.buildUUIDCopyList(master_rows = master_rows,
-                                           source_list = source_list,
-                                           destination_list = destination_list,
+                                           src_index = cmd.src,
+                                           dest_index = cmd.dest,
                                            max_uuids = cmd.param)
 
         # setup destination -------------------------
@@ -189,7 +187,7 @@ class Synchronizer(PFUNIX_HSM):
 
         self.do_cmd_callback(cmd, "Two way backup between %d to %d complete"%(cmd.src, cmd.dest))
 
-    def addAlphaData(self, hsm, rpc_index, console, matching_map, first):
+    def addAlphaData(self, hsm, rpc_index, console, matching_map):
         # get master table
         master = self.cache.get_master_table_object()
         master_rows = master.get_rows()
@@ -203,15 +201,15 @@ class Synchronizer(PFUNIX_HSM):
                 console("Found:%s"%uuid)
 
             with hsm.pkey_open(uuid) as pkey:
-                new_uuid = str(uuid)
+                new_uuid = uuid
 
-                if(first or matching_map is None):
+                if(matching_map is None):
                     # add uuid without matching
                     masterListID = None
                 else:
                     masterListID = self.findMatchingMasterListID(new_uuid, matching_map, master_rows)                
 
-                self.cache.add_key_to_alpha(rpc_index, new_uuid, pkey.key_type, pkey.key_flags, param_masterListID = masterListID)
+                self.cache.add_key_to_alpha(rpc_index, new_uuid, pkey.key_type, pkey.key_flags, param_masterListID = masterListID, auto_backup=False)
 
     def byteify(self, input):
         """Converts unicode(2 byte) values stored in a dictionary or string to utf-8"""
@@ -227,22 +225,12 @@ class Synchronizer(PFUNIX_HSM):
 
     def findMatchingMasterListID(self, new_uuid, matching_map, master_rows):
         """Uses the matching map to find the masterListID of a matching key"""
-        for match in matching_map:
-            if(new_uuid in match):
-                # we found the row with the new uuid
-                for uuid in match:
-                    # look through the matches to find in master rows
-                    if (uuid != new_uuid):
-                        print 'looking for %s in master rows to match %s'%(uuid, new_uuid)
-                        for key, value in master_rows.iteritems():
-                            uuid_list = value.uuid_list
-                            if(uuid in uuid_list):
-                                print 'found %i'%key
-                                return key
+        if (new_uuid in matching_map):
+            return matching_map[new_uuid]
                     
         return None
 
-    def buildUUIDCopyList(self, master_rows, source_list, destination_list, max_uuids):
+    def buildUUIDCopyList(self, master_rows, src_index, dest_index, max_uuids):
         """get a list of uuids to copy from one alpha to another"""
         # this function has been generalized to work on an HSM with n alphas
 
@@ -251,22 +239,14 @@ class Synchronizer(PFUNIX_HSM):
         results = []
         count = 0
 
-        for key, row in source_list.iteritems():
-            masterListID = row.masterListID
-            if(masterListID in master_rows):
-                master_row = master_rows[masterListID]
-                found = False
+        # look through the master list for uuids that have a src uuid, but not a dest uuid
+        for row in master_rows.itervalues():
+            if (src_index in row.uuid_dict and
+                dest_index not in row.uuid_dict):
 
-                # look at the uuids in the master list and see if
-                # they match a key in the destination list
-                for uuid in master_row.uuid_list:
-                    if(uuid != key and uuid in destination_list):
-                        found = True
-                if (not found):
-                    # if the uuid doesn't match anything in the destination,
-                    # add it to our results
-                    count += 1
-                    results.append(key)
+                results.append(row.uuid_dict[src_index])
+                count += 1
+
             if (count == max_uuids):
                 break
 
@@ -282,22 +262,25 @@ class Synchronizer(PFUNIX_HSM):
         # get the mapping
         try:
             with open('%s/cache_mapping.db'%self.cache.cache_folder, 'r') as fh:
-                matching_map = self.byteify(json.load(fh))
+                base_matching_map = self.byteify(json.load(fh))
+
+            # convert to UUIDs
+            matching_map = {}
+
+            for key, val in base_matching_map.iteritems():
+                matching_map[uuid.UUID(key)] = uuid.UUID(val)
+
         except:
             matching_map = None
         
-        first = True
-
         # build master table from the alphas
         for rpc_index in range(rpc_from_index, rpc_to_index):
-            self.addAlphaData(hsm, rpc_index, cmd.console, matching_map, first)
+            self.addAlphaData(hsm, rpc_index, cmd.console, matching_map)
 
-            first = False
+        self.cache.backup()
 
         # push changes to cache
         self.cache.initialize_cache()
-
-        self.cache.backup()
 
         self.do_cmd_callback(cmd, "Cache generated")
 
@@ -376,7 +359,7 @@ class Synchronizer(PFUNIX_HSM):
             for uuid in hsm.pkey_match(mask  = HAL_KEY_FLAG_EXPORTABLE,
                                     flags = HAL_KEY_FLAG_EXPORTABLE):
 
-                if(str(uuid) in args.uuid_list):
+                if(uuid in args.uuid_list):
                     # this has been updated to only export keys that are in the list
                     with hsm.pkey_open(uuid) as pkey:
 
@@ -442,7 +425,7 @@ class Synchronizer(PFUNIX_HSM):
                 flags =         k.get("flags",  0)
                 attributes = self.clean_attributes(k.get("attributes", {}))
 
-                original_uuid = k["uuid"]
+                original_uuid = uuid.UUID(k["uuid"])
                 new_uuid = None
 
                 # get the masterlistID
@@ -458,7 +441,7 @@ class Synchronizer(PFUNIX_HSM):
                     if pkcs8 and kek:
                         with kekek.import_pkey(pkcs8 = pkcs8, kek = kek, flags = flags) as pkey:
 
-                            new_uuid = str(pkey.uuid)
+                            new_uuid = pkey.uuid
 
                             try:
                                 if(len(attributes) > 0):
@@ -467,14 +450,14 @@ class Synchronizer(PFUNIX_HSM):
                                 # don't fail on attributes just log
                                 logger.info("Import attribute failure on %s",  new_uuid)
 
-                            print "Imported {} as {}".format(original_uuid, new_uuid)
+                            print "Imported {} as {}".format(str(original_uuid), new_uuid)
                     elif spki:
                         with hsm.pkey_load(der = spki, flags = flags) as pkey:
                             pkey.set_attributes(attributes = attributes)
 
-                            new_uuid = str(pkey.uuid)
+                            new_uuid = pkey.uuid
 
-                            print "Loaded {} as {}".format(original_uuid, new_uuid)
+                            print "Loaded {} as {}".format(str(original_uuid), new_uuid)
 
                 if (new_uuid is not None):
                     self.cache.add_key_to_alpha(dest_index, new_uuid, 0, 0, param_masterListID = masterlistID)
