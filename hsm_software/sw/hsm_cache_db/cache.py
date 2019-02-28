@@ -75,7 +75,7 @@ class CacheTable(object):
                 fh.write('[\r\n')
 
                 for key, value in table.iteritems():
-                    fh.write('{%s : %s},\r\n'%(str(key), str(value)))
+                    fh.write(' {"%s" : %s},\r\n'%(str(key), str(value)))
 
                 # we just saved the table so we're no longer dirty
                 self.dirty = False

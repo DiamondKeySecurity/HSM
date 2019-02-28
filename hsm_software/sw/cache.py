@@ -50,7 +50,7 @@ class HSMCache(CacheDB):
     def get_master_table_object(self):
         return self.masterTable
 
-    def add_key_to_alpha(self, rpc_index, uuid, keytype = 0, flags = 0, param_masterListID = None):
+    def add_key_to_alpha(self, rpc_index, uuid, keytype = 0, flags = 0, param_masterListID = None, auto_backup = True):
         masterTable = self.masterTable
         alphaTable = self.alphaTables[rpc_index]
 
@@ -60,20 +60,24 @@ class HSMCache(CacheDB):
             # link new uuid to existing key
             row = masterTable.fetch_row(param_masterListID)
             if(row is not None):
-                row.uuid_list.append(uuid)
+                row.uuid_dict[rpc_index] = uuid
 
                 masterTable.update_row(param_masterListID, row)
 
                 # updates to the mapping must be made right away
-                self.backup_matching_map()
+                if (auto_backup):
+                    self.backup_matching_map()
 
                 masterListID = param_masterListID
-            else:
-                print 'error on %s at %i'%(uuid, param_masterListID)
         
         if (masterListID is None):
             # add a new entry to the master table
-            masterListID = masterTable.add_row(None, MasterKeyListRow(uuid, keytype, flags))
+            # if param_masterListID is not None, we must
+            # create an entry in the master table, because
+            # this is being reloaded from saved data. if
+            # param_masterListID is None, add_row will
+            # generate a new UUID
+            masterListID = masterTable.add_row(param_masterListID, MasterKeyListRow(rpc_index, uuid, keytype, flags))
 
         alphaTable.add_row(uuid, AlphaCacheRow(masterListID))
 
@@ -169,14 +173,9 @@ class HSMCache(CacheDB):
 
         for master_key, master_row in master_rows.iteritems():
             results.append('-----------------------------------------------------')
-            results.append('Cache Index: %i, Type: %s,  Flags: %s'%(master_key, str(master_row.keytype), str(master_row.flags)))
-            for uuid in master_row.uuid_list:
-                alpha_index = 'BROKEN'
-                for i in xrange(self.rpc_count):
-                    if (uuid in alpha_rows[i]):
-                        alpha_index = str(i)
-
-                results.append('-> %s in RPC:%s'%(uuid, alpha_index))
+            results.append('UUID: %s, Type: %s,  Flags: %s'%(master_key, str(master_row.keytype), str(master_row.flags)))
+            for rpc_index, uuid in master_row.uuid_dict.iteritems():
+                results.append('-> %s in RPC:%i'%(uuid, rpc_index))
 
         return results
 
