@@ -314,7 +314,7 @@ class Synchronizer(PFUNIX_HSM):
                 elif (kekek.key_flags & HAL_KEY_FLAG_USAGE_KEYENCIPHERMENT) == 0:
                     sys.stderr.write("Key {} does not allow key encipherment\n".format(uuid))
                 else:
-                    result.update(kekek_uuid   = str(kekek.uuid),
+                    result.update(kekek_uuid   = kekek.uuid,
                                 kekek_pubkey = b64(kekek.public_key))
                     break
 
@@ -322,7 +322,7 @@ class Synchronizer(PFUNIX_HSM):
             with hsm.pkey_generate_rsa(
                     keylen = args.keylen,
                     flags = HAL_KEY_FLAG_USAGE_KEYENCIPHERMENT | HAL_KEY_FLAG_TOKEN) as kekek:
-                result.update(kekek_uuid   = str(kekek.uuid),
+                result.update(kekek_uuid   = kekek.uuid,
                             kekek_pubkey = b64(kekek.public_key))
         if not result:
             sys.exit("Could not find suitable KEKEK")
@@ -378,7 +378,7 @@ class Synchronizer(PFUNIX_HSM):
                                 comment = "Encrypted private key",
                                 pkcs8   = b64(pkcs8),
                                 kek     = b64(kek),
-                                uuid    = str(pkey.uuid),
+                                uuid    = pkey.uuid,
                                 flags   = pkey.key_flags,
                                 attributes = attributes))
 
@@ -386,7 +386,7 @@ class Synchronizer(PFUNIX_HSM):
                             result.append(dict(
                                 comment = "Public key",
                                 spki    = b64(pkey.public_key),
-                                uuid    = str(pkey.uuid),
+                                uuid    = pkey.uuid,
                                 flags   = pkey.key_flags,
                                 attributes = attributes))
 
@@ -450,14 +450,14 @@ class Synchronizer(PFUNIX_HSM):
                                 # don't fail on attributes just log
                                 logger.info("Import attribute failure on %s",  new_uuid)
 
-                            print "Imported {} as {}".format(str(original_uuid), new_uuid)
+                            print "Imported {} as {}".format(original_uuid, new_uuid)
                     elif spki:
                         with hsm.pkey_load(der = spki, flags = flags) as pkey:
                             pkey.set_attributes(attributes = attributes)
 
                             new_uuid = pkey.uuid
 
-                            print "Loaded {} as {}".format(str(original_uuid), new_uuid)
+                            print "Loaded {} as {}".format(original_uuid, new_uuid)
 
                 if (new_uuid is not None):
                     self.cache.add_key_to_alpha(dest_index, new_uuid, 0, 0, param_masterListID = masterlistID)

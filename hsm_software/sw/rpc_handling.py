@@ -471,8 +471,8 @@ class RPCPreprocessor:
         unpacker.unpack_uint()
 
         # uuid
-        u = UUID(bytes = unpacker.unpack_bytes())
-        uuid = str(u)
+        uuid = UUID(bytes = unpacker.unpack_bytes())
+        # uuid = str(u)
 
         # get the session to use
         session = self.get_session(client)
@@ -768,7 +768,8 @@ class RPCPreprocessor:
 
         #get the new uuid
         u = UUID(bytes = unpacker.unpack_bytes())
-        session.key_op_data.uuid = str(u)
+        # session.key_op_data.uuid = str(u)
+        session.key_op_data.uuid = u
 
         # save the RPC to use for this handle
         session.key_rpcs[session.key_op_data.handle] = KeyHandleDetails(session.key_op_data.rpc_index, session.key_op_data.uuid)
