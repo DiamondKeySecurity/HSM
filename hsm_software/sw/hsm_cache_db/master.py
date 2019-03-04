@@ -46,7 +46,7 @@ class CacheTableMaster(CacheTable):
     """
     def __init__(self, cacheDB):
         self.lock = threading.Lock()
-        super(CacheTableMaster, self).__init__(cacheDB)        
+        super(CacheTableMaster, self).__init__(cacheDB)
 
     def get_table(self):
         return self.cacheDB.get_masterTable()

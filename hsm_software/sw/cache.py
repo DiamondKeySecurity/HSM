@@ -50,6 +50,24 @@ class HSMCache(CacheDB):
     def get_master_table_object(self):
         return self.masterTable
 
+    def get_master_uuid(self, device_index, device_uuid):
+        alphaTable = self.alphaTables[device_index]
+        row = alphaTable.fetch_row(device_uuid)
+        if (row is not None):
+            return row.masterListID
+        else:
+            return None
+
+    def get_master_uuid_lowest_index(self, master_uuid):
+        full_list = self.get_alphas(master_uuid)
+
+        index = None
+        for key in full_list.iterkeys():
+            if (index is None or index < key):
+                index = key
+
+        return index
+
     def add_key_to_alpha(self, rpc_index, uuid, keytype = 0, flags = 0, param_masterListID = None, auto_backup = True):
         masterTable = self.masterTable
         alphaTable = self.alphaTables[rpc_index]
@@ -104,36 +122,29 @@ class HSMCache(CacheDB):
         # updates to the mapping must be made right away
         self.backup_matching_map()
 
-    def get_alphas(self, uuid):
-        """Return a list of alphas that the uuid is on"""
-        # master_index = None
-        result = {}
+    def get_alpha_lowest_index(self, master_uuid):
+        """Returns information on the alpha with the master_uuid as a tuple.
+        The first element is the device index and the second is the device
+        uuid. If the master_uuid refers to items on multiple devices,
+        the device with the smallest index is returned"""
+        full_list = self.get_alphas(master_uuid)
 
-        # first match the uuid exactly
-        for rpc_index in range(self.rpc_count):
-            alpha_table = self.alphaTables[rpc_index]
+        result = None
+        for key, val in full_list.iteritems():
+            if (result is None or result[0] < key):
+                result = (key, val)
 
-            row = alpha_table.get_from_uuid(uuid)
-
-            if(row is not None):
-                master_index = row.masterListID
-                result[rpc_index] = uuid
-
-                break
-
-        # # see if the key has been duplicated on another alpha
-        # if(master_index is not None):
-        #     for rpc_index in range(self.rpc_count):
-        #         alpha_table = CacheTableAlpha(self, rpc_index)
-
-        #         found_uuid = alpha_table.get_from_masterListID(master_index)
-        #         if(found_uuid != uuid):
-        #             result[rpc_index] = found_uuid
-
-        # result is a key value pair
-        # key   - rpc index
-        # value - uuid on that rpc
         return result
+
+    def get_alphas(self, master_uuid):
+        """Returns a list of alphas that the master UUID is on"""
+        row = self.masterTable.fetch_row(master_uuid)
+
+        # return a copy of the dictionary to prevent changes
+        if (row is not None):
+            return row.uuid_dict.copy()
+        else:
+            return {}
 
     def clear(self):
         super(HSMCache, self).clear()

@@ -114,6 +114,8 @@ class DKS_RPCFunc(IntEnum):
     RPC_FUNC_SET_RPC_DEVICE               = 1981
     RPC_FUNC_DISABLE_CACHE_KEYGEN         = 1982
     RPC_FUNC_ENABLE_CACHE_KEYGEN          = 1983
+    RPC_FUNC_USE_INCOMING_DEVICE_UUIDS    = 1984
+    RPC_FUNC_USE_INCOMING_MASTER_UUIDS    = 1985
 
 class DKS_HALDigestAlgorithm(IntEnum):
     HAL_DIGEST_ALGORITHM_NONE       = 0
@@ -255,8 +257,20 @@ class DKS_HSM(HSM):
         client = unpacker.unpack_uint()
 
         return unpacker.unpack_uint()
+    def rpc_use_incoming_device_uuids(self, client = 0):
+        with self.rpc(DKS_RPCFunc.RPC_FUNC_USE_INCOMING_DEVICE_UUIDS, client = client):
+            return
+
+    def rpc_use_incoming_master_uuids(self, client = 0):
+        with self.rpc(DKS_RPCFunc.RPC_FUNC_USE_INCOMING_MASTER_UUIDS, client = client):
+            return            
 
     def start_disable_cache_block(self):
         """Returns a ContextManagedObject that can be used with the 'with' keyword to only
          disable caching of a key generation in the 'with' block"""
         return ContextManagedObject(self.rpc_disable_cache_keygen, self.rpc_enable_cache_keygen)
+
+    def start_using_device_uuids_block(self):
+        """Returns a ContextManagedObject that can be used with the 'with' keyword to only
+         disable caching of a key generation in the 'with' block"""
+        return ContextManagedObject(self.rpc_use_incoming_device_uuids, self.rpc_use_incoming_master_uuids)
