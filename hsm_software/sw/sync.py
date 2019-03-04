@@ -196,20 +196,21 @@ class Synchronizer(PFUNIX_HSM):
         hsm.rpc_set_device(rpc_index)
         
         # get list of all keys on the alpha
-        for uuid in hsm.pkey_match():
-            if(console is not None):
-                console("Found:%s"%uuid)
+        with hsm.start_using_device_uuids_block():
+            for uuid in hsm.pkey_match():
+                if(console is not None):
+                    console("Found:%s"%uuid)
 
-            with hsm.pkey_open(uuid) as pkey:
-                new_uuid = uuid
+                with hsm.pkey_open(uuid) as pkey:
+                    new_uuid = uuid
 
-                if(matching_map is None):
-                    # add uuid without matching
-                    masterListID = None
-                else:
-                    masterListID = self.findMatchingMasterListID(new_uuid, matching_map, master_rows)                
+                    if(matching_map is None):
+                        # add uuid without matching
+                        masterListID = None
+                    else:
+                        masterListID = self.findMatchingMasterListID(new_uuid, matching_map, master_rows)                
 
-                self.cache.add_key_to_alpha(rpc_index, new_uuid, pkey.key_type, pkey.key_flags, param_masterListID = masterListID, auto_backup=False)
+                    self.cache.add_key_to_alpha(rpc_index, new_uuid, pkey.key_type, pkey.key_flags, param_masterListID = masterListID, auto_backup=False)
 
     def byteify(self, input):
         """Converts unicode(2 byte) values stored in a dictionary or string to utf-8"""
@@ -297,33 +298,34 @@ class Synchronizer(PFUNIX_HSM):
         result = {}
         uuids  = []
 
-        if args.soft_backup:
-            SoftKEKEK.generate(args, result)
-        elif args.uuid:
-            uuids.append(args.uuid)
-        elif not args.new:
-            uuids.extend(hsm.pkey_match(
-                type  = HAL_KEY_TYPE_RSA_PRIVATE,
-                mask  = HAL_KEY_FLAG_USAGE_KEYENCIPHERMENT | HAL_KEY_FLAG_TOKEN,
-                flags = HAL_KEY_FLAG_USAGE_KEYENCIPHERMENT | HAL_KEY_FLAG_TOKEN))
+        with hsm.start_using_device_uuids_block():
+            if args.soft_backup:
+                SoftKEKEK.generate(args, result)
+            elif args.uuid:
+                uuids.append(args.uuid)
+            elif not args.new:
+                uuids.extend(hsm.pkey_match(
+                    type  = HAL_KEY_TYPE_RSA_PRIVATE,
+                    mask  = HAL_KEY_FLAG_USAGE_KEYENCIPHERMENT | HAL_KEY_FLAG_TOKEN,
+                    flags = HAL_KEY_FLAG_USAGE_KEYENCIPHERMENT | HAL_KEY_FLAG_TOKEN))
 
-        for uuid in uuids:
-            with hsm.pkey_open(uuid) as kekek:
-                if kekek.key_type != HAL_KEY_TYPE_RSA_PRIVATE:
-                    sys.stderr.write("Key {} is not an RSA private key\n".format(uuid))
-                elif (kekek.key_flags & HAL_KEY_FLAG_USAGE_KEYENCIPHERMENT) == 0:
-                    sys.stderr.write("Key {} does not allow key encipherment\n".format(uuid))
-                else:
-                    result.update(kekek_uuid   = kekek.uuid,
+            for uuid in uuids:
+                with hsm.pkey_open(uuid) as kekek:
+                    if kekek.key_type != HAL_KEY_TYPE_RSA_PRIVATE:
+                        sys.stderr.write("Key {} is not an RSA private key\n".format(uuid))
+                    elif (kekek.key_flags & HAL_KEY_FLAG_USAGE_KEYENCIPHERMENT) == 0:
+                        sys.stderr.write("Key {} does not allow key encipherment\n".format(uuid))
+                    else:
+                        result.update(kekek_uuid   = str(kekek.uuid),
+                                      kekek_pubkey = b64(kekek.public_key))
+                        break
+
+            if not result and not args.uuid:
+                with hsm.pkey_generate_rsa(
+                        keylen = args.keylen,
+                        flags = HAL_KEY_FLAG_USAGE_KEYENCIPHERMENT | HAL_KEY_FLAG_TOKEN) as kekek:
+                    result.update(kekek_uuid   = str(kekek.uuid),
                                 kekek_pubkey = b64(kekek.public_key))
-                    break
-
-        if not result and not args.uuid:
-            with hsm.pkey_generate_rsa(
-                    keylen = args.keylen,
-                    flags = HAL_KEY_FLAG_USAGE_KEYENCIPHERMENT | HAL_KEY_FLAG_TOKEN) as kekek:
-                result.update(kekek_uuid   = kekek.uuid,
-                            kekek_pubkey = b64(kekek.public_key))
         if not result:
             sys.exit("Could not find suitable KEKEK")
 
@@ -353,42 +355,43 @@ class Synchronizer(PFUNIX_HSM):
 
         kekek = None
         try:
-            kekek = hsm.pkey_load(der   = b64join(db["kekek_pubkey"]),
-                                flags = HAL_KEY_FLAG_USAGE_KEYENCIPHERMENT)
+            with hsm.start_using_device_uuids_block():
+                kekek = hsm.pkey_load(der   = b64join(db["kekek_pubkey"]),
+                                    flags = HAL_KEY_FLAG_USAGE_KEYENCIPHERMENT)
 
-            for uuid in hsm.pkey_match(mask  = HAL_KEY_FLAG_EXPORTABLE,
-                                    flags = HAL_KEY_FLAG_EXPORTABLE):
+                for uuid in hsm.pkey_match(mask  = HAL_KEY_FLAG_EXPORTABLE,
+                                        flags = HAL_KEY_FLAG_EXPORTABLE):
 
-                if(uuid in args.uuid_list):
-                    # this has been updated to only export keys that are in the list
-                    with hsm.pkey_open(uuid) as pkey:
+                    if(uuid in args.uuid_list):
+                        # this has been updated to only export keys that are in the list
+                        with hsm.pkey_open(uuid) as pkey:
 
-                        # also save the attributes for the key
-                        attributes = {}
-                        for attr_id in CKA.cached_attributes():
-                            try:
-                                attr = pkey.get_attributes([attr_id])
-                                attributes.update(attr)
-                            except HAL_ERROR_ATTRIBUTE_NOT_FOUND:
-                                pass
+                            # also save the attributes for the key
+                            attributes = {}
+                            for attr_id in CKA.cached_attributes():
+                                try:
+                                    attr = pkey.get_attributes([attr_id])
+                                    attributes.update(attr)
+                                except HAL_ERROR_ATTRIBUTE_NOT_FOUND:
+                                    pass
 
-                        if pkey.key_type in (DKS_HALKeyType.HAL_KEY_TYPE_RSA_PRIVATE, DKS_HALKeyType.HAL_KEY_TYPE_EC_PRIVATE):
-                            pkcs8, kek = kekek.export_pkey(pkey)
-                            result.append(dict(
-                                comment = "Encrypted private key",
-                                pkcs8   = b64(pkcs8),
-                                kek     = b64(kek),
-                                uuid    = pkey.uuid,
-                                flags   = pkey.key_flags,
-                                attributes = attributes))
+                            if pkey.key_type in (DKS_HALKeyType.HAL_KEY_TYPE_RSA_PRIVATE, DKS_HALKeyType.HAL_KEY_TYPE_EC_PRIVATE):
+                                pkcs8, kek = kekek.export_pkey(pkey)
+                                result.append(dict(
+                                    comment = "Encrypted private key",
+                                    pkcs8   = b64(pkcs8),
+                                    kek     = b64(kek),
+                                    uuid    = str(pkey.uuid),
+                                    flags   = pkey.key_flags,
+                                    attributes = attributes))
 
-                        elif pkey.key_type in (DKS_HALKeyType.HAL_KEY_TYPE_RSA_PUBLIC, DKS_HALKeyType.HAL_KEY_TYPE_EC_PUBLIC):
-                            result.append(dict(
-                                comment = "Public key",
-                                spki    = b64(pkey.public_key),
-                                uuid    = pkey.uuid,
-                                flags   = pkey.key_flags,
-                                attributes = attributes))
+                            elif pkey.key_type in (DKS_HALKeyType.HAL_KEY_TYPE_RSA_PUBLIC, DKS_HALKeyType.HAL_KEY_TYPE_EC_PUBLIC):
+                                result.append(dict(
+                                    comment = "Public key",
+                                    spki    = b64(pkey.public_key),
+                                    uuid    = str(pkey.uuid),
+                                    flags   = pkey.key_flags,
+                                    attributes = attributes))
 
         finally:
             if kekek is not None:
@@ -413,59 +416,60 @@ class Synchronizer(PFUNIX_HSM):
 
         soft_key = SoftKEKEK.is_soft_key(db)
 
-        with (hsm.pkey_load(SoftKEKEK.recover(db), HAL_KEY_FLAG_USAGE_KEYENCIPHERMENT)
-            if soft_key else
-            hsm.pkey_open(uuid.UUID(db["kekek_uuid"]).bytes)
-        ) as kekek:
+        with hsm.start_using_device_uuids_block():
+            with (hsm.pkey_load(SoftKEKEK.recover(db), HAL_KEY_FLAG_USAGE_KEYENCIPHERMENT)
+                if soft_key else
+                hsm.pkey_open(uuid.UUID(db["kekek_uuid"]).bytes)
+            ) as kekek:
 
-            for k in db["keys"]:
-                pkcs8 = b64join(k.get("pkcs8", ""))
-                spki  = b64join(k.get("spki",  ""))
-                kek   = b64join(k.get("kek",   ""))
-                flags =         k.get("flags",  0)
-                attributes = self.clean_attributes(k.get("attributes", {}))
+                for k in db["keys"]:
+                    pkcs8 = b64join(k.get("pkcs8", ""))
+                    spki  = b64join(k.get("spki",  ""))
+                    kek   = b64join(k.get("kek",   ""))
+                    flags =         k.get("flags",  0)
+                    attributes = self.clean_attributes(k.get("attributes", {}))
 
-                original_uuid = uuid.UUID(k["uuid"])
-                new_uuid = None
+                    original_uuid = uuid.UUID(k["uuid"])
+                    new_uuid = None
 
-                # get the masterlistID
-                try:
-                    masterlistID = cache_source_rows[original_uuid].masterListID
-                except:
-                    # the source key is no longer in the cache so don't copy it
-                    continue
+                    # get the masterlistID
+                    try:
+                        masterlistID = cache_source_rows[original_uuid].masterListID
+                    except:
+                        # the source key is no longer in the cache so don't copy it
+                        continue
 
-                # don't cache the imported key during keygen. we'll do it manually 
-                # so we can link the 2 keys
-                with hsm.start_disable_cache_block():
-                    if pkcs8 and kek:
-                        with kekek.import_pkey(pkcs8 = pkcs8, kek = kek, flags = flags) as pkey:
+                    # don't cache the imported key during keygen. we'll do it manually 
+                    # so we can link the 2 keys
+                    with hsm.start_disable_cache_block():
+                        if pkcs8 and kek:
+                            with kekek.import_pkey(pkcs8 = pkcs8, kek = kek, flags = flags) as pkey:
 
-                            new_uuid = pkey.uuid
+                                new_uuid = pkey.uuid
 
-                            try:
-                                if(len(attributes) > 0):
-                                    pkey.set_attributes(attributes = attributes)
-                            except:
-                                # don't fail on attributes just log
-                                logger.info("Import attribute failure on %s",  new_uuid)
+                                try:
+                                    if(len(attributes) > 0):
+                                        pkey.set_attributes(attributes = attributes)
+                                except:
+                                    # don't fail on attributes just log
+                                    logger.info("Import attribute failure on %s",  new_uuid)
 
-                            print "Imported {} as {}".format(original_uuid, new_uuid)
-                    elif spki:
-                        with hsm.pkey_load(der = spki, flags = flags) as pkey:
-                            pkey.set_attributes(attributes = attributes)
+                                print "Imported {} as {}".format(original_uuid, new_uuid)
+                        elif spki:
+                            with hsm.pkey_load(der = spki, flags = flags) as pkey:
+                                pkey.set_attributes(attributes = attributes)
 
-                            new_uuid = pkey.uuid
+                                new_uuid = pkey.uuid
 
-                            print "Loaded {} as {}".format(original_uuid, new_uuid)
+                                print "Loaded {} as {}".format(original_uuid, new_uuid)
 
-                if (new_uuid is not None):
-                    self.cache.add_key_to_alpha(dest_index, new_uuid, 0, 0, param_masterListID = masterlistID)
+                    if (new_uuid is not None):
+                        self.cache.add_key_to_alpha(dest_index, new_uuid, 0, 0, param_masterListID = masterlistID)
 
-                    print '%s linked to %s'%(new_uuid, original_uuid)
+                        print '%s linked to %s'%(new_uuid, original_uuid)
 
-            if soft_key:
-                kekek.delete()
+                if soft_key:
+                    kekek.delete()
 
     def clean_attributes(self, input):
         """Updates attributes dictionary so it can be sent to the HSM"""

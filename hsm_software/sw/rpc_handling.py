@@ -19,7 +19,7 @@ from hsm_tools.cryptech_port import DKS_RPCFunc, DKS_HALKeyType,\
                                     DKS_HALKeyFlag, DKS_HALError
 from hsm_tools.threadsafevar import ThreadSafeVariable
 
-from key_matching import KeyMatchDetails
+from rpc_builder import KeyMatchDetails, RPCpkey_open, RPCKeygen_result
 
 
 def rpc_get_int(msg, location):
@@ -43,7 +43,7 @@ class KeyOperationData:
     def __init__(self, rpc_index, handle, uuid):
         self.rpc_index = rpc_index
         self.handle = handle
-        self.uuid = uuid
+        self.device_uuid = uuid
 
 
 class MuxSession:
@@ -59,6 +59,9 @@ class MuxSession:
         # should new keys be added to the cache? The synchronizer
         # manually adds keys
         self.cache_generated_keys = True
+
+        # if true, all incoming uuids should be treated as device uuids
+        self.incoming_uuids_are_device_uuids = False
 
         # complete unencoded request that we're working on
         self.current_request = None
@@ -152,6 +155,31 @@ class RPCPreprocessor:
 
     def get_session(self, client):
         return self.sessions[client]
+
+    def get_cryptech_device_weight(self, cryptech_device):
+        if (cryptech_device == 0):
+            return 2
+        elif (cryptech_device == 1):
+            return 1
+        else:
+            return 0
+
+    def choose_rpc_from_master_uuid(self, master_uuid):
+        uuid_dict = self.cache.get_alphas(master_uuid)
+
+        result = None
+
+        # initialize to a high weight
+        device_weight = 99999
+
+        for key, val in uuid_dict.iteritems():
+            # for now choose the device with the lowest weight
+            new_device_weight = self.get_cryptech_device_weight(key)
+            if (new_device_weight < device_weight):
+                device_weight = new_device_weight
+                result = (key, val)
+
+        return result
 
     def choose_rpc(self):
         """Simple Heuristic for selecting an alpha RPC channel to use"""
@@ -277,9 +305,6 @@ class RPCPreprocessor:
         """Special DKS RPC to enable caching of generated keys"""
         logger.info("RPC code received %s, handle 0x%x",
                     DKS_RPCFunc.RPC_FUNC_ENABLE_CACHE_KEYGEN.name, client)
-        print('caching enabled')
-
-        session.cache_generated_keys = True
 
         response = xdrlib.Packer()
         response.pack_uint(code)
@@ -293,16 +318,16 @@ class RPCPreprocessor:
             response.pack_uint(DKS_HALError.HAL_OK)
 
         unencoded_response = response.get_buffer()
+
+        session.cache_generated_keys = True
+        print('caching enabled')
 
         return RPCAction(unencoded_response, None, None)
 
     def handle_disable_cache_keygen(self, code, client, unpacker, session):
-        """Special DKS RPC to enable caching of generated keys"""
+        """Special DKS RPC to disable caching of generated keys"""
         logger.info("RPC code received %s, handle 0x%x",
                     DKS_RPCFunc.RPC_FUNC_DISABLE_CACHE_KEYGEN.name, client)
-        print('caching disabled')
-
-        session.cache_generated_keys = False
 
         response = xdrlib.Packer()
         response.pack_uint(code)
@@ -316,6 +341,55 @@ class RPCPreprocessor:
             response.pack_uint(DKS_HALError.HAL_OK)
 
         unencoded_response = response.get_buffer()
+
+        session.cache_generated_keys = False
+        print('caching disabled')
+
+        return RPCAction(unencoded_response, None, None)
+
+    def handle_use_incoming_device_uuids(self, code, client, unpacker, session):
+        """Special DKS RPC to enable using incoming device uuids"""
+        logger.info("RPC code received %s, handle 0x%x",
+                    DKS_RPCFunc.RPC_FUNC_USE_INCOMING_DEVICE_UUIDS.name, client)
+
+        response = xdrlib.Packer()
+        response.pack_uint(code)
+        response.pack_uint(client)
+
+        if (session.from_ethernet):
+            # using device uuids can not be set fom
+            # an ethernet connection
+            response.pack_uint(DKS_HALError.HAL_ERROR_FORBIDDEN)
+        else:
+            response.pack_uint(DKS_HALError.HAL_OK)
+
+        unencoded_response = response.get_buffer()
+
+        session.incoming_uuids_are_device_uuids = True
+        print('accepting incoming device uuids')
+
+        return RPCAction(unencoded_response, None, None)
+
+    def handle_use_incoming_master_uuids(self, code, client, unpacker, session):
+        """Special DKS RPC to enable using incoming master uuids"""
+        logger.info("RPC code received %s, handle 0x%x",
+                    DKS_RPCFunc.RPC_FUNC_USE_INCOMING_MASTER_UUIDS.name, client)
+
+        response = xdrlib.Packer()
+        response.pack_uint(code)
+        response.pack_uint(client)
+
+        if (session.from_ethernet):
+            # using device uuids can not be set fom
+            # an ethernet connection
+            response.pack_uint(DKS_HALError.HAL_ERROR_FORBIDDEN)
+        else:
+            response.pack_uint(DKS_HALError.HAL_OK)
+
+        unencoded_response = response.get_buffer()
+
+        session.incoming_uuids_are_device_uuids = False
+        print('accepting incoming master uuids')
 
         return RPCAction(unencoded_response, None, None)
 
@@ -468,30 +542,53 @@ class RPCPreprocessor:
 
     def handle_rpc_pkeyopen(self, code, client, unpacker, session):
         # pkcs11 session
-        unpacker.unpack_uint()
+        session_param = unpacker.unpack_uint()
 
         # uuid
-        uuid = UUID(bytes = unpacker.unpack_bytes())
-        # uuid = str(u)
+        incoming_uuid = UUID(bytes = unpacker.unpack_bytes())
 
         # get the session to use
         session = self.get_session(client)
 
-        if(session.rpc_index >= 0):
-            # just use the set rpc_index
+        # what type of uuid are we getting?
+        if(session.incoming_uuids_are_device_uuids):
+            if(session.rpc_index < 0):
+                logger.info("handle_rpc_pkeyopen: using device uuid, but device not set")
+                return self.create_error_response(code, client, DKS_HALError.HAL_ERROR_IMPOSSIBLE)
+
+            device_uuid = incoming_uuid
+
             session.key_op_data.rpc_index = session.rpc_index
         else:
-            # find the rpc that this is on
-            available_rpcs = session.cache.get_alphas(uuid)
-            if(len(available_rpcs) == 0):
-                logger.info("handle_rpc_pkeyopen: len(available_rpcs) == 0")
-                return self.create_error_response(code, client, DKS_HALError.HAL_ERROR_KEY_NOT_FOUND)
+            # find the device uuid from the master uuid
+            master_uuid = incoming_uuid
 
-            for key, value in available_rpcs.iteritems():
-                session.key_op_data.rpc_index = key
+            if(session.rpc_index >= 0):
+                # just use the set rpc_index
+                session.key_op_data.rpc_index = session.rpc_index
+
+                # see if this uuid is on the alpha we are requesting
+                device_list = self.cache.get_alphas(master_uuid)
+
+                if(session.rpc_index not in device_list):
+                    logger.info("handle_rpc_pkeyopen: session.rpc_index not in device_list")
+                    return self.create_error_response(code, client, DKS_HALError.HAL_ERROR_KEY_NOT_FOUND)
+
+                device_uuid = device_list[session.rpc_index]
+            else:
+                rpc_uuid_pair = self.choose_rpc_from_master_uuid(master_uuid)
+                if(rpc_uuid_pair is None):
+                    logger.info("handle_rpc_pkeyopen: rpc_uuid_pair is None")
+                    return self.create_error_response(code, client, DKS_HALError.HAL_ERROR_KEY_NOT_FOUND)
+
+                session.key_op_data.rpc_index = rpc_uuid_pair[0]
+                device_uuid = rpc_uuid_pair[1]
+
+        # recreate with the actual uuid
+        session.current_request = RPCpkey_open.create(code, client, session_param, device_uuid)
 
         # save data about the key we are opening
-        session.key_op_data.uuid = uuid
+        session.key_op_data.device_uuid = device_uuid
 
         """uuid is used to select the RPC with the key and the handle is returned"""
         return RPCAction(None, [self.rpc_list[session.key_op_data.rpc_index]], self.callback_rpc_pkeyopen)
@@ -523,29 +620,27 @@ class RPCPreprocessor:
         session.key_op_data.handle = unpacker.unpack_uint()
 
         # save the RPC to use for this handle
-        session.key_rpcs[session.key_op_data.handle] = KeyHandleDetails(session.key_op_data.rpc_index, session.key_op_data.uuid)
+        session.key_rpcs[session.key_op_data.handle] = KeyHandleDetails(session.key_op_data.rpc_index, session.key_op_data.device_uuid)
 
         return RPCAction(reply_list[0], None, None)
 
     def handle_rpc_pkey(self, code, client, unpacker, session):
         """use handle to select RPC"""
 
-        rpc_index = session.rpc_index
-
         # get the handle of the hash operation
         handle = unpacker.unpack_uint()
 
-        if(rpc_index < 0):
-            # this handle must be a key
-            if(handle not in session.key_rpcs):
-                logger.info("handle_rpc_pkey: handle not in session.key_rpcs")
-                return self.create_error_response(code, client, DKS_HALError.HAL_ERROR_BAD_ARGUMENTS)
+        # this handle must be a key
+        if(handle not in session.key_rpcs):
+            logger.info("handle_rpc_pkey: handle not in session.key_rpcs")
+            return self.create_error_response(code, client, DKS_HALError.HAL_ERROR_BAD_ARGUMENTS)
 
-            rpc_index = session.key_rpcs[handle].rpc_index
+        rpc_index = session.key_rpcs[handle].rpc_index
+        device_uuid = session.key_rpcs[handle].uuid
 
-            # logger.info("Using pkey handle:%i RPC:%i", handle, rpc_index)
+        # logger.info("Using pkey handle:%i RPC:%i", handle, rpc_index)
 
-        session.key_op_data = KeyOperationData(rpc_index, handle, None)
+        session.key_op_data = KeyOperationData(rpc_index, handle, device_uuid)
 
         if (code == DKS_RPCFunc.RPC_FUNC_PKEY_DELETE or 
             code == DKS_RPCFunc.RPC_FUNC_PKEY_CLOSE):
@@ -767,34 +862,51 @@ class RPCPreprocessor:
         session.key_op_data.handle = unpacker.unpack_uint()
 
         #get the new uuid
-        u = UUID(bytes = unpacker.unpack_bytes())
-        # session.key_op_data.uuid = str(u)
-        session.key_op_data.uuid = u
+        device_uuid = UUID(bytes = unpacker.unpack_bytes())
 
         # save the RPC to use for this handle
-        session.key_rpcs[session.key_op_data.handle] = KeyHandleDetails(session.key_op_data.rpc_index, session.key_op_data.uuid)
+        session.key_rpcs[session.key_op_data.handle] = KeyHandleDetails(session.key_op_data.rpc_index, session.key_op_data.device_uuid)
 
         # add new key to cache
         logger.info("Key generated and added to cache RPC:%i UUID:%s Type:%i Flags:%i",
-                                            session.key_op_data.rpc_index, session.key_op_data.uuid, session.pkey_type, session.flags)
+                                            session.key_op_data.rpc_index, session.key_op_data.device_uuid, session.pkey_type, session.flags)
+
+
+        # save the device uuid internally
+        session.key_op_data.device_uuid = device_uuid
+
+        # unless we're caching and using master_uuids, return the device uuid
+        outgoing_uuid = device_uuid
 
         if (session.cache_generated_keys):
-            session.cache.add_key_to_alpha(session.key_op_data.rpc_index,
-                                           session.key_op_data.uuid,
-                                           session.pkey_type,
-                                           session.flags)
+            master_uuid = session.cache.add_key_to_alpha(session.key_op_data.rpc_index,
+                                                         device_uuid,
+                                                         session.pkey_type,
+                                                         session.flags)
 
+            if (not session.incoming_uuids_are_device_uuids):
+                # the master_uuid will always be returned to ethernet connections
+                outgoing_uuid = master_uuid
+
+        # generate reply with the outgoing uuid
+        reply = RPCKeygen_result.create(code, client, result,
+                                        session.key_op_data.handle,
+                                        outgoing_uuid)
     
-        return RPCAction(reply_list[0], None, None)
+        return RPCAction(reply, None, None)
         
 
     def handle_rpc_pkeymatch(self, code, client, unpacker, session):
-        """match on all rpcs and then combine results"""
+        """match on all rpcs and then combine results
+        incoming UUIDs are master table UUIDs"""
 
         # if the rpc_index has been set for the session, always use it
-        if(session.rpc_index >= 0):
-            return RPCAction(None, [self.rpc_list[session.rpc_index]], None)
-
+        if(session.incoming_uuids_are_device_uuids):
+            if(session.rpc_index >= 0):
+                return RPCAction(None, [self.rpc_list[session.rpc_index]], None)
+            else:
+                logger.info("handle_rpc_pkeymatch: using device uuid, but device not set")
+                return self.create_error_response(code, client, DKS_HALError.HAL_ERROR_IMPOSSIBLE)
 
         session.keymatch_details = KeyMatchDetails()
         
@@ -802,23 +914,40 @@ class RPCPreprocessor:
         session.keymatch_details.unpack(unpacker)
 
         logger.info("pkey_match: result_max = %i, uuid = %s",
-                                            session.keymatch_details.result_max, session.keymatch_details.uuid)
+                    session.keymatch_details.result_max, session.keymatch_details.uuid)
 
         # if uuid is none, search RPC 0
         # else search starting with the RPC that the uuid is on
 
         if(session.keymatch_details.uuid == KeyMatchDetails.none_uuid):
-            session.keymatch_details.rpc_index = 0
+            if(session.rpc_index >= 0):
+                session.keymatch_details.rpc_index = session.rpc_index
+            else:
+                session.keymatch_details.rpc_index = 0
         else:
-            # find the rpc that this is on
-            available_rpcs = session.cache.get_alphas(session.keymatch_details.uuid)
-            if(len(available_rpcs) == 0):
-                return self.create_error_response(code, client, DKS_HALError.HAL_ERROR_RPC_TRANSPORT)
+            # need to convert master_uuid to device_uuid
+            if(session.rpc_index >= 0):
+                device_list = session.cache.get_alphas(session.keymatch_details.uuid)
+                if (session.rpc_index not in device_list):
+                    logger.info("handle_rpc_pkeyopen: session.rpc_index not in device_list")
+                    return self.create_error_response(code, client, DKS_HALError.HAL_ERROR_KEY_NOT_FOUND)
 
-            for key, value in available_rpcs.iteritems():
-                # match the exact uuid
-                if(value == session.keymatch_details.uuid):              
-                    session.keymatch_details.rpc_index = key
+                session.keymatch_details.rpc_index = session.rpc_index
+
+                # need to update the command with the new UUID
+                session.keymatch_details.uuid = device_list[session.rpc_index]
+            else:
+                # find the rpc that this is on
+                device_to_search = session.cache.get_alpha_lowest_index(session.keymatch_details.uuid)
+                if(device_to_search is None):
+                    return self.create_error_response(code, client, DKS_HALError.HAL_ERROR_RPC_TRANSPORT)
+
+                session.keymatch_details.rpc_index = device_to_search[0]
+
+                # need to update the command with the new UUID
+                session.keymatch_details.uuid = device_to_search[1]
+
+            session.current_request = session.keymatch_details.repack(code, client)
 
         # make sure the rpc_index was set
         if(hasattr(session.keymatch_details, 'rpc_index') == False):
@@ -828,6 +957,8 @@ class RPCPreprocessor:
 
     def callback_rpc_pkeymatch(self, reply_list):
         reply = reply_list[0]
+
+        logger.info("callback_rpc_pkeymatch")
 
         unpacker = self.get_response_unpacker(reply)
 
@@ -862,24 +993,35 @@ class RPCPreprocessor:
         # get the count
         n = unpacker.unpack_uint()
 
+        rpc_index = session.keymatch_details.rpc_index
+
         logger.info("Matching found %i keys", n)
 
         for i in xrange(n):
             u = UUID(bytes = unpacker.unpack_bytes())
 
-            # TODO, don't return matches
-            session.keymatch_details.result.uuid_list.append(u)
+            # convert device UUID to master UUID and if uuid is
+            # also on a device with a lowee index, don't add
+            master_uuid = session.cache.get_master_uuid(rpc_index, u)
+            if (master_uuid is not None):
+                lowest_index = session.cache.get_master_uuid_lowest_index(master_uuid)
+                if(lowest_index == rpc_index):
+                    session.keymatch_details.result.uuid_list.append(master_uuid)
 
-        next_rpc = session.keymatch_details.rpc_index + 1
+        next_rpc = rpc_index + 1
 
         if (len(session.keymatch_details.result.uuid_list) >= session.keymatch_details.result_max or
             next_rpc >= len(self.rpc_list)):
+            # we've either reach the max or we've searched all devices
             result_action = RPCAction(session.keymatch_details.result.build_result_packet(session.keymatch_details.result_max), None, None)
             session.keymatch_details = None
 
             return result_action
 
+        # we're searching a new alpha so start from 0
         session.keymatch_details.rpc_index = next_rpc
+        session.keymatch_details.uuid = KeyMatchDetails.none_uuid
+        session.current_request = session.keymatch_details.repack(code, client)
 
         # there may be more matching keys so generate another command
         return RPCAction(None, [self.rpc_list[session.keymatch_details.rpc_index]], self.callback_rpc_pkeymatch)
@@ -946,4 +1088,5 @@ class RPCPreprocessor:
         self.function_table[DKS_RPCFunc.RPC_FUNC_SET_RPC_DEVICE] = self.handle_set_rpc
         self.function_table[DKS_RPCFunc.RPC_FUNC_ENABLE_CACHE_KEYGEN] = self.handle_enable_cache_keygen
         self.function_table[DKS_RPCFunc.RPC_FUNC_DISABLE_CACHE_KEYGEN] = self.handle_disable_cache_keygen
-        
+        self.function_table[DKS_RPCFunc.RPC_FUNC_USE_INCOMING_DEVICE_UUIDS] = self.handle_use_incoming_device_uuids
+        self.function_table[DKS_RPCFunc.RPC_FUNC_USE_INCOMING_MASTER_UUIDS] = self.handle_use_incoming_master_uuids
