@@ -11,8 +11,8 @@ from enum import Enum
 HSM_SOFTWARE_VERSION = '19.03.04.tamper31'
 
 # this is the version of the firmware that's built into the current release
-BUILTIN_FIRMWARE_VERSION = '2019-02-06v2'
-BUILTIN_TAMPER_VERSION = '2019-02-04-FAKE'
+BUILTIN_FIRMWARE_VERSION = '2019-03-04v4'
+BUILTIN_TAMPER_VERSION = '2019-03-04-FAKE02'
 
 RPC_IP_PORT = 8080
 CTY_IP_PORT = 8081
