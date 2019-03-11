@@ -12,7 +12,7 @@ import subprocess
 
 # version of the files included in this package
 firewall_version = '2019-02-26-01'
-hsm_startup_version = '2019-02-26-02'
+hsm_startup_version = '2019-03-11-01'
 system_init_version = '2019-02-26-01'
 
 # set all the paths we might need

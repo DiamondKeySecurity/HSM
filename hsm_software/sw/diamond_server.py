@@ -205,12 +205,16 @@ def main():
                         help="Folder to backup the cache to."
                         )
 
+    parser.add_argument("--debug",
+                        action="store_true",
+                        help="Start for debugging"
+                        )
+
     args = parser.parse_args()
 
     # safe shutdown ----------------------------------
     global safe_shutdown
-    global tamper
-    safe_shutdown = SafeShutdown(dont_shutdown = (args.verbose > 0))
+    safe_shutdown = SafeShutdown(args.debug)
 
     # Settings ---------------------------------------
     settings = Settings(settings_file=args.settings,

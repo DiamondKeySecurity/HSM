@@ -1,3 +1,7 @@
-Binaries taken from Cryptech update 2018-09-06
-HSM Binary built by Dominque Douglas on 2019-03-04v4 with tamper RPC additions and int parameters
-Tamper binary is fake and should not be sent to actual tamper code
+alpha_fmc.bit  - Binaries taken from Cryptech update 2018-09-06
+bootloader.bin - Binaries taken from Cryptech update 2018-09-06
+hsm.bin        - Binaries built by douglas@dkey.org on 2019-03-11 for tamper
+                 stm32   - a89dcb22ca549ae17742a8ee3c08f2d7fd606771
+                 libhal  - f47dbad0d88f179c0dea7aaa6e9954014779da4e
+                 version - 2019-03-11-tamper
+

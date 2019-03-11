@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # Copyright (c) 2018, 2019 Diamond Key Security, NFP  All rights reserved.
 #
-#VERSION 2019-02-26-02
+#VERSION 2019-03-11-01
 
 import os
 import shutil
@@ -74,7 +74,7 @@ class HSM(object):
         if(not self.testing):
             cmd = '%s &'%cmd
         else:
-            cmd = '%s --no-web --no-delay'%cmd
+            cmd = '%s --no-web --no-delay --debug'%cmd
 
         print "Now Running\r\n\r\n%s\r\n\r\n"%cmd
 

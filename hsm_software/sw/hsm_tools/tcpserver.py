@@ -289,13 +289,18 @@ class RPCTCPServer(TCPServer):
                     
                 return
 
-    client_handle = int(time.time()) << 4
+    # client handle is within the HSM security boundary and
+    # is not accessible by any outside operations, therefore
+    # we don't have to add any randomization to it
+    client_handle = 0
+    handle_lock = threading.Lock()
 
     @classmethod
     def next_client_handle(cls):
-        cls.client_handle += 1
-        cls.client_handle &= 0xFFFFFFFF
-        return cls.client_handle
+        with (cls.handle_lock):
+            cls.client_handle += 1
+            cls.client_handle &= 0xFFFFFFFF
+            return cls.client_handle
 
 def response_thread(e, cty_mux):
     """Simple thread that gets new responses from CTY"""
