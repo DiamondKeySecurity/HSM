@@ -3,6 +3,8 @@
 #
 import struct
 
+import threading
+
 from uuid import UUID
 
 # import classes from the original cryptech.muxd
@@ -20,6 +22,8 @@ from hsm_tools.cryptech_port import DKS_RPCFunc, DKS_HALKeyType,\
 from hsm_tools.threadsafevar import ThreadSafeVariable
 
 from rpc_builder import KeyMatchDetails, RPCpkey_open, RPCKeygen_result
+
+from load_distribution import LoadDistribution
 
 
 def rpc_get_int(msg, location):
@@ -99,15 +103,27 @@ class RPCPreprocessor:
         # it will auto set
         self.current_rpc = -1
         self.sessions = {}
+        self.sessions_lock = threading.Lock()
         self.function_table = {}
-        self.next_rpc = 0
-        self.current_rpc_uses = 0
         self.create_function_table()
         self.netiface = netiface
         self.hsm_locked = True
         self.debug = False
         self.tamper = tamper
         self.tamper_detected = ThreadSafeVariable(False)
+
+        # used by load balancing heuristic
+        self.load_dist = LoadDistribution(len(rpc_list))
+        self.large_weight = 2**31
+        self.pkey_op_weight = 1
+        self.pkey_gen_weight = 100
+
+        # used when selecting any rpc, attempts to evenly
+        # distribute keys across all devices, even when
+        # only one thread is being used
+        self.next_any_device = 0
+        self.next_any_device_uses = 0
+        self.choose_any_thread_lock = threading.Lock()
 
         tamper.add_observer(self.on_tamper_event)
 
@@ -133,17 +149,18 @@ class RPCPreprocessor:
 
     def create_session(self, client, from_ethernet):
         # make sure we have a session for this handle
-        if(client not in self.sessions):
-            new_session = MuxSession(self.current_rpc,
-                                     self.cache,
-                                     self.settings,
-                                     from_ethernet)
-            self.sessions[client] = new_session
+        with (self.sessions_lock):
+            if(client not in self.sessions):
+                new_session = MuxSession(self.current_rpc,
+                                        self.cache,
+                                        self.settings,
+                                        from_ethernet)
+                self.sessions[client] = new_session
 
     def delete_session(self, client):
-        # update the cache with any changes made during this session
-        if(client in self.sessions):
-            del self.sessions[client]
+        with (self.sessions_lock):
+            if(client in self.sessions):
+                del self.sessions[client]
 
     def make_all_rpc_list(self):
         rpc_list = []
@@ -154,15 +171,20 @@ class RPCPreprocessor:
         return rpc_list
 
     def get_session(self, client):
-        return self.sessions[client]
+        with (self.sessions_lock):
+            return self.sessions[client]
+
+    def update_device_weight(self, cryptech_device, amount):
+        try:
+            self.load_dist.inc(cryptech_device, amount)
+        except:
+            pass
 
     def get_cryptech_device_weight(self, cryptech_device):
-        if (cryptech_device == 0):
-            return 2
-        elif (cryptech_device == 1):
-            return 1
-        else:
-            return 0
+        try:
+            return self.load_dist.get(cryptech_device)
+        except:
+            return self.large_weight
 
     def choose_rpc_from_master_uuid(self, master_uuid):
         uuid_dict = self.cache.get_alphas(master_uuid)
@@ -170,7 +192,7 @@ class RPCPreprocessor:
         result = None
 
         # initialize to a high weight
-        device_weight = 99999
+        device_weight = self.large_weight
 
         for key, val in uuid_dict.iteritems():
             # for now choose the device with the lowest weight
@@ -183,19 +205,40 @@ class RPCPreprocessor:
 
     def choose_rpc(self):
         """Simple Heuristic for selecting an alpha RPC channel to use"""
-        RPC_USES_BEFORE_NEXT = 2
+        DEVICE_USES_BEFORE_NEXT = 2
+        device_count = len(self.rpc_list)
 
-        next_rpc = self.next_rpc
+        with(self.choose_any_thread_lock):
+            # first try to evenly distribute
+            self.next_any_device_uses += 1
+            if(self.next_any_device_uses > DEVICE_USES_BEFORE_NEXT):
+                self.next_any_device_uses = 0
 
-        self.current_rpc_uses += 1
-        if(self.current_rpc_uses > RPC_USES_BEFORE_NEXT):
-            self.current_rpc_uses = 0
+                self.next_any_device += 1
+                if(self.next_any_device >= device_count):
+                    self.next_any_device = 0
 
-            self.next_rpc += 1
-            if(self.next_rpc >= len(self.rpc_list)):
-                self.next_rpc = 0
+            # make sure this has the smallest weight
+            # If only one process is using the HSM, next_rpc
+            # will probably be ok, but if multiple processes
+            # are using the HSM, it's possible that the call
+            # may try to use a device that's busy
 
-        return next_rpc
+            # initialize to weight of device
+            device_weight = self.get_cryptech_device_weight(self.next_any_device)
+
+            for device_index in xrange(device_count):
+                # if we find a device with a lower weight, use it
+                if (self.next_any_device != device_index):
+                    new_device_weight = self.get_cryptech_device_weight(device_index)
+                    if (new_device_weight < device_weight):
+                        device_weight = new_device_weight
+                        self.next_any_device = device_index
+
+                        # reset uses
+                        self.next_any_device_uses = 0
+
+            return self.next_any_device
 
     def append_futures(self, futures):
         for rpc in self.rpc_list:
@@ -622,6 +665,9 @@ class RPCPreprocessor:
         # save the RPC to use for this handle
         session.key_rpcs[session.key_op_data.handle] = KeyHandleDetails(session.key_op_data.rpc_index, session.key_op_data.device_uuid)
 
+        # inform the load balancer that we have an open pkey
+        self.update_device_weight(session.key_op_data.rpc_index, self.pkey_op_weight)
+
         return RPCAction(reply_list[0], None, None)
 
     def handle_rpc_pkey(self, code, client, unpacker, session):
@@ -687,6 +733,9 @@ class RPCPreprocessor:
             session.pkey_type = DKS_HALKeyType.HAL_KEY_TYPE_NONE
             session.curve = 0
 
+        # inform the load balancer that we are doing an expensive key operation
+        self.update_device_weight(session.key_op_data.rpc_index, self.pkey_gen_weight)
+
         return RPCAction(None, [self.rpc_list[session.key_op_data.rpc_index]], self.callback_rpc_keygen)
 
     def handle_rpc_pkeyimport(self, code, client, unpacker, session):
@@ -733,6 +782,9 @@ class RPCPreprocessor:
         else:
             session.pkey_type = DKS_HALKeyType.HAL_KEY_TYPE_NONE
             session.curve = 0
+
+        # inform the load balancer that we are doing an expensive key operation
+        self.update_device_weight(session.key_op_data.rpc_index, self.pkey_gen_weight)
 
         return RPCAction(None, [self.rpc_list[session.key_op_data.rpc_index]], self.callback_rpc_keygen)
 
@@ -793,6 +845,9 @@ class RPCPreprocessor:
         logger.info("session.rpc_index == %i  session.key_op_data.rpc_index == %i",
                                             session.rpc_index, session.key_op_data.rpc_index)
 
+        # inform the load balancer that we are doing an expensive key operation
+        self.update_device_weight(session.key_op_data.rpc_index, self.pkey_gen_weight)
+
         return RPCAction(None, [self.rpc_list[session.key_op_data.rpc_index]], self.callback_rpc_keygen)
 
     def callback_rpc_close_deletekey(self, reply_list):
@@ -808,6 +863,9 @@ class RPCPreprocessor:
 
         # get the session
         session = self.get_session(client)
+
+        # inform the load balancer that we have closed a key
+        self.update_device_weight(session.key_op_data.rpc_index, -self.pkey_op_weight)
 
         handle = session.key_op_data.handle
 
@@ -838,6 +896,12 @@ class RPCPreprocessor:
         client = unpacker.unpack_uint()
         result = unpacker.unpack_uint()
 
+        # get the session
+        session = self.get_session(client)        
+
+        # inform the load balancer that we are no longer doing an expensive operation
+        self.update_device_weight(session.key_op_data.rpc_index, -self.pkey_gen_weight)
+
         # keygen only happens on one alpha
         if(len(reply_list) != 1):
             logger.info("callback_rpc_keygen: len(reply_list) != 1")
@@ -851,12 +915,13 @@ class RPCPreprocessor:
             logger.info("callback_rpc_keygen: incorrect code received")
             return self.create_error_response(code, client, DKS_HALError.HAL_ERROR_RPC_TRANSPORT)
 
-        # get the session
-        session = self.get_session(client)        
-
         if(result != DKS_HALError.HAL_OK):
             logger.info("callback_rpc_keygen: result != 0")
             return self.create_error_response(code, client, result)
+
+        # inform the load balancer that we have an open pkey
+        # keygen automatically opens the key
+        self.update_device_weight(session.key_op_data.rpc_index, self.pkey_op_weight)
 
         # get the handle
         session.key_op_data.handle = unpacker.unpack_uint()

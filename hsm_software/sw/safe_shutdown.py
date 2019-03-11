@@ -11,7 +11,7 @@ class SafeShutdown(object):
 
     def shutdown(self):        
         self.prepareForShutdown()
-        os.system('sudo shutdown -h now')
+        # os.system('sudo shutdown -h now')
 
     def restart(self):  
         # restart only callbacks
@@ -20,7 +20,7 @@ class SafeShutdown(object):
 
         # normal shutdown callbacks
         self.prepareForShutdown()
-        os.system('sudo reboot')
+        # os.system('sudo reboot')
 
     def prepareForShutdown(self):
         for callback in self.callbacks:
