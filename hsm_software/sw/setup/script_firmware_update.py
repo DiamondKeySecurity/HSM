@@ -45,10 +45,8 @@ class FirmwareUpdateScript(ScriptModule):
 
             return None
         else:
-            self.cty_direct_call('The console will be locked until the'
+            self.cty_direct_call('You will not be able to use the HSM until the'
                                  ' firmware has been updated.')
-
-            self.cty_mux.console_locked = True
 
         return None
 
@@ -60,10 +58,8 @@ class FirmwareUpdateScript(ScriptModule):
 
             return None
         else:
-            self.cty_direct_call('The console will be locked until the tamper'
-                                 ' firmware has been updated.')
-
-            self.cty_mux.console_locked = True
+            self.cty_direct_call('You will not be able to use the HSM until the'
+                                 ' tamper firmware has been updated.')
 
         return None
 
