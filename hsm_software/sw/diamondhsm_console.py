@@ -72,8 +72,8 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
 
         # some commands can only be called if the cryptech devices have the correct firmware
         if (self.is_login_available()):
-            if(not self.settings.hardware_firmware_match() or
-               not self.settings.hardware_tamper_match()):
+            if(self.settings.hardware_firmware_match() or
+               self.settings.hardware_tamper_match()):
                 self.add_debug_commands()
                 self.add_keystore_commands()
                 self.add_list_commands()
