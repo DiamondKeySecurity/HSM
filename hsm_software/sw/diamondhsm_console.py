@@ -152,7 +152,7 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
 
             # prompt the user to update the firmware and the tamper
             # the HSM will remain locked until there's an update
-            self.script_module = FirmwareUpdateScript(self, 
+            self.script_module = FirmwareUpdateScript(self,
                                                       self.cty_direct_call,
                                                       self.settings)
         elif ((self.synchronizer is not None) and (self.cache is not None)):
@@ -163,7 +163,7 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
                 self.after_login_callback = self.initialize_cache
 
         # if the masterkey has not been set, prompt
-        if((self.script_module is None) and 
+        if((self.script_module is None) and
            (not self.settings.get_setting(HSMSettings.MASTERKEY_SET))):
 
             self.script_module = MasterKeySetScriptModule(self.cty_conn,
@@ -858,8 +858,8 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
                             callback=self.dks_sync_twoway)
 
     def sync_callback(self, cmd, result):
-        self.cty_direct_call(result)        
-    
+        self.cty_direct_call(result)
+
     def dks_sync_cache(self, args):
         self.build_cache(0, self.rpc_preprocessor.device_count())
         return True
