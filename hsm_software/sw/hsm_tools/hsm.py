@@ -94,7 +94,7 @@ class HSMPortInfo:
     def change_state(self, new_state):
         """Switches to any state as long as the current state is not tamper"""
         with self.state_lock:
-            if(new_state != self.state and self.state != CrypTechDeviceState.TAMPER):
+            if(self.state != CrypTechDeviceState.TAMPER):
                 self.state = new_state
 
     def unlock_port(self):
@@ -106,7 +106,7 @@ class HSMPortInfo:
     def clear_tamper(self, new_state):
         """change the state, clearing tamper if set"""
         with self.state_lock:
-            if(new_state != self.state):
+            if(self.state == CrypTechDeviceState.TAMPER)
                 self.state = new_state
 
     def close(self):
