@@ -63,6 +63,11 @@ class Firewall(object):
         # copy the header
         rules_list = Firewall.IP_TABLE_HEADER[:]
 
+        # firewall rules to allow NTP
+        rules_list.append('$IPT -A OUTPUT -p udp --dport 123 -j ACCEPT\n')
+        rules_list.append('$IPT -A INPUT -p udp --dport 123 -j ACCEPT\n')
+
+        # rules for zeroconf if enabled
         if (settings[HSMSettings.ZERO_CONFIG_ENABLED]):
             rules_list.append('# rules to open zeroconfig\n')
             rules_list.append('$IPT -A INPUT -i %s -p udp --dport 5353 -d 224.0.0.251 -j ACCEPT\n'%netiface)
