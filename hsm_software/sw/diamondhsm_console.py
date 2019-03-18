@@ -81,8 +81,6 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
                 self.add_set_commands()
                 self.add_sync_commands()
                 self.add_tamper_commands()
-                if (self.gpio_tamper_setter is not None):
-                    self.add_gpio_tamper_commands()
 
             self.add_update_commands()
 
