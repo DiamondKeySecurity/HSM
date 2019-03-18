@@ -89,6 +89,7 @@ from tamper import TamperDetector
 
 synchronizer = None
 safe_shutdown = None
+tamper = None
 
 
 def start_leds(use_leds):
@@ -223,6 +224,9 @@ def main():
     led_container = start_leds(settings.get_setting(HSMSettings.GPIO_LEDS))
 
     # Tamper -----------------------------------------
+    # pull global tamper variable
+    global tamper
+
     # initialize the tamper system
     tamper = TamperDetector(settings)
 
@@ -415,6 +419,8 @@ if __name__ == "__main__":
     except (SystemExit, KeyboardInterrupt):
         if(synchronizer is not None):
             synchronizer.stop()
+        if(tamper is not None):
+            tamper.stop()
         if (safe_shutdown is not None):
             safe_shutdown.prepareForShutdown()
     except Exception:
