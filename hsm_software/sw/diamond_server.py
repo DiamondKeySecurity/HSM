@@ -323,6 +323,10 @@ def main():
                                                      args.rpc_socket,
                                                      args.rpc_socket_mode)
 
+    # Tamper -----------------------------------------
+    # pull global tamper variable
+    global tamper
+
     # only start synchronizer if we have connected RPC and CTYs
     if(len(cty_list) > 0 and len(rpc_list) > 0):
         # Synchronizer -----------------------------------
