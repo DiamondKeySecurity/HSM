@@ -12,7 +12,7 @@ from Queue import Queue
 
 from sync import SyncCommandEnum, SyncCommand
 
-from setup.script import ScriptModule, script_node, ValueType
+from console.scripts.script import ScriptModule, script_node, ValueType
 
 from abc import abstractmethod, ABCMeta
 
@@ -22,7 +22,7 @@ from hsm_tools.threadsafevar import ThreadSafeVariable
 import six
 
 class CommandNode(object):
-    def __init__(self, name, parent, num_args, usage, callback):
+    def __init__(self, name, top_parent, parent, num_args, usage, callback):
         """Node that gives information on a command
         name     - name of the command
         parent   - parent node
@@ -31,6 +31,7 @@ class CommandNode(object):
         callback - callback funtion for leaf nodes
         """
         self.name = name
+        self.top_parent = top_parent
         self.parent = parent
         self.num_args = num_args
         self.usage = usage
@@ -38,7 +39,7 @@ class CommandNode(object):
         self.child_nodes = { }
 
     def add_child(self, name, num_args = None, usage = None, callback = None):
-        child_node = CommandNode(name, self, num_args, usage, callback)
+        child_node = CommandNode(name, self.top_parent, self, num_args, usage, callback)
         self.child_nodes[name] = child_node
 
         # nodes with callbacks can't have children
@@ -98,7 +99,7 @@ class CommandNode(object):
         if(self.__isLeaf()):
             if(self.num_args == num_parameters):
                 if(self.callback is not None):
-                    return self.callback(command_tokens)
+                    return self.callback(self.top_parent, command_tokens)
                 else:
                     return "'%s' does not have a callback\r\n"%(self.__show_upstream_usage())
         elif (num_parameters > 0 and command_tokens[0] in self.child_nodes):
@@ -192,7 +193,7 @@ class ConsoleInterface(CommandNode):
 
         self.banner = 'Diamond Key Security'
 
-        super(ConsoleInterface, self).__init__(name = '.', parent = None, num_args = None, usage = None, callback = None)
+        super(ConsoleInterface, self).__init__(name = '.', top_parent = self, parent = None, num_args = None, usage = None, callback = None)
 
         self.add_child('help', num_args=0, usage=None, callback=self.help)
 
@@ -225,7 +226,7 @@ class ConsoleInterface(CommandNode):
         else:
             return self.host_prompt
 
-    def help(self, args=None):
+    def help(self, top_class, args=None):
         # send one line at a time
         self.cty_direct_call('Usage:')
         for line in self.get_usage():

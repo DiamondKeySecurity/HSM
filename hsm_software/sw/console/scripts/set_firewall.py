@@ -2,33 +2,34 @@
 # Copyright (c) 2019 Diamond Key Security, NFP  All rights reserved.
 #
 import time
+import sys
 
 from settings import HSMSettings
-from firewall import Firewall
 
 from script import ScriptModule, script_node, ValueType
 
 class firewall_setting_script(ScriptModule):
     """Base class for a script that sets a firewall settings
     and then updates the firewall"""
-    def __init__(self, settings, cty_direct_call, hsm_setting, node_list):
+    def __init__(self, settings, cty_direct_call, hsm_setting, update_firewall_from_settings, node_list):
         self.settings = settings
         self.cty_direct_call = cty_direct_call
         self.hsm_setting = hsm_setting
+        self.update_firewall_from_settings = update_firewall_from_settings
         super(firewall_setting_script, self).__init__(node_list = node_list)
 
     def update_setting(self, new_value, msg):
         self.settings.set_setting(self.hsm_setting, new_value)
 
         # update the firewall rules
-        Firewall.generate_firewall_rules(self.settings, '/var/tmp')
+        self.update_firewall_from_settings()
 
         self.cty_direct_call("'%s' %s."%(self.hsm_setting.value, msg))
 
 class firewall_all_script(firewall_setting_script):
     """Script to accept all connections"""
-    def __init__(self, settings, cty_direct_call, hsm_setting):
-        super(firewall_all_script, self).__init__(settings, cty_direct_call, hsm_setting,
+    def __init__(self, settings, cty_direct_call, hsm_setting, generate_firewall_rules):
+        super(firewall_all_script, self).__init__(settings, cty_direct_call, hsm_setting, generate_firewall_rules,
                                                   node_list = [script_node('continue',
                                                                            "Would you like to set '%s' to allow all? (y/n) "%hsm_setting.value,
                                                                            ValueType.YesNo, callback=self.continuePromptCallback)
@@ -43,8 +44,8 @@ class firewall_all_script(firewall_setting_script):
 
 class firewall_block_script(firewall_setting_script):
     """Script to block all connections"""
-    def __init__(self, settings, cty_direct_call, hsm_setting):
-        super(firewall_block_script, self).__init__(settings, cty_direct_call, hsm_setting,
+    def __init__(self, settings, cty_direct_call, hsm_setting, generate_firewall_rules):
+        super(firewall_block_script, self).__init__(settings, cty_direct_call, hsm_setting, generate_firewall_rules,
                                                     node_list = [script_node('continue',
                                                                              "Would you like to set '%s' to block all? (y/n) "%hsm_setting.value,
                                                                              ValueType.YesNo, callback=self.continuePromptCallback)
@@ -59,8 +60,8 @@ class firewall_block_script(firewall_setting_script):
 
 class firewall_iprange_script(firewall_setting_script):
     """Script to block all connections"""
-    def __init__(self, settings, cty_direct_call, hsm_setting):
-        super(firewall_iprange_script, self).__init__(settings, cty_direct_call, hsm_setting,
+    def __init__(self, settings, cty_direct_call, hsm_setting, generate_firewall_rules):
+        super(firewall_iprange_script, self).__init__(settings, cty_direct_call, hsm_setting, generate_firewall_rules,
                                                     node_list = [script_node('continue',
                                                                              "Would you like to set '%s' to an IP range? (y/n) "%hsm_setting.value,
                                                                              ValueType.YesNo, callback=self.continuePromptCallback),
@@ -117,10 +118,10 @@ class firewall_iprange_script(firewall_setting_script):
 
 class firewall_iplist_script(firewall_setting_script):
     """Script to block all connections"""
-    def __init__(self, settings, cty_direct_call, hsm_setting):
+    def __init__(self, settings, cty_direct_call, hsm_setting, generate_firewall_rules):
         self.ipaddr_list = []
 
-        super(firewall_iplist_script, self).__init__(settings, cty_direct_call, hsm_setting,
+        super(firewall_iplist_script, self).__init__(settings, cty_direct_call, hsm_setting, generate_firewall_rules,
                                                     node_list = [script_node('continue',
                                                                              "Would you like to set '%s' to an IP address list? (y/n) "%hsm_setting.value,
                                                                              ValueType.YesNo, callback=self.continuePromptCallback),
@@ -167,10 +168,11 @@ class firewall_iplist_script(firewall_setting_script):
 
 class FirewallChangeSettingScript(ScriptModule):
     """script to change a firewall setting"""
-    def __init__(self, settings, cty_direct_call, hsm_setting):
+    def __init__(self, settings, cty_direct_call, hsm_setting, update_firewall_from_settings):
         self.settings = settings
         self.cty_direct_call = cty_direct_call
         self.hsm_setting = hsm_setting
+        self.update_firewall_from_settings = update_firewall_from_settings
 
         cur_setting_value = self.settings.get_setting(hsm_setting)
 
@@ -206,13 +208,13 @@ class FirewallChangeSettingScript(ScriptModule):
 
     def changeToPromptCallback(self, response):
         if (response.lower() == 'a'):
-            return firewall_all_script(self.settings, self.cty_direct_call, self.hsm_setting)
+            return firewall_all_script(self.settings, self.cty_direct_call, self.hsm_setting, self.update_firewall_from_settings)
         elif (response.lower() == 'r'):
-            return firewall_iprange_script(self.settings, self.cty_direct_call, self.hsm_setting)
+            return firewall_iprange_script(self.settings, self.cty_direct_call, self.hsm_setting, self.update_firewall_from_settings)
         elif (response.lower() == 'l'):
-            return firewall_iplist_script(self.settings, self.cty_direct_call, self.hsm_setting)
+            return firewall_iplist_script(self.settings, self.cty_direct_call, self.hsm_setting, self.update_firewall_from_settings)
         elif (response.lower() == 'b'):
-            return firewall_block_script(self.settings, self.cty_direct_call, self.hsm_setting)
+            return firewall_block_script(self.settings, self.cty_direct_call, self.hsm_setting, self.update_firewall_from_settings)
         else:
             self.cty_direct_call("Unexpected response '%s'.\r\nPlease try again."%response)
 
