@@ -4,15 +4,15 @@
 
 def CheckValue(value, name, lo_value, hi_value):
       try:
-      result = int(value)
+          result = int(value)
       except ValueError:
-      return 'Error: %s entered is not a number'%name
+          return 'Error: %s entered is not a number'%name
 
       if (result < lo_value):
-      return 'Error: %s entered is lower than the minimum value of %i'%(name, lo_value)
+          return 'Error: %s entered is lower than the minimum value of %i'%(name, lo_value)
 
       if (result > hi_value):
-      return 'Error: %s entered is greater than the maximum value of %i'%(name, hi_value)
+          return 'Error: %s entered is greater than the maximum value of %i'%(name, hi_value)
 
       return result
 
@@ -25,7 +25,7 @@ def dks_tamper_threshold_set_light(console_object, args):
                                MIN_LIGHT_VALUE,
                                MAX_LIGHT_VALUE)
       if(isinstance(light_value, int) is False):
-      return light_value
+          return light_value
 
       return console_object.cty_conn.set_tamper_threshold_light(light_value)
 
@@ -38,14 +38,14 @@ def dks_tamper_threshold_set_temp(console_object, args):
                                  MIN_TEMPERATURE_VALUE,
                                  MAX_TEMPERATURE_VALUE)
       if(isinstance(lo_temp_value, int) is False):
-      return lo_temp_value
+          return lo_temp_value
 
       hi_temp_value = CheckValue(args[1], 
                                  'High temperature threshold',
                                  MIN_TEMPERATURE_VALUE,
                                  MAX_TEMPERATURE_VALUE)
       if(isinstance(hi_temp_value, int) is False):
-      return hi_temp_value
+          return hi_temp_value
 
       return console_object.cty_conn.set_tamper_threshold_temperature(lo_temp_value,
                                                             hi_temp_value)
@@ -59,7 +59,7 @@ def dks_tamper_threshold_set_accel(console_object, args):
                                     MIN_ACCEL_VALUE,
                                     MAX_ACCEL_VALUE)
       if(isinstance(accel_value, int) is False):
-      return accel_value
+          return accel_value
 
       return console_object.cty_conn.set_tamper_threshold_accel(accel_value)
 
