@@ -4,6 +4,7 @@
 
 from script import ScriptModule, script_node, ValueType
 
+from console.console_update import dks_update_cryptech_firmware, dks_update_cryptech_tamper
 
 class FirmwareUpdateScript(ScriptModule):
     def __init__(self, cty_mux, cty_direct_call, settings):
@@ -41,7 +42,7 @@ class FirmwareUpdateScript(ScriptModule):
         """Process user response about whether
            they want to set the master key"""
         if(response is True):
-            self.cty_mux.dks_update_cryptech_firmware(None)
+            dks_update_cryptech_firmware(self.cty_mux, None)
 
             return None
         else:
@@ -54,7 +55,7 @@ class FirmwareUpdateScript(ScriptModule):
         """Process user response about whether
            they want to set the master key"""
         if(response is True):
-            self.cty_mux.dks_update_cryptech_tamper(None)
+            dks_update_cryptech_tamper(self.cty_mux, None)
 
             return None
         else:

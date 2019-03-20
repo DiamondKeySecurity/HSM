@@ -4,40 +4,39 @@
 
 import console_interface
 
-import os
-import logging
-import shutil
-
-import tornado.iostream
 import time
 import sync
 
+import tornado.iostream
+
 from Queue import Queue
 
-from settings import HSMSettings, HSM_SOFTWARE_VERSION
+from settings import HSMSettings
 
 from hsm_tools.cty_connection import CTYConnection, CTYError
-from hsm_tools.cryptech_port import DKS_HALUser
 
 from sync import SyncCommandEnum, SyncCommand
 
-from setup.script_masterkey import MasterKeySetScriptModule
-from setup.script_ip_dhcp import DHCPScriptModule
-from setup.script_ip_static import StaticIPScriptModule
-from setup.script_updateRestart import UpdateRestartScriptModule
-from setup.script_password import PasswordScriptModule
-from setup.script_firewall import FirewallChangeSettingScript
-from setup.script_firmware_update import FirmwareUpdateScript
+from console.scripts.masterkey import MasterKeySetScriptModule
+from console.scripts.firmware_update import FirmwareUpdateScript
+
+from console.console_debug import add_debug_commands
+from console.console_keystore import add_keystore_commands
+from console.console_list import add_list_commands
+from console.console_masterkey import add_masterkey_commands
+from console.console_restore import add_restore_commands
+from console.console_set import add_set_commands
+from console.console_show import add_show_commands
+from console.console_shutdown import add_shutdown_commands
+from console.console_sync import add_sync_commands
+from console.console_tamper import add_tamper_commands
+from console.console_update import add_update_commands
 
 from hsm_cache_db.alpha import CacheTableAlpha
-
-from setup.file_transfer import MGMTCodes, FileTransfer
 
 from hsm_tools.threadsafevar import ThreadSafeVariable
 
 from firewall import Firewall
-
-import zero_conf
 
 class DiamondHSMConsole(console_interface.ConsoleInterface):
     def __init__(self, args, cty_list, rpc_preprocessor, synchronizer,
@@ -73,21 +72,21 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
         if (self.is_login_available()):
             if(self.settings.hardware_firmware_match() or
                self.settings.hardware_tamper_match()):
-                self.add_debug_commands()
-                self.add_keystore_commands()
-                self.add_list_commands()
-                self.add_masterkey_commands()
-                self.add_restore_commands()
-                self.add_set_commands()
-                self.add_sync_commands()
-                self.add_tamper_commands()
+                add_debug_commands(self)
+                add_keystore_commands(self)
+                add_list_commands(self)
+                add_masterkey_commands(self)
+                add_restore_commands(self)
+                add_set_commands(self)
+                add_sync_commands(self)
+                add_tamper_commands(self)
 
-            self.add_update_commands()
+            add_update_commands(self)
 
-            self.add_show_commands()
+            add_show_commands(self)
 
         # always allow shutdown
-        self.add_shutdown_commands()
+        add_shutdown_commands(self)
 
         if (self.tamper is not None):
             self.tamper.add_observer(self.on_tamper_event)
@@ -184,7 +183,7 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
         if(self.after_login_callback is not None):
             callback = self.after_login_callback
             self.after_login_callback = None
-            callback(pin)
+            callback(self, pin)
         else:
             self.cty_direct_call(self.prompt)
 
@@ -222,7 +221,11 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
         else:
             return "Cryptech RPC device not connected."
 
-    def initialize_cache(self, pin):
+    def update_firewall_from_settings(self):
+        # update the firewall rules
+        Firewall.generate_firewall_rules(self.settings, '/var/tmp')
+
+    def initialize_cache(self, console_object, pin):
         # start the synchronizer
         self.synchronizer.initialize(self.rpc_preprocessor.device_count(), pin,
                                      self.synchronizer_init_callback)
@@ -266,6 +269,9 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
         else:
             self.readCTYUserData(data)
 
+    def sync_callback(self, cmd, result):
+        self.cty_direct_call(result)
+"""
     def add_tamper_commands(self):
         tamper_node = self.add_child('tamper')
 
@@ -1072,3 +1078,4 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
         self.cty_conn.reboot_stm()
 
         return "STM rebooted"
+"""

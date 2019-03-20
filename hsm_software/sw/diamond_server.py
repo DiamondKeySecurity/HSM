@@ -83,7 +83,7 @@ from safe_shutdown import SafeShutdown
 
 from sync import Synchronizer
 
-from setup.security import HSMSecurity
+from security import HSMSecurity
 
 from tamper import TamperDetector
 

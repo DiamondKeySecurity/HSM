@@ -8,7 +8,7 @@ import threading
 
 from enum import Enum
 
-HSM_SOFTWARE_VERSION = '19.03.18.tamper34'
+HSM_SOFTWARE_VERSION = '19.03.18.tamper35'
 
 # this is the version of the firmware that's built into the current release
 BUILTIN_FIRMWARE_VERSION = '2019-03-11-tamper'
@@ -87,6 +87,9 @@ class Settings(object):
                 self.set_setting(HSMSettings.GPIO_TAMPER, False)
             else:
                 self.__init_gpio()
+
+            # disable gpio tamper
+            self.set_setting(HSMSettings.GPIO_TAMPER, False)
 
         # save any adjustments that we may have made
         self.save_settings()

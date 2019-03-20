@@ -16,7 +16,8 @@ class MGMTCodes(str, Enum):
 class FileTransfer(object):
     """Utility object for uploading files to the HSM"""
 
-    def __init__(self, requested_file_path, mgmt_code, uploads_dir, restart_file, public_key, finished_callback):
+    def __init__(self, requested_file_path, mgmt_code, uploads_dir,
+                 restart_file, public_key, finished_callback, data_obj = None):
         self.requested_file_path = requested_file_path
         self.mgmt_code = mgmt_code
         self.uploads_dir = uploads_dir
@@ -28,6 +29,8 @@ class FileTransfer(object):
         self.file_buffer = ""
 
         self.file_obj = None
+
+        self.data_obj = data_obj
 
         self.finished_callback = finished_callback
 
@@ -58,7 +61,7 @@ class FileTransfer(object):
                     self.file_size = int(size_string)
 
                     if(self.file_size == 0):
-                        self.stop_transfer(lambda : self.finished_callback(False, "ERROR: File not received.\r\n"))
+                        self.stop_transfer(lambda : self.finished_callback(self.data_obj, False, "ERROR: File not received.\r\n"))
                         return True
 
                     if(self.mgmt_code == MGMTCodes.MGMTCODE_RECEIVEHSM_UPDATE.value):
@@ -101,7 +104,7 @@ class FileTransfer(object):
         if(self.mgmt_code == MGMTCodes.MGMTCODE_RECEIVEHSM_UPDATE.value):
             self.stop_transfer(self.ExtractHSMUpdate)
         else:
-            self.stop_transfer(lambda : self.finished_callback(False, "ERROR: Unexpected file transfer\r\n"))
+            self.stop_transfer(lambda : self.finished_callback(self.data_obj, False, "ERROR: Unexpected file transfer\r\n"))
 
     def ExtractHSMUpdate(self):
         filename_signed = self.uploads_dir + "/update.tar.gz.signed"
@@ -117,7 +120,7 @@ class FileTransfer(object):
                                                public_key_path = self.public_key,
                                               ) is not True):
 
-            self.finished_callback(False, "Unable to verify update.\r\n")
+            self.finished_callback(self.data_obj, False, "Unable to verify update.\r\n")
             return
 
         try:
@@ -149,8 +152,8 @@ class FileTransfer(object):
 
             msg = "File transfer complete and verified.\r\nReceived %i bytes\r\n"%self.bytes_copied
 
-            self.finished_callback(True, msg)
+            self.finished_callback(self.data_obj, True, msg)
         except Exception as e:
-            self.finished_callback(False, e.message)
+            self.finished_callback(self.data_obj, False, e.message)
 
 
