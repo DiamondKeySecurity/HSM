@@ -12,6 +12,7 @@ from enum import Enum
 class MGMTCodes(str, Enum):
     """Enum where members are also (and must be) strs"""
     MGMTCODE_RECEIVEHSM_UPDATE = "".join([chr(0x11), chr(0x12), chr(0x13), chr(0x14)])
+    MGMTCODE_RECIEVE_RMT_KEKEK = "".join([chr(0x11), chr(0x12), chr(0x13), chr(0x15)])
 
 class FileTransfer(object):
     """Utility object for uploading files to the HSM"""
