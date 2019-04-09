@@ -69,10 +69,12 @@ def dks_sync_twoway(console_object, args):
     return "command sent to synchronizer"
 
 def received_remote_backup_options(console_object, options):
-    pass
+    master_key = options['masterkey_value']
+    device = options['device_index']
 
 def received_remote_retore_options(console_object, options):
-    pass
+    master_key = options['masterkey_value']
+    device = options['device_index']
 
 def dks_sync_remote_restore(console_object, args):
     dest = parse_index(args[0], console_object.rpc_preprocessor.device_count())
@@ -80,7 +82,10 @@ def dks_sync_remote_restore(console_object, args):
         return "Invalid internal device destination parameter. Got '%s'." % args[0]
 
     # start the script
-    console_object.script_module = RemoteRestoreScript(console_object.cty_direct_call, dest)
+    console_object.script_module = RemoteRestoreScript(console_object.cty_direct_call,
+                                                       dest,
+                                                       received_remote_retore_options,
+                                                       console_object)
 
     console_object.cty_direct_call(console_object.prompt)
 
@@ -98,7 +103,10 @@ def dks_sync_remote_backup(console_object, args):
         return 'Unable to perform backup. Key export not enabled.'
 
     # start the script
-    console_object.script_module = RemoteBackupScript(console_object.cty_direct_call, src, received_remote_backup_options)
+    console_object.script_module = RemoteBackupScript(console_object.cty_direct_call,
+                                                      src,
+                                                      received_remote_backup_options,
+                                                      console_object)
 
     console_object.cty_direct_call(console_object.prompt)
 

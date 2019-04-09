@@ -8,9 +8,10 @@ from settings import HSMSettings
 from script import ScriptModule, script_node, ValueType
 
 class RemoteBackupScript(ScriptModule):
-    def __init__(self, cty_direct_call, device_index, finished_callback):
+    def __init__(self, cty_direct_call, device_index, finished_callback, console_object):
         self.cty_direct_call = cty_direct_call
         self.device_index = device_index
+        self.console_object = console_object
         super(RemoteBackupScript, self).__init__(node_list = [
                         script_node('continue',
                                     'Are you sure you want to back up the keys on device:%i to a remote device? (y/n) '%device_index,
@@ -104,8 +105,8 @@ class RemoteBackupScript(ScriptModule):
     def checkSettingsCallback(self, response):
         """Process user response about whether they want to continue"""
         if(response == True):
-            self.finished_callback(self.results)
+            self.finished_callback(self.console_object, self.results)
             return None
         else:
-            self.finished_callback(None)
+            self.finished_callback(self.console_object, None)
             return None
