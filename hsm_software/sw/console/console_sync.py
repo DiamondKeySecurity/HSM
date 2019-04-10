@@ -9,6 +9,8 @@ from settings import HSMSettings
 from scripts.remote_backup import RemoteBackupScript
 from scripts.remote_restore import RemoteRestoreScript
 
+from console.file_transfer import MGMTCodes, FileTransfer
+
 def dks_sync_cache(console_object, args):
     console_object.build_cache(0, self.rpc_preprocessor.device_count())
     return True
@@ -68,9 +70,38 @@ def dks_sync_twoway(console_object, args):
 
     return "command sent to synchronizer"
 
+def on_received_remote_kekek(console_object, result, msg):
+    """Receive kekek for a remote backup"""
+    print msg
+
 def received_remote_backup_options(console_object, options):
     master_key = options['masterkey_value']
     device = options['device_index']
+
+    try:
+        # stop excepting normal user data
+        console_object.set_ignore_user('The HSM is preparing a remote backup')
+
+        mgmt_code = MGMTCodes.MGMTCODE_RECIEVE_RMT_KEKEK.value
+        remote_setup = 'remote-setup.json'
+
+        # setup a file transfer object
+        ft = FileTransfer(requested_file_path=remote_setup,
+                          mgmt_code=mgmt_code,
+                          uploads_dir=console_object.args.uploads,
+                          restart_file=None,
+                          public_key=None,
+                          finished_callback=on_received_remote_kekek,
+                          destination_file=remote_setup,
+                          data_obj=console_object)
+
+        console_object.file_transfer = ft
+        # tell dks_setup_console that it can send the data now
+        msg = "%s:RECV:%s\r" % (mgmt_code, remote_setup)
+        console_object.cty_direct_call(msg)
+    except Exception as e:
+        console_object.cty_direct_call('\nThere was an error while receiving the'
+                                       ' update.\r\n\r\n%s' % e.message)
 
 def received_remote_retore_options(console_object, options):
     master_key = options['masterkey_value']

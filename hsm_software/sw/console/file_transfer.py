@@ -13,17 +13,20 @@ class MGMTCodes(str, Enum):
     """Enum where members are also (and must be) strs"""
     MGMTCODE_RECEIVEHSM_UPDATE = "".join([chr(0x11), chr(0x12), chr(0x13), chr(0x14)])
     MGMTCODE_RECIEVE_RMT_KEKEK = "".join([chr(0x11), chr(0x12), chr(0x13), chr(0x15)])
+    MGMTCODE_SEND_LCL_KEKEK    = "".join([chr(0x11), chr(0x12), chr(0x13), chr(0x16)])
 
 class FileTransfer(object):
     """Utility object for uploading files to the HSM"""
 
     def __init__(self, requested_file_path, mgmt_code, uploads_dir,
-                 restart_file, public_key, finished_callback, data_obj = None):
+                 restart_file, public_key, finished_callback,
+                 destination_file, data_obj = None):
         self.requested_file_path = requested_file_path
         self.mgmt_code = mgmt_code
         self.uploads_dir = uploads_dir
         self.restart_file = restart_file
         self.public_key = public_key
+        self.destination_file = '%s/%s'%(self.uploads_dir, destination_file)
 
         self.file_size = None
         self.bytes_copied = 0
@@ -72,7 +75,7 @@ class FileTransfer(object):
                         except OSError:
                             pass
 
-                        filename = self.uploads_dir + "/update.tar.gz.signed"
+                        filename = self.destination_file
 
                     self.file_obj = open(filename, "wb")
 
@@ -105,10 +108,10 @@ class FileTransfer(object):
         if(self.mgmt_code == MGMTCodes.MGMTCODE_RECEIVEHSM_UPDATE.value):
             self.stop_transfer(self.ExtractHSMUpdate)
         else:
-            self.stop_transfer(lambda : self.finished_callback(self.data_obj, False, "ERROR: Unexpected file transfer\r\n"))
+            self.stop_transfer(lambda : self.finished_callback(self.data_obj, True, "Transfer complete\r\n"))
 
     def ExtractHSMUpdate(self):
-        filename_signed = self.uploads_dir + "/update.tar.gz.signed"
+        filename_signed = self.destination_file
         filename = self.uploads_dir + "/update.tar.gz"
         digest = self.uploads_dir + "/digest"
         ext_dir = self.uploads_dir + "/files"

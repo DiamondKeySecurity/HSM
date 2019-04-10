@@ -79,6 +79,7 @@ def dks_do_HSM_update(console_object, pin):
                           restart_file=console_object.args.restart,
                           public_key=console_object.args.hsmpublickey,
                           finished_callback=dks_hsm_update_finished,
+                          destination_file='update.tar.gz.signed',
                           data_obj=console_object)
 
         console_object.file_transfer = ft
