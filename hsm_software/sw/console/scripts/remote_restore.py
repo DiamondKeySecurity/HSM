@@ -19,6 +19,9 @@ class RemoteRestoreScript(ScriptModule):
                         script_node('continue',
                                     'Have you connected a CrypTech device to the host computer? (y/n) ',
                                     ValueType.YesNo, callback=self.continueAttachedCrypTech),
+                        script_node('cryptech_pin',
+                                    "Please enter the 'user' pin for the CrypTech device. > " ,
+                                    ValueType.AnyString, callback=self.pinEntered),
                         script_node('continue',
                                     'Has the master key been generated on the CrypTech device? (y/n) ',
                                     ValueType.YesNo, callback=self.continueCrypTechMasterKey)
@@ -35,11 +38,19 @@ class RemoteRestoreScript(ScriptModule):
     def continueAttachedCrypTech(self, response):
         """Process user response about whether they want to continue"""
         if(response == True):
+            # don't show the password
+            self.console_object.hide_input = True
             return self
 
         self.cty_direct_call('A CrypTech device must be connected to the computer to continue.')
 
         return None
+
+    def pinEntered(self, response):
+        # show user input
+        self.console_object.hide_input = False
+
+        return self
 
     def addSetMasterKeyScript(self):
         self.node_list.insert(self.current, script_node('masterkey_value',

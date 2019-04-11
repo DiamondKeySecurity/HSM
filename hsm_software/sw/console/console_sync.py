@@ -77,6 +77,7 @@ def on_received_remote_kekek(console_object, result, msg):
 def received_remote_backup_options(console_object, options):
     master_key = options['masterkey_value']
     device = options['device_index']
+    pin = options['cryptech_pin']
 
     try:
         # stop excepting normal user data
@@ -97,7 +98,7 @@ def received_remote_backup_options(console_object, options):
 
         console_object.file_transfer = ft
         # tell dks_setup_console that it can send the data now
-        msg = "%s:RECV:%s\r" % (mgmt_code, remote_setup)
+        msg = "%s:RECV:{%s}{%s}\r" % (mgmt_code, str(master_key), pin)
         console_object.cty_direct_call(msg)
     except Exception as e:
         console_object.cty_direct_call('\nThere was an error while receiving the'
