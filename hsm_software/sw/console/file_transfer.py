@@ -68,7 +68,8 @@ class FileTransfer(object):
                         self.stop_transfer(lambda : self.finished_callback(self.data_obj, False, "ERROR: File not received.\r\n"))
                         return True
 
-                    if(self.mgmt_code == MGMTCodes.MGMTCODE_RECEIVEHSM_UPDATE.value):
+                    if(self.mgmt_code == MGMTCodes.MGMTCODE_RECEIVEHSM_UPDATE.value or
+                       self.mgmt_code == MGMTCodes.MGMTCODE_RECIEVE_RMT_KEKEK.value):
                         # make sure the path exist
                         try:
                             os.makedirs(self.uploads_dir)
