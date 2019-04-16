@@ -72,7 +72,7 @@ def dks_sync_twoway(console_object, args):
 
 def on_received_remote_kekek(console_object, result, msg):
     """Receive kekek for a remote backup"""
-    print msg
+    console_object.allow_user_input(msg)
 
 def received_remote_backup_options(console_object, options):
     master_key = options['masterkey_value']
