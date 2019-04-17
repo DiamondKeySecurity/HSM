@@ -15,6 +15,8 @@
 # along with this program; if not, If not, see <https://www.gnu.org/licenses/>.
 
 
+import json
+
 from sync import SyncCommandEnum, SyncCommand
 
 from settings import HSMSettings
@@ -83,9 +85,41 @@ def dks_sync_twoway(console_object, args):
 
     return "command sent to synchronizer"
 
+def on_remote_backup_prepared(cmd, results):
+    console_object = results[0]
+    result = results[1]
+
+    if (result == None):
+        console_object.allow_user_input("Sync: Did not return any data to backup.")
+
 def on_received_remote_kekek(console_object, result, msg):
     """Receive kekek for a remote backup"""
-    console_object.allow_user_input(msg)
+    # we don't need to close the file_transfer object because it will
+    # do that itself before calling this callback function
+    console_object.file_transfer = None
+    
+    if(result is True):
+        json_file = "%s/%s"%(console_object.args.uploads, 'remote-setup.json')
+        db = json.load(json_file)
+
+        if "device_index" in db:
+            src = db["device_index"]
+            print src
+        else:
+            src = 0
+
+        console_object.cty_direct_call("Received KEKEK from CrypTech device. Waiting for synchronizer.")
+
+        cmd = SyncCommand(SyncCommandEnum.RemoteBackup, src, -1,
+                          on_remote_backup_prepared,
+                          param=(console_object, db),
+                          console=console_object.cty_direct_call)
+
+        console_object.synchronizer.queue_command(cmd)
+    else:
+        console_object.allow_user_input("Unable to start connection with CrypTech device.")
+
+    console_object.allow_user_input(msg)    
 
 def received_remote_backup_options(console_object, options):
     master_key = options['masterkey_value']
@@ -111,7 +145,7 @@ def received_remote_backup_options(console_object, options):
 
         console_object.file_transfer = ft
         # tell dks_setup_console that it can send the data now
-        msg = "%s:RECV:{%s}{%s}\r" % (mgmt_code, str(master_key), pin)
+        msg = "%s:RECV:{%s}{%s}{%i}\r" % (mgmt_code, str(master_key), pin, device)
         console_object.cty_direct_call(msg)
     except Exception as e:
         console_object.cty_direct_call('\nThere was an error while receiving the'

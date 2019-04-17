@@ -43,10 +43,12 @@ from hsm_tools.pkcs11_attr import CKA
 from hsm_tools.cryptech_port import DKS_HALUser, DKS_RPCFunc, DKS_HALError, DKS_HALKeyType
 
 class SyncCommandEnum(IntEnum):
-    OneWayBackup = 0
-    TwoWayBackup = 1
-    Initialize   = 2
-    BuildCache   = 3
+    OneWayBackup  = 0
+    TwoWayBackup  = 1
+    Initialize    = 2
+    BuildCache    = 3
+    RemoteBackup  = 4
+    RemoteRestore = 5
 
 class SyncCommand(object):
     """Class to define a command for the mirrorer"""
@@ -134,6 +136,18 @@ class Synchronizer(PFUNIX_HSM):
         hsm.rpc_set_device(rpc_index)
 
         self.cmd_import(args, cache_source_rows, hsm, rpc_index)
+
+    def cmd_remoteBackup(self, hsm, cmd):
+        console_object = cmd.param[0]
+        db = cmd.param[1]
+
+        self.do_cmd_callback(cmd, (console_object, None))
+
+    def cmd_remoteRestore(self, hsm, cmd):
+        console_object = cmd.param[0]
+        db = cmd.param[1]
+
+        self.do_cmd_callback(cmd, (console_object, None))
 
     def cmd_initialization(self, hsm, cmd):
         # login to all alphas now that we have the wheel pin
@@ -496,6 +510,8 @@ class Synchronizer(PFUNIX_HSM):
             SyncCommandEnum.TwoWayBackup : self.cmd_TwoWayBackup,
             SyncCommandEnum.Initialize : self.cmd_initialization,
             SyncCommandEnum.BuildCache : self.cmd_buildcache,
+            SyncCommandEnum.RemoteBackup : self.cmd_remoteBackup,
+            SyncCommandEnum.RemoteRestore : self.cmd_remoteRestore
         }
         func = switcher.get(cmd.name, lambda a: None)
         if(func is not None):
