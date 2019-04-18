@@ -91,6 +91,9 @@ def on_remote_backup_prepared(cmd, results):
 
     if (result == None):
         console_object.allow_user_input("Sync: Did not return any data to backup.")
+    else:
+        print json.dumps(result)
+        console_object.allow_user_input("Sync: Not Implemented")
 
 def on_received_remote_kekek(console_object, result, msg):
     """Receive kekek for a remote backup"""
