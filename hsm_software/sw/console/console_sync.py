@@ -97,19 +97,23 @@ def on_received_remote_kekek(console_object, result, msg):
     # we don't need to close the file_transfer object because it will
     # do that itself before calling this callback function
     console_object.file_transfer = None
-    
+
     if(result is True):
         json_file = "%s/%s"%(console_object.args.uploads, 'remote-setup.json')
-        db = json.load(json_file)
 
+        # read the json file that we just received. It contains the KEKEK
+        with open(json_file, "rt") as json_fp:
+            db = json.load(json_fp)
+
+        # read the device index from the json file
         if "device_index" in db:
             src = db["device_index"]
-            print src
         else:
             src = 0
 
         console_object.cty_direct_call("Received KEKEK from CrypTech device. Waiting for synchronizer.")
 
+        # send the command to the synchronizer
         cmd = SyncCommand(SyncCommandEnum.RemoteBackup, src, -1,
                           on_remote_backup_prepared,
                           param=(console_object, db),
@@ -118,8 +122,7 @@ def on_received_remote_kekek(console_object, result, msg):
         console_object.synchronizer.queue_command(cmd)
     else:
         console_object.allow_user_input("Unable to start connection with CrypTech device.")
-
-    console_object.allow_user_input(msg)    
+        console_object.allow_user_input(msg)
 
 def received_remote_backup_options(console_object, options):
     master_key = options['masterkey_value']
