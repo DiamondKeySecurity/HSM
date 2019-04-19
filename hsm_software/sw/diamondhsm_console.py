@@ -82,10 +82,10 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
                        " the Diamond HSM by Diamond Key Security, NFP")
 
         # some commands can only be called if the cryptech devices have the correct firmware
-        if (self.is_login_available()):
+        if (self.is_login_available() or args.debug):
             if(self.settings.hardware_firmware_match() or
-               self.settings.hardware_tamper_match()):
-                add_debug_commands(self)
+               self.settings.hardware_tamper_match() or args.debug):
+                if (args.debug): add_debug_commands(self)
                 add_keystore_commands(self)
                 add_list_commands(self)
                 add_masterkey_commands(self)
@@ -277,9 +277,11 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
         # uses the CTY interface if needed"""
         if(self.file_transfer is not None):
             result = self.file_transfer.recv(data)
-            if(result is not True):
-                self.cty_direct_call(result)
+            if(result is False):
+                self.cty_direct_call(self.file_transfer.error)
                 self.console_locked = True
+            elif (isinstance(result, str)):
+                self.quick_write(result)
         else:
             self.readCTYUserData(data)
 

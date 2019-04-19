@@ -95,6 +95,13 @@ def on_remote_backup_prepared(cmd, results):
         print json.dumps(result)
         console_object.allow_user_input("Sync: Not Implemented")
 
+def on_send_local_kekek(console_object, result, msg):
+    # we don't need to close the file_transfer object because it will
+    # do that itself before calling this callback function
+    console_object.file_transfer = None
+
+    console_object.allow_user_input(msg)
+
 def on_received_remote_kekek(console_object, result, msg):
     """Receive kekek for a remote backup"""
     # we don't need to close the file_transfer object because it will
@@ -140,14 +147,12 @@ def received_remote_backup_options(console_object, options):
         remote_setup = 'remote-setup.json'
 
         # setup a file transfer object
-        ft = FileTransfer(requested_file_path=remote_setup,
-                          mgmt_code=mgmt_code,
+        ft = FileTransfer(mgmt_code=mgmt_code,
+                          requested_file_path=remote_setup,
                           uploads_dir=console_object.args.uploads,
-                          restart_file=None,
-                          public_key=None,
                           finished_callback=on_received_remote_kekek,
                           destination_file=remote_setup,
-                          data_obj=console_object)
+                          data_context=console_object)
 
         console_object.file_transfer = ft
         # tell dks_setup_console that it can send the data now
@@ -160,6 +165,29 @@ def received_remote_backup_options(console_object, options):
 def received_remote_retore_options(console_object, options):
     master_key = options['masterkey_value']
     device = options['device_index']
+    pin = options['cryptech_pin']
+
+    try:
+        # stop excepting normal user data
+        console_object.set_ignore_user('The HSM is preparing a remote restore')
+
+        mgmt_code = MGMTCodes.MGMTCODE_SEND_LCL_KEKEK.value
+
+        json_to_send = '{"comment": "This is a test"}'
+
+        # setup a file transfer object
+        ft = FileTransfer(mgmt_code=mgmt_code,
+                          json_to_send=json_to_send,
+                          finished_callback=on_send_local_kekek,
+                          data_context=console_object)
+
+        console_object.file_transfer = ft
+        # tell dks_setup_console that it can send the data now
+        msg = "%s:SEND:{%i}\r" % (mgmt_code, len(json_to_send))
+        console_object.cty_direct_call(msg)
+    except Exception as e:
+        console_object.cty_direct_call('\nThere was an error while receiving the'
+                                       ' update.\r\n\r\n%s' % e.message)
 
 def dks_sync_remote_restore(console_object, args):
     dest = parse_index(args[0], console_object.rpc_preprocessor.device_count())
