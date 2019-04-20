@@ -183,7 +183,7 @@ def received_remote_retore_options(console_object, options):
 
         console_object.file_transfer = ft
         # tell dks_setup_console that it can send the data now
-        msg = "%s:SEND:{%i}\r" % (mgmt_code, len(json_to_send))
+        msg = "%s:SEND:{%s}{%s}{%i}{%i}\r" % (mgmt_code, str(master_key), pin, device, len(json_to_send))
         console_object.cty_direct_call(msg)
     except Exception as e:
         console_object.cty_direct_call('\nThere was an error while receiving the'

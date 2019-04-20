@@ -128,44 +128,52 @@ class FileTransfer(object):
 
     def parse_send_response(self, buffer, header):
         """returns the response size if the response was parsed, else False"""
-        if (buffer is not None):
-            complete_header = "%s:{"%header
+    
+        complete_header = "%s:{"%header
 
-            if (complete_header in buffer and
-                buffer.endswith("}")):
-                index = buffer.find(complete_header)
-                sub = buffer[index:-1]
+        if (complete_header in buffer and
+            buffer.endswith("}")):
+            index = buffer.find(complete_header)+len(complete_header)
+            sub = buffer[index:-1]
 
-                return int(sub)
+            return int(sub)
 
         return False
 
     def do_send_json(self):
-        # wait for OK:{<number of bytes to receive>} and then send everything
-        if (self.bytes_copied == 0):
-            returned_files_size = self.parse_send_response(self.file_buffer, 'OK')
-
-            if (returned_files_size is not False):
-                if(returned_files_size != self.file_size):
-                    self.error = "File size mismatch"
-                    return False
-
+        if (self.file_buffer is not None):
+            # see if there was a failure
+            if ("FAILED" in self.file_buffer):
+                error = self.file_buffer
                 self.file_buffer = None
-                self.bytes_copied = self.file_size
+                self.stop_transfer(lambda : self.finished_callback(self.data_context, False, error))
+                return True
 
-                # send the file now
-                return self.json_to_send
-        # wait for the signal that the data was received
-        elif (self.bytes_copied == self.file_size):
-            returned_files_size = self.parse_send_response(self.file_buffer, 'RECEIVED')
-            if (returned_files_size is not False):
-                if(returned_files_size != self.file_size):
-                    self.error = "File size mismatch"
-                    return False
+            # wait for OK:{<number of bytes to receive>} and then send everything
+            if (self.bytes_copied == 0):
+                returned_files_size = self.parse_send_response(self.file_buffer, 'OK')
 
-                self.file_buffer = None
+                if (returned_files_size is not False):
+                    if(returned_files_size != self.file_size):
+                        self.error = "File size mismatch"
+                        return False
 
-                self.FileTransferComplete()
+                    self.file_buffer = None
+                    self.bytes_copied = self.file_size
+
+                    # send the file now
+                    return self.json_to_send
+            # wait for the signal that the data was received
+            elif (self.bytes_copied == self.file_size):
+                returned_files_size = self.parse_send_response(self.file_buffer, 'RECEIVED')
+                if (returned_files_size is not False):
+                    if(returned_files_size != self.file_size):
+                        self.error = "File size mismatch"
+                        return False
+
+                    self.file_buffer = None
+
+                    self.FileTransferComplete()
   
         return True
 
