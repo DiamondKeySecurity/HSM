@@ -85,6 +85,13 @@ def dks_sync_twoway(console_object, args):
 
     return "command sent to synchronizer"
 
+def on_sent_remote_backup_data(console_object, result, msg):
+    # we don't need to close the file_transfer object because it will
+    # do that itself before calling this callback function
+    console_object.file_transfer = None
+
+    console_object.allow_user_input(msg)
+
 def on_remote_backup_prepared(cmd, results):
     console_object = results[0]
     result = results[1]
@@ -92,8 +99,23 @@ def on_remote_backup_prepared(cmd, results):
     if (result == None):
         console_object.allow_user_input("Sync: Did not return any data to backup.")
     else:
-        print json.dumps(result)
-        console_object.allow_user_input("Sync: Not Implemented")
+        json_to_send = json.dumps(result)
+
+        # stop excepting normal user data
+        console_object.set_ignore_user('The HSM is sending the backup data to the CrypTech device.')
+
+        mgmt_code = MGMTCodes.MGMTCODE_SEND_EXPORT_DATA.value
+
+        # setup a file transfer object
+        ft = FileTransfer(mgmt_code=mgmt_code,
+                          json_to_send=json_to_send,
+                          finished_callback=on_sent_remote_backup_data,
+                          data_context=console_object)
+
+        console_object.file_transfer = ft
+        # tell dks_setup_console that it can send the data now
+        msg = "%s:SEND:{%i}\r" % (mgmt_code, len(json_to_send))
+        console_object.cty_direct_call(msg)
 
 def on_send_local_kekek(console_object, result, msg):
     # we don't need to close the file_transfer object because it will
