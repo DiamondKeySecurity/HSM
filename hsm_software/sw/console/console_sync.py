@@ -96,6 +96,10 @@ def on_remote_backup_prepared(cmd, results):
     console_object = results[0]
     result = results[1]
 
+    pin = console_object.temp_object
+
+    console_object.temp_object = None
+
     if (result == None):
         console_object.allow_user_input("Sync: Did not return any data to backup.")
     else:
@@ -114,7 +118,7 @@ def on_remote_backup_prepared(cmd, results):
 
         console_object.file_transfer = ft
         # tell dks_setup_console that it can send the data now
-        msg = "%s:SEND:{%i}\r" % (mgmt_code, len(json_to_send))
+        msg = "%s:SEND:{%s}{%i}\r" % (mgmt_code, pin, len(json_to_send))
         console_object.cty_direct_call(msg)
 
 def on_send_local_kekek(console_object, result, msg):
@@ -153,6 +157,7 @@ def on_received_remote_kekek(console_object, result, msg):
 
         console_object.synchronizer.queue_command(cmd)
     else:
+        console_object.temp_object = None
         console_object.allow_user_input("Unable to start connection with CrypTech device.")
         console_object.allow_user_input(msg)
 
@@ -167,6 +172,9 @@ def received_remote_backup_options(console_object, options):
 
         mgmt_code = MGMTCodes.MGMTCODE_RECIEVE_RMT_KEKEK.value
         remote_setup = 'remote-setup.json'
+
+        # temporaily store the pin
+        console_object.temp_object = pin
 
         # setup a file transfer object
         ft = FileTransfer(mgmt_code=mgmt_code,

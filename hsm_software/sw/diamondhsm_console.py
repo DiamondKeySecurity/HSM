@@ -73,6 +73,7 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
         self.tamper_event_detected = ThreadSafeVariable(False)
         self.console_locked = False
         self.gpio_tamper_setter = gpio_tamper_setter
+        self.temp_object = None
 
         super(DiamondHSMConsole, self).__init__('Diamond HSM')
 
@@ -117,6 +118,8 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
          after a new user logs in"""
         self.welcome_shown = False
         self.after_login_callback = None
+
+        self.temp_object = None
 
         self.on_cryptech_update_finished = None
 
