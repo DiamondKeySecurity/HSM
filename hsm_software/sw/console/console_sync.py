@@ -85,6 +85,8 @@ def dks_sync_twoway(console_object, args):
 
     return "command sent to synchronizer"
 
+# Remote Backup -----------------------------------------------------------------------------
+
 def on_sent_remote_backup_data(console_object, result, msg):
     # we don't need to close the file_transfer object because it will
     # do that itself before calling this callback function
@@ -120,13 +122,6 @@ def on_remote_backup_prepared(cmd, results):
         # tell dks_setup_console that it can send the data now
         msg = "%s:SEND:{%s}{%i}\r" % (mgmt_code, pin, len(json_to_send))
         console_object.cty_direct_call(msg)
-
-def on_send_local_kekek(console_object, result, msg):
-    # we don't need to close the file_transfer object because it will
-    # do that itself before calling this callback function
-    console_object.file_transfer = None
-
-    console_object.allow_user_input(msg)
 
 def on_received_remote_kekek(console_object, result, msg):
     """Receive kekek for a remote backup"""
@@ -192,48 +187,6 @@ def received_remote_backup_options(console_object, options):
         console_object.cty_direct_call('\nThere was an error while receiving the'
                                        ' update.\r\n\r\n%s' % e.message)
 
-def received_remote_retore_options(console_object, options):
-    master_key = options['masterkey_value']
-    device = options['device_index']
-    pin = options['cryptech_pin']
-
-    try:
-        # stop excepting normal user data
-        console_object.set_ignore_user('The HSM is preparing a remote restore')
-
-        mgmt_code = MGMTCodes.MGMTCODE_SEND_LCL_KEKEK.value
-
-        json_to_send = '{"comment": "This is a test"}'
-
-        # setup a file transfer object
-        ft = FileTransfer(mgmt_code=mgmt_code,
-                          json_to_send=json_to_send,
-                          finished_callback=on_send_local_kekek,
-                          data_context=console_object)
-
-        console_object.file_transfer = ft
-        # tell dks_setup_console that it can send the data now
-        msg = "%s:SEND:{%s}{%s}{%i}{%i}\r" % (mgmt_code, str(master_key), pin, device, len(json_to_send))
-        console_object.cty_direct_call(msg)
-    except Exception as e:
-        console_object.cty_direct_call('\nThere was an error while receiving the'
-                                       ' update.\r\n\r\n%s' % e.message)
-
-def dks_sync_remote_restore(console_object, args):
-    dest = parse_index(args[0], console_object.rpc_preprocessor.device_count())
-    if (dest < 0):
-        return "Invalid internal device destination parameter. Got '%s'." % args[0]
-
-    # start the script
-    console_object.script_module = RemoteRestoreScript(console_object.cty_direct_call,
-                                                       dest,
-                                                       received_remote_retore_options,
-                                                       console_object)
-
-    console_object.cty_direct_call(console_object.prompt)
-
-    return True
-
 def dks_sync_remote_backup(console_object, args):
     src = parse_index(args[0], console_object.rpc_preprocessor.device_count())
     if (src < 0):
@@ -255,6 +208,80 @@ def dks_sync_remote_backup(console_object, args):
 
     return True
 
+# Remote Restore  -----------------------------------------------------------------------------
+def on_send_local_kekek(console_object, result, msg):
+    # we don't need to close the file_transfer object because it will
+    # do that itself before calling this callback function
+    console_object.file_transfer = None
+
+    console_object.allow_user_input(msg)
+
+def send_local_kekek_after_sync(cmd, results):
+    console_object = results[0]
+    master_key = results[1]
+    device = results[2]
+    pin = results[3]
+    db = results[4]
+
+    json_to_send = json.dumps(db)
+
+    try:
+        # stop excepting normal user data
+        console_object.set_ignore_user('Sending public KEKEK to CrypTech device')
+
+        mgmt_code = MGMTCodes.MGMTCODE_SEND_LCL_KEKEK.value
+
+        # temporaily store the device index
+        console_object.temp_object = device
+
+        # setup a file transfer object
+        ft = FileTransfer(mgmt_code=mgmt_code,
+                          json_to_send=json_to_send,
+                          finished_callback=on_send_local_kekek,
+                          data_context=console_object)
+
+        console_object.file_transfer = ft
+        # tell dks_setup_console that it can send the data now
+        msg = "%s:SEND:{%s}{%s}{%i}\r" % (mgmt_code, str(master_key), pin, len(json_to_send))
+        console_object.cty_direct_call(msg)
+    except Exception as e:
+        console_object.cty_direct_call('\nThere was an error while receiving the'
+                                       ' update.\r\n\r\n%s' % e.message)
+
+def received_remote_retore_options(console_object, options):
+    master_key = options['masterkey_value']
+    device = options['device_index']
+    pin = options['cryptech_pin']
+
+    combined_options = (console_object, master_key, device, pin)
+
+    console_object.set_ignore_user("command sent to synchronizer.\r\nGenerating KEKEK\r\nThis may take a few minutes.")
+
+    cmd = SyncCommand(SyncCommandEnum.SetupRemoteRestore, -1, device,
+                      send_local_kekek_after_sync,
+                      param=combined_options,
+                      console=console_object.cty_direct_call)
+
+    console_object.synchronizer.queue_command(cmd)
+
+    return ""
+
+def dks_sync_remote_restore(console_object, args):
+    dest = parse_index(args[0], console_object.rpc_preprocessor.device_count())
+    if (dest < 0):
+        return "Invalid internal device destination parameter. Got '%s'." % args[0]
+
+    # start the script
+    console_object.script_module = RemoteRestoreScript(console_object.cty_direct_call,
+                                                       dest,
+                                                       received_remote_retore_options,
+                                                       console_object)
+
+    console_object.cty_direct_call(console_object.prompt)
+
+    return True
+
+# Command Setup -----------------------------------------------------------------------
 def add_sync_commands(console_object):
     sync_node = console_object.add_child('sync')
 

@@ -43,12 +43,13 @@ from hsm_tools.pkcs11_attr import CKA
 from hsm_tools.cryptech_port import DKS_HALUser, DKS_RPCFunc, DKS_HALError, DKS_HALKeyType
 
 class SyncCommandEnum(IntEnum):
-    OneWayBackup  = 0
-    TwoWayBackup  = 1
-    Initialize    = 2
-    BuildCache    = 3
-    RemoteBackup  = 4
-    RemoteRestore = 5
+    OneWayBackup       = 0
+    TwoWayBackup       = 1
+    Initialize         = 2
+    BuildCache         = 3
+    RemoteBackup       = 4
+    RemoteRestore      = 5
+    SetupRemoteRestore = 6
 
 class SyncCommand(object):
     """Class to define a command for the mirrorer"""
@@ -149,10 +150,25 @@ class Synchronizer(PFUNIX_HSM):
         self.do_cmd_callback(cmd, (console_object, db))
 
     def cmd_remoteRestore(self, hsm, cmd):
-        console_object = cmd.param[0]
-        db = cmd.param[1]
+        console_object = cmd.param
 
-        self.do_cmd_callback(cmd, (console_object, None))
+        # prepare and send our key encipherment key
+        # the db will later be sent to the remote device using JSON
+        db = self.setup_dst_hsm(hsm, cmd.dest)
+
+        self.do_cmd_callback(cmd, (console_object, db))
+
+    def cmd_remoteRestoreSetup(self, hsm, cmd):
+        console_object = cmd.param[0]
+        master_key = cmd.param[1]
+        device = cmd.param[2]
+        pin = cmd.param[3]
+
+        # prepare and send our key encipherment key
+        # the db will later be sent to the remote device using JSON
+        db = self.setup_dst_hsm(hsm, cmd.dest)
+
+        self.do_cmd_callback(cmd, (console_object, master_key, device, pin, db))
 
     def cmd_initialization(self, hsm, cmd):
         # login to all alphas now that we have the wheel pin
@@ -527,7 +543,8 @@ class Synchronizer(PFUNIX_HSM):
             SyncCommandEnum.Initialize : self.cmd_initialization,
             SyncCommandEnum.BuildCache : self.cmd_buildcache,
             SyncCommandEnum.RemoteBackup : self.cmd_remoteBackup,
-            SyncCommandEnum.RemoteRestore : self.cmd_remoteRestore
+            SyncCommandEnum.RemoteRestore : self.cmd_remoteRestore,
+            SyncCommandEnum.SetupRemoteRestore : self.cmd_remoteRestoreSetup
         }
         func = switcher.get(cmd.name, lambda a: None)
         if(func is not None):

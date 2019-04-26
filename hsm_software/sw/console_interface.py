@@ -230,13 +230,16 @@ class ConsoleInterface(CommandNode):
 
     @property
     def prompt(self):
-        if (self.console_state.value == ConsoleState.PasswordRequested):
-            return '\r\nPassword: '
-        elif ((self.script_module is not None) and 
-            (not self.script_module.is_done())):
-            return self.script_module.getPrompt()
+        if (not self.ignore_user_input):
+            if (self.console_state.value == ConsoleState.PasswordRequested):
+                return '\r\nPassword: '
+            elif ((self.script_module is not None) and 
+                (not self.script_module.is_done())):
+                return self.script_module.getPrompt()
+            else:
+                return self.host_prompt
         else:
-            return self.host_prompt
+            return ''
 
     def help(self, top_class, args=None):
         # send one line at a time
