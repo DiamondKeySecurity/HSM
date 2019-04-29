@@ -281,7 +281,9 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
         if(self.file_transfer is not None):
             result = self.file_transfer.recv(data)
             if(result is False):
-                self.cty_direct_call(self.file_transfer.error)
+                if (self.file_transfer is not None):
+                    self.cty_direct_call(self.file_transfer.error)
+                print "transfer failed"
                 self.console_locked = True
             elif (isinstance(result, str)):
                 self.quick_write(result)

@@ -24,10 +24,11 @@ from enum import Enum
 
 class MGMTCodes(str, Enum):
     """Enum where members are also (and must be) strs"""
-    MGMTCODE_RECEIVEHSM_UPDATE = "".join([chr(0x11), chr(0x12), chr(0x13), chr(0x14)])
-    MGMTCODE_RECIEVE_RMT_KEKEK = "".join([chr(0x11), chr(0x12), chr(0x13), chr(0x15)])
-    MGMTCODE_SEND_LCL_KEKEK    = "".join([chr(0x11), chr(0x12), chr(0x13), chr(0x16)])
-    MGMTCODE_SEND_EXPORT_DATA  = "".join([chr(0x11), chr(0x12), chr(0x13), chr(0x17)])
+    MGMTCODE_RECEIVEHSM_UPDATE   = "".join([chr(0x11), chr(0x12), chr(0x13), chr(0x14)])
+    MGMTCODE_RECEIVE_RMT_KEKEK   = "".join([chr(0x11), chr(0x12), chr(0x13), chr(0x15)])
+    MGMTCODE_SEND_LCL_KEKEK      = "".join([chr(0x11), chr(0x12), chr(0x13), chr(0x16)])
+    MGMTCODE_SEND_EXPORT_DATA    = "".join([chr(0x11), chr(0x12), chr(0x13), chr(0x17)])
+    MGMTCODE_RECEIVE_IMPORT_DATA = "".join([chr(0x11), chr(0x12), chr(0x13), chr(0x18)])
 
 
 class FileTransfer(object):
@@ -44,10 +45,12 @@ class FileTransfer(object):
                  data_context = None):
         self.mgmt_code = mgmt_code
         self.error = ""
+        self.file_obj = None
 
         # what are we doing
-        if (mgmt_code == MGMTCodes.MGMTCODE_RECEIVEHSM_UPDATE or
-            mgmt_code == MGMTCodes.MGMTCODE_RECIEVE_RMT_KEKEK):
+        if (mgmt_code == MGMTCodes.MGMTCODE_RECEIVEHSM_UPDATE.value or
+            mgmt_code == MGMTCodes.MGMTCODE_RECEIVE_RMT_KEKEK.value or
+            mgmt_code == MGMTCodes.MGMTCODE_RECEIVE_IMPORT_DATA.value):
             self.receiving_mode = True
         else:
             self.receiving_mode = False
@@ -62,8 +65,6 @@ class FileTransfer(object):
         self.file_size = None
         self.bytes_copied = 0
         self.file_buffer = ""
-
-        self.file_obj = None
 
         # members required for sending data
         self.json_to_send = json_to_send
@@ -100,7 +101,8 @@ class FileTransfer(object):
                     return True
 
                 if(self.mgmt_code == MGMTCodes.MGMTCODE_RECEIVEHSM_UPDATE.value or
-                    self.mgmt_code == MGMTCodes.MGMTCODE_RECIEVE_RMT_KEKEK.value):
+                    self.mgmt_code == MGMTCodes.MGMTCODE_RECEIVE_RMT_KEKEK.value or
+                    self.mgmt_code == MGMTCodes.MGMTCODE_RECEIVE_IMPORT_DATA.value):
                     # make sure the path exist
                     try:
                         os.makedirs(self.uploads_dir)
@@ -191,6 +193,7 @@ class FileTransfer(object):
                 return self.do_send_json()
         except Exception as e:
             self.error = e.message
+            print "error %s"%e.message
             return False
 
     def stop_transfer(self, result_callback):

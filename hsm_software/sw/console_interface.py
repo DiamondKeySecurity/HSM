@@ -346,7 +346,7 @@ class ConsoleInterface(CommandNode):
                 self.input_monitor_buffer += c
                 if(self.hide_input is False): self.quick_write(c)
 
-        # did we recieve an entire string of text?
+        # did we receive an entire string of text?
         if(self.input_monitor_buffer.endswith('\r')):
             self.quick_write('\n')
 
