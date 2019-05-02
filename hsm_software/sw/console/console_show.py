@@ -18,7 +18,7 @@ import os
 import shutil
 import time
 
-from settings import HSMSettings
+from settings import HSMSettings, HSM_SOFTWARE_VERSION
 
 def dks_show_firewall_settings(console_object, args):
     if (args[0].lower() == "mgmt"):

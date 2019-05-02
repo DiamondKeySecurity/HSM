@@ -27,7 +27,7 @@ from scripts.remote_restore import RemoteRestoreScript
 from console.file_transfer import MGMTCodes, FileTransfer
 
 def dks_sync_cache(console_object, args):
-    console_object.build_cache(0, self.rpc_preprocessor.device_count())
+    console_object.build_cache(0, console_object.rpc_preprocessor.device_count())
     return True
 
 def parse_index(index_string, max_value):
@@ -209,36 +209,48 @@ def dks_sync_remote_backup(console_object, args):
     return True
 
 # Remote Restore  -----------------------------------------------------------------------------
+def on_sync_restore_finished(cmd, results):
+    console_object = results[0]
+    result = results[1]
+
+    if (result is True):
+        console_object.allow_user_input("Restore complete.")
+    else:
+        console_object.allow_user_input("There was an error restoring the data to the HSM")
+
 def on_recv_data_to_import(console_object, result, msg):
     # we don't need to close the file_transfer object because it will
     # do that itself before calling this callback function
 
+    dest = console_object.temp_object
+    console_object.temp_object = None
+
     if(result is True):
         json_file = "%s/%s"%(console_object.args.uploads, 'export.json')
 
-        # read the json file that we just received. It contains the KEKEK
-        with open(json_file, "rt") as json_fp:
-            db = json.load(json_fp)
-
-        dest = console_object.temp_object
+        try:
+            # read the json file that we just received. It contains the KEKEK
+            with open(json_file, "rt") as json_fp:
+                db = json.load(json_fp)
+        except:
+            console_object.allow_user_input("There was an error processing the restore data.")
+            return
 
         console_object.cty_direct_call("Received data from CrypTech device. Waiting for synchronizer.")
 
-        # # send the command to the synchronizer
-        # cmd = SyncCommand(SyncCommandEnum.RemoteBackup, src, -1,
-        #                   on_remote_backup_prepared,
-        #                   param=(console_object, db),
-        #                   console=console_object.cty_direct_call)
+        # send the command to the synchronizer
+        cmd = SyncCommand(SyncCommandEnum.RemoteRestore, -1, dest,
+                          on_sync_restore_finished,
+                          param=(console_object, db),
+                          console=console_object.cty_direct_call)
 
-        # console_object.synchronizer.queue_command(cmd)
-        console_object.allow_user_input(msg)
-
+        console_object.synchronizer.queue_command(cmd)      
         console_object.file_transfer = None
     else:
         console_object.allow_user_input("Unable to start connection with CrypTech device.")
         console_object.allow_user_input(msg)
 
-    console_object.temp_object = None
+    
 
 def on_send_local_kekek(console_object, result, msg):
     if(result is True):

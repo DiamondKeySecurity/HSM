@@ -42,6 +42,34 @@ from hsm_tools.pkcs11_attr import CKA
 
 from hsm_tools.cryptech_port import DKS_HALUser, DKS_RPCFunc, DKS_HALError, DKS_HALKeyType
 
+def rejoinb64(input):
+    if(isinstance(input, int)):
+        return input
+    elif(isinstance(input, str)):
+        return input
+    else:
+        return b64join(input)
+
+def byteify(input):
+    """Converts unicode(2 byte) values stored in a dictionary or string to utf-8"""
+    if isinstance(input, dict):
+        return {byteify(key): byteify(value)
+                for key, value in input.iteritems()}
+    elif isinstance(input, list):
+        return [byteify(element) for element in input]
+    elif isinstance(input, unicode):
+        return input.encode('utf-8')
+    else:
+        return input
+
+def makeDictValuesB64(input):
+    if isinstance(input, dict):
+        return {key: makeDictValuesB64(value) for key, value in input.iteritems()}
+    elif isinstance(input, int):
+        return input
+    else:
+        return b64(input)
+
 class SyncCommandEnum(IntEnum):
     OneWayBackup       = 0
     TwoWayBackup       = 1
@@ -150,13 +178,14 @@ class Synchronizer(PFUNIX_HSM):
         self.do_cmd_callback(cmd, (console_object, db))
 
     def cmd_remoteRestore(self, hsm, cmd):
-        console_object = cmd.param
+        console_object = cmd.param[0]
 
-        # prepare and send our key encipherment key
-        # the db will later be sent to the remote device using JSON
-        db = self.setup_dst_hsm(hsm, cmd.dest)
+        # we must convert all unicode strings to byte strings
+        db = byteify(cmd.param[1])
 
-        self.do_cmd_callback(cmd, (console_object, db))
+        self.import_to_dst_hsm(hsm, None, cmd.dest, db)
+
+        self.do_cmd_callback(cmd, (console_object, True))
 
     def cmd_remoteRestoreSetup(self, hsm, cmd):
         console_object = cmd.param[0]
@@ -242,7 +271,7 @@ class Synchronizer(PFUNIX_HSM):
 
         # select the device
         hsm.rpc_set_device(rpc_index)
-        
+
         # get list of all keys on the alpha
         with hsm.start_using_device_uuids_block():
             for uuid in hsm.pkey_match():
@@ -259,26 +288,6 @@ class Synchronizer(PFUNIX_HSM):
                         masterListID = self.findMatchingMasterListID(new_uuid, matching_map, master_rows)
 
                     self.cache.add_key_to_alpha(rpc_index, new_uuid, pkey.key_type, pkey.key_flags, param_masterListID = masterListID, auto_backup=False)
-
-    def byteify(self, input):
-        """Converts unicode(2 byte) values stored in a dictionary or string to utf-8"""
-        if isinstance(input, dict):
-            return {self.byteify(key): self.byteify(value)
-                    for key, value in input.iteritems()}
-        elif isinstance(input, list):
-            return [self.byteify(element) for element in input]
-        elif isinstance(input, unicode):
-            return input.encode('utf-8')
-        else:
-            return input
-
-    def makeDictValuesB64(self, input):
-        if isinstance(input, dict):
-            return {key: self.makeDictValuesB64(value) for key, value in input.iteritems()}
-        elif isinstance(input, int):
-            return input
-        else:
-            return b64(input)
 
     def findMatchingMasterListID(self, new_uuid, matching_map, master_rows):
         """Uses the matching map to find the masterListID of a matching key"""
@@ -319,7 +328,7 @@ class Synchronizer(PFUNIX_HSM):
         # get the mapping
         try:
             with open('%s/cache_mapping.db'%self.cache.cache_folder, 'r') as fh:
-                base_matching_map = self.byteify(json.load(fh))
+                base_matching_map = byteify(json.load(fh))
 
             # convert to UUIDs
             matching_map = {}
@@ -427,8 +436,9 @@ class Synchronizer(PFUNIX_HSM):
                             for attr_id in CKA.cached_attributes():
                                 try:
                                     attr = pkey.get_attributes([attr_id])
+                                    print attr
                                     if (args.useb64attr):
-                                        attributes.update(self.makeDictValuesB64(attr))
+                                        attributes.update(makeDictValuesB64(attr))
                                     else:
                                         attributes.update(attr)
                                 except HAL_ERROR_ATTRIBUTE_NOT_FOUND:
@@ -485,56 +495,64 @@ class Synchronizer(PFUNIX_HSM):
                     pkcs8 = b64join(k.get("pkcs8", ""))
                     spki  = b64join(k.get("spki",  ""))
                     kek   = b64join(k.get("kek",   ""))
-                    flags =         k.get("flags",  0)
-                    attributes = self.clean_attributes(k.get("attributes", {}))
+                    flags =         int(k.get("flags",  0))
+                    attributes = k.get("attributes", {})
+                    pkeytype = 0
 
                     original_uuid = uuid.UUID(k["uuid"])
                     new_uuid = None
 
-                    # get the masterlistID
-                    try:
-                        masterlistID = cache_source_rows[original_uuid].masterListID
-                    except:
-                        # the source key is no longer in the cache so don't copy it
-                        continue
+                    if (cache_source_rows is not None):
+                        # get the masterlistID
+                        try:
+                            masterlistID = cache_source_rows[original_uuid].masterListID
+                        except:
+                            # the source key is no longer in the cache so don't copy it
+                            continue
+                    else:
+                        masterlistID = None
 
                     # don't cache the imported key during keygen. we'll do it manually 
                     # so we can link the 2 keys
                     with hsm.start_disable_cache_block():
                         if pkcs8 and kek:
                             with kekek.import_pkey(pkcs8 = pkcs8, kek = kek, flags = flags) as pkey:
-
                                 new_uuid = pkey.uuid
-
-                                try:
-                                    if(len(attributes) > 0):
-                                        pkey.set_attributes(attributes = attributes)
-                                except:
-                                    # don't fail on attributes just log
-                                    logger.info("Import attribute failure on %s",  new_uuid)
+                                pkeytype = pkey.key_type
+                                if(len(attributes) > 0):
+                                    # send attributes one at a time to avoid overflow errors
+                                    for key, value in attributes.iteritems():
+                                        try:
+                                            attr = { int(key): rejoinb64(value) }
+                                            pkey.set_attributes(attributes = attr)
+                                        except:
+                                            # don't fail on attributes just log
+                                            logger.exception("Import attribute failure on %s",  new_uuid)
 
                                 print "Imported {} as {}".format(original_uuid, new_uuid)
                         elif spki:
                             with hsm.pkey_load(der = spki, flags = flags) as pkey:
-                                pkey.set_attributes(attributes = attributes)
-
                                 new_uuid = pkey.uuid
+                                pkeytype = pkey.key_type
+                                if(len(attributes) > 0):
+                                    # send attributes one at a time to avoid overflow errors
+                                    for key, value in attributes.iteritems():
+                                        try:
+                                            attr = { int(key): rejoinb64(value) }
+                                            pkey.set_attributes(attributes = attr)
+                                        except:
+                                            # don't fail on attributes just log
+                                            logger.exception("Import attribute failure on %s",  new_uuid)
 
                                 print "Loaded {} as {}".format(original_uuid, new_uuid)
 
-                    if (new_uuid is not None):
-                        self.cache.add_key_to_alpha(dest_index, new_uuid, 0, 0, param_masterListID = masterlistID)
+                        if (new_uuid is not None):
+                            self.cache.add_key_to_alpha(dest_index, new_uuid, pkeytype, flags, param_masterListID = masterlistID)
 
-                        print '%s linked to %s'%(new_uuid, original_uuid)
+                            print '%s linked to %s'%(new_uuid, original_uuid)
 
-                if soft_key:
-                    kekek.delete()
-
-    def clean_attributes(self, input):
-        """Updates attributes dictionary so it can be sent to the HSM"""
-        bytified = self.byteify(input)
-
-        return { int(key): value for key, value in bytified.iteritems() }
+        if soft_key:
+            kekek.delete()
 
     def process_command(self, hsm, cmd):
         switcher = {
