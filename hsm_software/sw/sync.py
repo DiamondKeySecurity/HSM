@@ -21,6 +21,8 @@ import threading
 import socket
 import json
 
+import base64
+
 from Queue import Queue
 from enum import IntEnum
 
@@ -436,7 +438,6 @@ class Synchronizer(PFUNIX_HSM):
                             for attr_id in CKA.cached_attributes():
                                 try:
                                     attr = pkey.get_attributes([attr_id])
-                                    print attr
                                     if (args.useb64attr):
                                         attributes.update(makeDictValuesB64(attr))
                                     else:
