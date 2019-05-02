@@ -44,7 +44,7 @@ from hsm_tools.cryptech_port import DKS_HALUser, DKS_RPCFunc, DKS_HALError, DKS_
 
 def rejoinb64(input):
     if(isinstance(input, int)):
-        return input
+        return base64.b64encode(bytes([input]))
     elif(isinstance(input, str)):
         return input
     else:
