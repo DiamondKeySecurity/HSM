@@ -21,11 +21,7 @@ import threading
 
 from enum import Enum
 
-<<<<<<< HEAD
-HSM_SOFTWARE_VERSION = '19.03.20.tamper36'
-=======
-HSM_SOFTWARE_VERSION = '19.05.07.p1'
->>>>>>> master
+HSM_SOFTWARE_VERSION = '19.05.07.tamper37'
 
 # this is the version of the firmware that's built into the current release
 BUILTIN_FIRMWARE_VERSION = '2019-03-11-tamper'
