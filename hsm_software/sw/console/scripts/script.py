@@ -121,7 +121,8 @@ class ScriptModule(object):
         # do the callback
         if(callback is not None):
             return callback(validated_response)
-        elif (self.is_done()):
+
+        if (self.is_done()):
             if(self.finished_callback is not None):
                 self.finished_callback(self.results)
             return None

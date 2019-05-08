@@ -22,6 +22,8 @@ import uuid
 
 from cache import CacheTable
 
+from hsm_tools.cryptech.muxd import logger
+
 class MasterKeyListRow(object):
     """Represents a row in the cache's master key list"""
     def __init__(self, key_rpc_index, key_uuid, keytype = 0, flags = 0):
@@ -49,7 +51,13 @@ class MasterKeyListRow(object):
 
             i += 1
 
-        return '{"keytype":%d, "flags":%d, "uuid_list":{%s}}'%(self.keytype, self.flags, uuids)
+        try:
+            result = '{"keytype":%d, "flags":%d, "uuid_list":{%s}}'%(self.keytype, self.flags, uuids)
+        except Exception as e:
+            logger.exception("Exception %s", str(e))
+            result = '{}'
+
+        return result
 
 class CacheTableMaster(CacheTable):
     """Uses a dictionary to hold table data for keys on the HSM

@@ -18,7 +18,7 @@ import os
 import shutil
 import time
 
-from settings import HSMSettings
+from settings import HSMSettings, HSM_SOFTWARE_VERSION
 
 def dks_show_firewall_settings(console_object, args):
     if (args[0].lower() == "mgmt"):
@@ -126,6 +126,19 @@ def dks_show_fpga_cores(console_object, args):
 
     return '--------'
 
+def dks_show_key_count(console_object, args):
+    result = ["\r\nCached Key Count: --------"]
+    cache = console_object.cache
+
+    for alpha_index in range(cache.rpc_count):
+        alpha_table = cache.get_alphaTable(alpha_index)
+        result.append("--CrypTech device:%i count == %i"%(alpha_index, len(alpha_table)))
+
+    for line in result:
+        console_object.cty_direct_call(line)
+
+    return '--------'
+
 def add_show_commands(console_object):
     show_node = console_object.add_child('show')
 
@@ -162,6 +175,11 @@ def add_show_commands(console_object):
                         usage=' - Shows all of the keys that have been '
                                 'mapped in the system cache.',
                         callback=dks_show_cache)
+
+    show_node.add_child_tree(token_list=['key','count'],
+                             num_args = 0,
+                             usage = ' - shows the number of keys',
+                             callback = dks_show_key_count)
 
     fpga_node = show_node.add_child(name="fpga")
     fpga_node.add_child(name="cores", num_args=0,

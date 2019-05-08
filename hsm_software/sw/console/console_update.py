@@ -86,13 +86,14 @@ def dks_do_HSM_update(console_object, pin):
 
         mgmt_code = MGMTCodes.MGMTCODE_RECEIVEHSM_UPDATE.value
         # setup a file transfer object
-        ft = FileTransfer(requested_file_path=console_object.request_file_path,
-                          mgmt_code=mgmt_code,
+        ft = FileTransfer(mgmt_code=mgmt_code,
+                          requested_file_path=console_object.request_file_path,
                           uploads_dir=console_object.args.uploads,
                           restart_file=console_object.args.restart,
                           public_key=console_object.args.hsmpublickey,
                           finished_callback=dks_hsm_update_finished,
-                          data_obj=console_object)
+                          destination_file='update.tar.gz.signed',
+                          data_context=console_object)
 
         console_object.file_transfer = ft
         # tell dks_setup_console that it can send the data now
