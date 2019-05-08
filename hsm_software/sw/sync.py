@@ -1,12 +1,27 @@
 #!/usr/bin/env python
-# Copyright (c) 2018, 2019 Diamond Key Security, NFP  All rights reserved.
-#
+# Copyright (c) 2019  Diamond Key Security, NFP
+# 
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; version 2
+# of the License only.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, If not, see <https://www.gnu.org/licenses/>.
+
 
 import sys
 import time
 import threading
 import socket
 import json
+
+import base64
 
 from Queue import Queue
 from enum import IntEnum
@@ -29,11 +44,42 @@ from hsm_tools.pkcs11_attr import CKA
 
 from hsm_tools.cryptech_port import DKS_HALUser, DKS_RPCFunc, DKS_HALError, DKS_HALKeyType
 
+def rejoinb64(input):
+    if(isinstance(input, int)):
+        return base64.b64encode(bytes([input]))
+    elif(isinstance(input, str)):
+        return input
+    else:
+        return b64join(input)
+
+def byteify(input):
+    """Converts unicode(2 byte) values stored in a dictionary or string to utf-8"""
+    if isinstance(input, dict):
+        return {byteify(key): byteify(value)
+                for key, value in input.iteritems()}
+    elif isinstance(input, list):
+        return [byteify(element) for element in input]
+    elif isinstance(input, unicode):
+        return input.encode('utf-8')
+    else:
+        return input
+
+def makeDictValuesB64(input):
+    if isinstance(input, dict):
+        return {key: makeDictValuesB64(value) for key, value in input.iteritems()}
+    elif isinstance(input, int):
+        return input
+    else:
+        return b64(input)
+
 class SyncCommandEnum(IntEnum):
-    OneWayBackup = 0
-    TwoWayBackup = 1
-    Initialize   = 2
-    BuildCache   = 3
+    OneWayBackup       = 0
+    TwoWayBackup       = 1
+    Initialize         = 2
+    BuildCache         = 3
+    RemoteBackup       = 4
+    RemoteRestore      = 5
+    SetupRemoteRestore = 6
 
 class SyncCommand(object):
     """Class to define a command for the mirrorer"""
@@ -67,7 +113,7 @@ class Synchronizer(PFUNIX_HSM):
     def dowork(self, hsm):
         while(self.command_queue.empty() is False):
             self.process_command(hsm, self.command_queue.get())
-            
+
         time.sleep(1.0)
 
     def do_cmd_callback(self, cmd, result):
@@ -98,20 +144,21 @@ class Synchronizer(PFUNIX_HSM):
         # setup the hsm
         return self.cmd_setup(args, hsm)
 
-    def export_from_src_hsm(self, hsm, rpc_index, uuid_list, db):
+    def export_from_src_hsm(self, hsm, rpc_index, uuid_list, db, useb64attr = False, print_func = None):
         # backup.py expects command line style arguments so we need to mimic that
         args = type('', (), {})()
 
         args.uuid_list = uuid_list
         args.db = db
+        args.useb64attr = useb64attr
 
         # select the device
         hsm.rpc_set_device(rpc_index)
 
-        return self.cmd_export(args, hsm)
+        return self.cmd_export(args, hsm, print_func)
 
 
-    def import_to_dst_hsm(self, hsm, cache_source_rows, rpc_index, db):
+    def import_to_dst_hsm(self, hsm, cache_source_rows, rpc_index, db, print_func = None):
         # backup.py expects command line style arguments so we need to mimic that
         args = type('', (), {})()
 
@@ -120,7 +167,36 @@ class Synchronizer(PFUNIX_HSM):
         # select the device
         hsm.rpc_set_device(rpc_index)
 
-        self.cmd_import(args, cache_source_rows, hsm, rpc_index)
+        self.cmd_import(args, cache_source_rows, hsm, rpc_index, print_func)
+
+    def cmd_remoteBackup(self, hsm, cmd):
+        console_object = cmd.param[0]
+        db = cmd.param[1]
+
+        # export all of the keys to a db
+        # the db will later be sent to the remote device using JSON
+        db = self.export_from_src_hsm(hsm, cmd.src, None, db, True, cmd.console)
+
+        self.do_cmd_callback(cmd, (console_object, db))
+
+    def cmd_remoteRestore(self, hsm, cmd):
+        console_object = cmd.param[0]
+
+        # we must convert all unicode strings to byte strings
+        db = byteify(cmd.param[1])
+
+        self.import_to_dst_hsm(hsm, None, cmd.dest, db, cmd.console)
+
+        self.do_cmd_callback(cmd, (console_object, True))
+
+    def cmd_remoteRestoreSetup(self, hsm, cmd):
+        console_object = cmd.param
+
+        # prepare and send our key encipherment key
+        # the db will later be sent to the remote device using JSON
+        db = self.setup_dst_hsm(hsm, cmd.dest)
+
+        self.do_cmd_callback(cmd, (console_object, db))
 
     def cmd_initialization(self, hsm, cmd):
         # login to all alphas now that we have the wheel pin
@@ -194,41 +270,41 @@ class Synchronizer(PFUNIX_HSM):
 
         # select the device
         hsm.rpc_set_device(rpc_index)
-        
+
         # get list of all keys on the alpha
         with hsm.start_using_device_uuids_block():
-            for uuid in hsm.pkey_match():
-                if(console is not None):
-                    console("Found:%s"%uuid)
+            
+            prev_uuid = UUID(int = 0)
+            max_uuids = 64
+            recv_count = 64
 
-                with hsm.pkey_open(uuid) as pkey:
-                    new_uuid = uuid
+            # keep looping until we get less than what we asked for
+            while (recv_count == max_uuids):
+                recv_count = 0
+                for uuid in hsm.pkey_match(u = prev_uuid,
+                                           length = max_uuids):
+                    if(console is not None):
+                        console("Found:%s"%uuid)
 
-                    if(matching_map is None):
-                        # add uuid without matching
-                        masterListID = None
-                    else:
-                        masterListID = self.findMatchingMasterListID(new_uuid, matching_map, master_rows)                
+                    with hsm.pkey_open(uuid) as pkey:
+                        new_uuid = uuid
 
-                    self.cache.add_key_to_alpha(rpc_index, new_uuid, pkey.key_type, pkey.key_flags, param_masterListID = masterListID, auto_backup=False)
+                        if(matching_map is None):
+                            # add uuid without matching
+                            masterListID = None
+                        else:
+                            masterListID = self.findMatchingMasterListID(new_uuid, matching_map, master_rows)
 
-    def byteify(self, input):
-        """Converts unicode(2 byte) values stored in a dictionary or string to utf-8"""
-        if isinstance(input, dict):
-            return {self.byteify(key): self.byteify(value)
-                    for key, value in input.iteritems()}
-        elif isinstance(input, list):
-            return [self.byteify(element) for element in input]
-        elif isinstance(input, unicode):
-            return input.encode('utf-8')
-        else:
-            return input
+                        self.cache.add_key_to_alpha(rpc_index, new_uuid, pkey.key_type, pkey.key_flags, param_masterListID = masterListID, auto_backup=False)
+
+                    prev_uuid = uuid
+                    recv_count = recv_count + 1
 
     def findMatchingMasterListID(self, new_uuid, matching_map, master_rows):
         """Uses the matching map to find the masterListID of a matching key"""
         if (new_uuid in matching_map):
             return matching_map[new_uuid]
-                    
+
         return None
 
     def buildUUIDCopyList(self, master_rows, src_index, dest_index, max_uuids):
@@ -263,7 +339,7 @@ class Synchronizer(PFUNIX_HSM):
         # get the mapping
         try:
             with open('%s/cache_mapping.db'%self.cache.cache_folder, 'r') as fh:
-                base_matching_map = self.byteify(json.load(fh))
+                base_matching_map = byteify(json.load(fh))
 
             # convert to UUIDs
             matching_map = {}
@@ -273,7 +349,7 @@ class Synchronizer(PFUNIX_HSM):
 
         except:
             matching_map = None
-        
+
         # build master table from the alphas
         for rpc_index in range(rpc_from_index, rpc_to_index):
             self.addAlphaData(hsm, rpc_index, cmd.console, matching_map)
@@ -287,7 +363,7 @@ class Synchronizer(PFUNIX_HSM):
 
     def cmd_setup(self, args, hsm):
         """
-        Updated from cmd_export in 'cryptech_backup'.
+        Updated from cmd_setup in 'cryptech_backup'.
 
         Set up backup HSM for subsequent import.
         Generates an RSA keypair with appropriate usage settings
@@ -337,11 +413,11 @@ class Synchronizer(PFUNIX_HSM):
         return result
 
 
-    def cmd_export(self, args, hsm):
+    def cmd_export(self, args, hsm, print_func = None):
         """
         Updated from cmd_export in 'cryptech_backup'.
 
-        
+
         Export encrypted keys from primary HSM.
         Takes a JSON file containing KEKEK (generated by running this
         script's "setup" command against the backup HSM), installs that
@@ -359,39 +435,57 @@ class Synchronizer(PFUNIX_HSM):
                 kekek = hsm.pkey_load(der   = b64join(db["kekek_pubkey"]),
                                     flags = HAL_KEY_FLAG_USAGE_KEYENCIPHERMENT)
 
-                for uuid in hsm.pkey_match(mask  = HAL_KEY_FLAG_EXPORTABLE,
-                                        flags = HAL_KEY_FLAG_EXPORTABLE):
+                prev_uuid = UUID(int = 0)
+                max_uuids = 64
+                recv_count = 64
 
-                    if(uuid in args.uuid_list):
-                        # this has been updated to only export keys that are in the list
-                        with hsm.pkey_open(uuid) as pkey:
+                # keep looping until we get less than what we asked for
+                while (recv_count == max_uuids):
+                    recv_count = 0
+                    for uuid in hsm.pkey_match(mask  = HAL_KEY_FLAG_EXPORTABLE,
+                                               flags = HAL_KEY_FLAG_EXPORTABLE,
+                                               length = max_uuids,
+                                               u = prev_uuid):
 
-                            # also save the attributes for the key
-                            attributes = {}
-                            for attr_id in CKA.cached_attributes():
-                                try:
-                                    attr = pkey.get_attributes([attr_id])
-                                    attributes.update(attr)
-                                except HAL_ERROR_ATTRIBUTE_NOT_FOUND:
-                                    pass
+                        if((args.uuid_list is None) or (uuid in args.uuid_list)):
+                            # this has been updated to only export keys that are in the list
+                            with hsm.pkey_open(uuid) as pkey:
 
-                            if pkey.key_type in (DKS_HALKeyType.HAL_KEY_TYPE_RSA_PRIVATE, DKS_HALKeyType.HAL_KEY_TYPE_EC_PRIVATE):
-                                pkcs8, kek = kekek.export_pkey(pkey)
-                                result.append(dict(
-                                    comment = "Encrypted private key",
-                                    pkcs8   = b64(pkcs8),
-                                    kek     = b64(kek),
-                                    uuid    = str(pkey.uuid),
-                                    flags   = pkey.key_flags,
-                                    attributes = attributes))
+                                # also save the attributes for the key
+                                attributes = {}
+                                for attr_id in CKA.cached_attributes():
+                                    try:
+                                        attr = pkey.get_attributes([attr_id])
+                                        if (args.useb64attr):
+                                            attributes.update(makeDictValuesB64(attr))
+                                        else:
+                                            attributes.update(attr)
+                                    except HAL_ERROR_ATTRIBUTE_NOT_FOUND:
+                                        pass
 
-                            elif pkey.key_type in (DKS_HALKeyType.HAL_KEY_TYPE_RSA_PUBLIC, DKS_HALKeyType.HAL_KEY_TYPE_EC_PUBLIC):
-                                result.append(dict(
-                                    comment = "Public key",
-                                    spki    = b64(pkey.public_key),
-                                    uuid    = str(pkey.uuid),
-                                    flags   = pkey.key_flags,
-                                    attributes = attributes))
+                                if pkey.key_type in (DKS_HALKeyType.HAL_KEY_TYPE_RSA_PRIVATE, DKS_HALKeyType.HAL_KEY_TYPE_EC_PRIVATE):
+                                    pkcs8, kek = kekek.export_pkey(pkey)
+                                    result.append(dict(
+                                        comment = "Encrypted private key",
+                                        pkcs8   = b64(pkcs8),
+                                        kek     = b64(kek),
+                                        uuid    = str(pkey.uuid),
+                                        flags   = pkey.key_flags,
+                                        attributes = attributes))
+
+                                elif pkey.key_type in (DKS_HALKeyType.HAL_KEY_TYPE_RSA_PUBLIC, DKS_HALKeyType.HAL_KEY_TYPE_EC_PUBLIC):
+                                    result.append(dict(
+                                        comment = "Public key",
+                                        spki    = b64(pkey.public_key),
+                                        uuid    = str(pkey.uuid),
+                                        flags   = pkey.key_flags,
+                                        attributes = attributes))
+
+                                if (print_func is not None):
+                                    print_func("'%s' was processed."%str(pkey.uuid))
+
+                        prev_uuid = uuid
+                        recv_count = recv_count + 1
 
         finally:
             if kekek is not None:
@@ -402,9 +496,9 @@ class Synchronizer(PFUNIX_HSM):
 
         return db
 
-    def cmd_import(self, args, cache_source_rows, hsm, dest_index):
+    def cmd_import(self, args, cache_source_rows, hsm, dest_index, print_func = None):
         """
-        Updated from cmd_export in 'cryptech_backup'.
+        Updated from cmd_import in 'cryptech_backup'.
 
         Import encrypted keys into backup HSM.
         Takes a JSON file containing a key backup (generated by running
@@ -426,56 +520,69 @@ class Synchronizer(PFUNIX_HSM):
                     pkcs8 = b64join(k.get("pkcs8", ""))
                     spki  = b64join(k.get("spki",  ""))
                     kek   = b64join(k.get("kek",   ""))
-                    flags =         k.get("flags",  0)
-                    attributes = self.clean_attributes(k.get("attributes", {}))
+                    flags =         int(k.get("flags",  0))
+                    attributes = k.get("attributes", {})
+                    pkeytype = 0
 
                     original_uuid = uuid.UUID(k["uuid"])
                     new_uuid = None
 
-                    # get the masterlistID
-                    try:
-                        masterlistID = cache_source_rows[original_uuid].masterListID
-                    except:
-                        # the source key is no longer in the cache so don't copy it
-                        continue
+                    if (cache_source_rows is not None):
+                        # get the masterlistID
+                        try:
+                            masterlistID = cache_source_rows[original_uuid].masterListID
+                        except:
+                            # the source key is no longer in the cache so don't copy it
+                            continue
+                    else:
+                        masterlistID = None
 
                     # don't cache the imported key during keygen. we'll do it manually 
                     # so we can link the 2 keys
                     with hsm.start_disable_cache_block():
                         if pkcs8 and kek:
                             with kekek.import_pkey(pkcs8 = pkcs8, kek = kek, flags = flags) as pkey:
-
                                 new_uuid = pkey.uuid
+                                pkeytype = pkey.key_type
+                                if(len(attributes) > 0):
+                                    # send attributes one at a time to avoid overflow errors
+                                    for key, value in attributes.iteritems():
+                                        try:
+                                            attr = { int(key): rejoinb64(value) }
+                                            pkey.set_attributes(attributes = attr)
+                                        except:
+                                            # don't fail on attributes just log
+                                            logger.exception("Import attribute failure on %s",  new_uuid)
 
-                                try:
-                                    if(len(attributes) > 0):
-                                        pkey.set_attributes(attributes = attributes)
-                                except:
-                                    # don't fail on attributes just log
-                                    logger.info("Import attribute failure on %s",  new_uuid)
+                                log_string = "Imported {} as {}".format(original_uuid, new_uuid)
+                                print (log_string)
+                                if (print_func is not None): print_func(log_string)
 
-                                print "Imported {} as {}".format(original_uuid, new_uuid)
                         elif spki:
                             with hsm.pkey_load(der = spki, flags = flags) as pkey:
-                                pkey.set_attributes(attributes = attributes)
-
                                 new_uuid = pkey.uuid
+                                pkeytype = pkey.key_type
+                                if(len(attributes) > 0):
+                                    # send attributes one at a time to avoid overflow errors
+                                    for key, value in attributes.iteritems():
+                                        try:
+                                            attr = { int(key): rejoinb64(value) }
+                                            pkey.set_attributes(attributes = attr)
+                                        except:
+                                            # don't fail on attributes just log
+                                            logger.exception("Import attribute failure on %s",  new_uuid)
 
-                                print "Loaded {} as {}".format(original_uuid, new_uuid)
+                                log_string = "Loaded {} as {}".format(original_uuid, new_uuid)
+                                print (log_string)
+                                if (print_func is not None): print_func(log_string)
 
-                    if (new_uuid is not None):
-                        self.cache.add_key_to_alpha(dest_index, new_uuid, 0, 0, param_masterListID = masterlistID)
+                        if (new_uuid is not None):
+                            self.cache.add_key_to_alpha(dest_index, new_uuid, pkeytype, flags, param_masterListID = masterlistID)
 
-                        print '%s linked to %s'%(new_uuid, original_uuid)
+                            print '%s linked to %s'%(new_uuid, original_uuid)
 
-                if soft_key:
-                    kekek.delete()
-
-    def clean_attributes(self, input):
-        """Updates attributes dictionary so it can be sent to the HSM"""
-        bytified = self.byteify(input)
-
-        return { int(key): value for key, value in bytified.iteritems() }
+        if soft_key:
+            kekek.delete()
 
     def process_command(self, hsm, cmd):
         switcher = {
@@ -483,6 +590,9 @@ class Synchronizer(PFUNIX_HSM):
             SyncCommandEnum.TwoWayBackup : self.cmd_TwoWayBackup,
             SyncCommandEnum.Initialize : self.cmd_initialization,
             SyncCommandEnum.BuildCache : self.cmd_buildcache,
+            SyncCommandEnum.RemoteBackup : self.cmd_remoteBackup,
+            SyncCommandEnum.RemoteRestore : self.cmd_remoteRestore,
+            SyncCommandEnum.SetupRemoteRestore : self.cmd_remoteRestoreSetup
         }
         func = switcher.get(cmd.name, lambda a: None)
         if(func is not None):

@@ -1,6 +1,19 @@
 #!/usr/bin/env python
-# Copyright (c) 2018, 2019 Diamond Key Security, NFP  All rights reserved.
-#
+# Copyright (c) 2019  Diamond Key Security, NFP
+# 
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; version 2
+# of the License only.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, If not, see <https://www.gnu.org/licenses/>.
+
 
 import os
 
@@ -73,13 +86,14 @@ def dks_do_HSM_update(console_object, pin):
 
         mgmt_code = MGMTCodes.MGMTCODE_RECEIVEHSM_UPDATE.value
         # setup a file transfer object
-        ft = FileTransfer(requested_file_path=console_object.request_file_path,
-                          mgmt_code=mgmt_code,
+        ft = FileTransfer(mgmt_code=mgmt_code,
+                          requested_file_path=console_object.request_file_path,
                           uploads_dir=console_object.args.uploads,
                           restart_file=console_object.args.restart,
                           public_key=console_object.args.hsmpublickey,
                           finished_callback=dks_hsm_update_finished,
-                          data_obj=console_object)
+                          destination_file='update.tar.gz.signed',
+                          data_context=console_object)
 
         console_object.file_transfer = ft
         # tell dks_setup_console that it can send the data now

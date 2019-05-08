@@ -1,6 +1,18 @@
 #!/usr/bin/env python
-# Copyright (c) 2018, 2019 Diamond Key Security, NFP  All rights reserved.
-#
+# Copyright (c) 2018, 2019  Diamond Key Security, NFP
+# 
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; version 2
+# of the License only.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, If not, see <https://www.gnu.org/licenses/>.
 
 import os
 import collections
@@ -218,13 +230,16 @@ class ConsoleInterface(CommandNode):
 
     @property
     def prompt(self):
-        if (self.console_state.value == ConsoleState.PasswordRequested):
-            return '\r\nPassword: '
-        elif ((self.script_module is not None) and 
-            (not self.script_module.is_done())):
-            return self.script_module.getPrompt()
+        if (not self.ignore_user_input):
+            if (self.console_state.value == ConsoleState.PasswordRequested):
+                return '\r\nPassword: '
+            elif ((self.script_module is not None) and 
+                (not self.script_module.is_done())):
+                return self.script_module.getPrompt()
+            else:
+                return self.host_prompt
         else:
-            return self.host_prompt
+            return ''
 
     def help(self, top_class, args=None):
         # send one line at a time
@@ -331,7 +346,7 @@ class ConsoleInterface(CommandNode):
                 self.input_monitor_buffer += c
                 if(self.hide_input is False): self.quick_write(c)
 
-        # did we recieve an entire string of text?
+        # did we receive an entire string of text?
         if(self.input_monitor_buffer.endswith('\r')):
             self.quick_write('\n')
 
