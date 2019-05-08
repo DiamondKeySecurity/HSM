@@ -73,6 +73,7 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
         self.tamper_event_detected = ThreadSafeVariable(False)
         self.console_locked = False
         self.gpio_tamper_setter = gpio_tamper_setter
+        self.temp_object = None
 
         super(DiamondHSMConsole, self).__init__('Diamond HSM')
 
@@ -82,10 +83,10 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
                        " the Diamond HSM by Diamond Key Security, NFP")
 
         # some commands can only be called if the cryptech devices have the correct firmware
-        if (self.is_login_available()):
+        if (self.is_login_available() or args.debug):
             if(self.settings.hardware_firmware_match() or
-               self.settings.hardware_tamper_match()):
-                add_debug_commands(self)
+               self.settings.hardware_tamper_match() or args.debug):
+                if (args.debug): add_debug_commands(self)
                 add_keystore_commands(self)
                 add_list_commands(self)
                 add_masterkey_commands(self)
@@ -117,6 +118,8 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
          after a new user logs in"""
         self.welcome_shown = False
         self.after_login_callback = None
+
+        self.temp_object = None
 
         self.on_cryptech_update_finished = None
 
@@ -277,9 +280,13 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
         # uses the CTY interface if needed"""
         if(self.file_transfer is not None):
             result = self.file_transfer.recv(data)
-            if(result is not True):
-                self.cty_direct_call(result)
+            if(result is False):
+                if (self.file_transfer is not None):
+                    self.cty_direct_call(self.file_transfer.error)
+                print "transfer failed"
                 self.console_locked = True
+            elif (isinstance(result, str)):
+                self.quick_write(result)
         else:
             self.readCTYUserData(data)
 

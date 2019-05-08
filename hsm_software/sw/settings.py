@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright (c) 2019  Diamond Key Security, NFP
+# Copyright (c) 2018, 2019  Diamond Key Security, NFP
 # 
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -21,7 +21,7 @@ import threading
 
 from enum import Enum
 
-HSM_SOFTWARE_VERSION = '19.03.20.test04'
+HSM_SOFTWARE_VERSION = '19.05.02.backup37'
 
 # this is the version of the firmware that's built into the current release
 BUILTIN_FIRMWARE_VERSION = '2019-03-11v1'
