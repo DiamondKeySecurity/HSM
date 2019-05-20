@@ -324,7 +324,7 @@ class Synchronizer(PFUNIX_HSM):
                 results.append(row.uuid_dict[src_index])
                 count += 1
 
-            if (count == max_uuids):
+            if (count != 0 and count == max_uuids):
                 break
 
         return results
