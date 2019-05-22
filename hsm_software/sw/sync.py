@@ -463,6 +463,20 @@ class Synchronizer(PFUNIX_HSM):
                                     except HAL_ERROR_ATTRIBUTE_NOT_FOUND:
                                         pass
 
+                                for attr_id in CKA.optional_attributes():
+                                    try:
+                                        attr = pkey.get_attributes([attr_id])
+                                        try:
+                                            if (attr[attr_id] is not None and attr[attr_id] != 0):
+                                                if (args.useb64attr):
+                                                    attributes.update(makeDictValuesB64(attr))
+                                                else:
+                                                    attributes.update(attr)
+                                        except:
+                                            pass
+                                    except HAL_ERROR_ATTRIBUTE_NOT_FOUND:
+                                        pass                                        
+
                                 if pkey.key_type in (DKS_HALKeyType.HAL_KEY_TYPE_RSA_PRIVATE, DKS_HALKeyType.HAL_KEY_TYPE_EC_PRIVATE):
                                     pkcs8, kek = kekek.export_pkey(pkey)
                                     result.append(dict(
