@@ -88,21 +88,28 @@ class CTYConnection(object):
             self.feedback_function(message)
 
     def send_raw(self, cmd, delay):
-        response = '\r\n'
+        response = ''
+        cryptech_prompt = "\r\ncryptech> "
 
         print cmd
 
-        for i in xrange(0, len(self.cty_list)):
+        for device_index in xrange(0, len(self.cty_list)):
+            response_from_device = ""
             with WaitFeedback.Start(self.feedback):
-                management_port_serial = self.cty_list[i].serial
+                management_port_serial = self.cty_list[device_index].serial
 
                 management_port_serial.write(cmd)
 
-                time.sleep(delay)
+                for _ in xrange(0, delay):
+                    time.sleep(1)
+                    response_from_device = "%s%s"%(response_from_device, management_port_serial.read())
+                    if(response_from_device.endswith(cryptech_prompt)):
+                        response_from_device = response_from_device[:-len(cryptech_prompt)]
+                        break
 
-                response = 'CTY:%i-%s\r\n%s'%(i, response, management_port_serial.read())
+                response = '%s\r\nCTY:%i-%s'%(response, device_index, response_from_device)
 
-        return "Response[%s]"%response
+        return "--------------%s--------------"%response
 
     def set_tamper_threshold_light(self, value):
         cmd = 'tamper threshold set light %i\r'%(value)

@@ -182,6 +182,6 @@ def add_tamper_commands(console_object):
       set_node.add_child('enable', num_args=1, callback=dks_tamper_threshold_set_enable)
       set_node.add_child('config', num_args=0, callback=dks_tamper_set_config)
 
-      get_node.add_child('temperature', num_args=2, callback=dks_tamper_threshold_get_temp)
-      get_node.add_child('vibe', num_args=1, callback=dks_tamper_threshold_get_accel)
-      get_node.add_child('light', num_args=1, callback=dks_tamper_threshold_get_light)
+      get_node.add_child('temperature', num_args=0, callback=dks_tamper_threshold_get_temp)
+      get_node.add_child('vibe', num_args=0, callback=dks_tamper_threshold_get_accel)
+      get_node.add_child('light', num_args=0, callback=dks_tamper_threshold_get_light)
