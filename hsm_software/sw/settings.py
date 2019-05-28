@@ -21,11 +21,11 @@ import threading
 
 from enum import Enum
 
-HSM_SOFTWARE_VERSION = '19.05.07.tamper37'
+HSM_SOFTWARE_VERSION = '19.05.20.tamper38'
 
 # this is the version of the firmware that's built into the current release
-BUILTIN_FIRMWARE_VERSION = '2019-03-11-tamper'
-BUILTIN_TAMPER_VERSION = '2019-03-04-FAKE02'
+BUILTIN_FIRMWARE_VERSION = '2019-05-20-tamper'
+BUILTIN_TAMPER_VERSION = None
 
 RPC_IP_PORT = 8080
 CTY_IP_PORT = 8081
@@ -156,7 +156,7 @@ class Settings(object):
             with open(self.settings_file, "w") as file:
                 json.dump(self.dictionary, file)
         except IOError as e:
-            print "Unable to save settings: I/O error({0}): {1}".format(e.errno, e.strerror)
+            print ("Unable to save settings: I/O error({0}): {1}".format(e.errno, e.strerror))
 
     def __add_default_settings(self):
         """Not thread-safe. Should only be called from __init__"""
