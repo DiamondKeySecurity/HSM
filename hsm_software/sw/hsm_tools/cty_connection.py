@@ -100,9 +100,9 @@ class CTYConnection(object):
 
                 time.sleep(delay)
 
-                response = '%s\r\n%s'%(response, management_port_serial.read())
+                response = 'CTY:%i-%s\r\n%s'%(i, response, management_port_serial.read())
 
-        return response
+        return "Response[%s]"%response
 
     def set_tamper_threshold_light(self, value):
         cmd = 'tamper threshold set light %i\r'%(value)

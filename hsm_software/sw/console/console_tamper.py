@@ -16,65 +16,131 @@
 
 
 def CheckValue(value, name, lo_value, hi_value):
-      try:
-          result = int(value)
-      except ValueError:
-          return 'Error: %s entered is not a number'%name
+    try:
+        result = int(value)
+    except ValueError:
+        return 'Error: %s entered is not a number'%name
 
-      if (result < lo_value):
-          return 'Error: %s entered is lower than the minimum value of %i'%(name, lo_value)
+    if (result < lo_value):
+        return 'Error: %s entered is lower than the minimum value of %i'%(name, lo_value)
 
-      if (result > hi_value):
-          return 'Error: %s entered is greater than the maximum value of %i'%(name, hi_value)
+    if (result > hi_value):
+        return 'Error: %s entered is greater than the maximum value of %i'%(name, hi_value)
 
-      return result
+    return result
+
+def dks_tamper_threshold_set_disable(console_object, args):
+    MIN_VALUE = 0
+    MAX_VALUE = 255
+
+    mask_value = CheckValue(args[0],
+                            'disable mask',
+                            MIN_VALUE,
+                            MAX_VALUE)
+    if(isinstance(mask_value, int) is False):
+        return mask_value
+
+    cmd = 'tamper threshold set disable %i\r'%(mask_value)
+
+    return console_object.cty_conn.send_raw(cmd, 5)
+
+def dks_tamper_threshold_set_enable(console_object, args):
+    MIN_VALUE = 0
+    MAX_VALUE = 255
+
+    mask_value = CheckValue(args[0],
+                            'enable mask',
+                            MIN_VALUE,
+                            MAX_VALUE)
+    if(isinstance(mask_value, int) is False):
+        return mask_value
+
+    cmd = 'tamper threshold set enable %i\r'%(mask_value)
+
+    return console_object.cty_conn.send_raw(cmd, 5)
+
 
 def dks_tamper_threshold_set_light(console_object, args):
-      MIN_LIGHT_VALUE = -1
-      MAX_LIGHT_VALUE = 100
+    MIN_LIGHT_VALUE = -1
+    MAX_LIGHT_VALUE = 100
 
-      light_value = CheckValue(args[0], 
-                               'Light threshold',
-                               MIN_LIGHT_VALUE,
-                               MAX_LIGHT_VALUE)
-      if(isinstance(light_value, int) is False):
-          return light_value
+    light_value = CheckValue(args[0],
+                             'Light threshold',
+                             MIN_LIGHT_VALUE,
+                             MAX_LIGHT_VALUE)
+    if(isinstance(light_value, int) is False):
+        return light_value
 
-      return console_object.cty_conn.set_tamper_threshold_light(light_value)
+    cmd = 'tamper threshold set light %i\r'%(light_value)
+
+    return console_object.cty_conn.send_raw(cmd, 5)
+
+def dks_tamper_threshold_get_light(console_object, args):
+    cmd = 'tamper light value\r'
+
+    return console_object.cty_conn.send_raw(cmd, 5)
 
 def dks_tamper_threshold_set_temp(console_object, args):
-      MIN_TEMPERATURE_VALUE = -1
-      MAX_TEMPERATURE_VALUE = 100
+    MIN_TEMPERATURE_VALUE = -1
+    MAX_TEMPERATURE_VALUE = 100
 
-      lo_temp_value = CheckValue(args[0], 
-                                 'Low temperature threshold',
-                                 MIN_TEMPERATURE_VALUE,
-                                 MAX_TEMPERATURE_VALUE)
-      if(isinstance(lo_temp_value, int) is False):
-          return lo_temp_value
+    lo_temp_value = CheckValue(args[0],
+                               'Low temperature threshold',
+                               MIN_TEMPERATURE_VALUE,
+                               MAX_TEMPERATURE_VALUE)
+    if(isinstance(lo_temp_value, int) is False):
+        return lo_temp_value
 
-      hi_temp_value = CheckValue(args[1], 
-                                 'High temperature threshold',
-                                 MIN_TEMPERATURE_VALUE,
-                                 MAX_TEMPERATURE_VALUE)
-      if(isinstance(hi_temp_value, int) is False):
-          return hi_temp_value
+    hi_temp_value = CheckValue(args[1],
+                               'High temperature threshold',
+                               MIN_TEMPERATURE_VALUE,
+                               MAX_TEMPERATURE_VALUE)
+    if(isinstance(hi_temp_value, int) is False):
+        return hi_temp_value
 
-      return console_object.cty_conn.set_tamper_threshold_temperature(lo_temp_value,
-                                                            hi_temp_value)
+    cmd = 'tamper threshold set temperature %i %i\r'%(lo_temp_value, hi_temp_value)
+
+    return console_object.cty_conn.send_raw(cmd, 5)
+
+def dks_tamper_threshold_get_temp(console_object, args):
+    cmd = 'tamper temperature value\r'
+
+    return console_object.cty_conn.send_raw(cmd, 5)
 
 def dks_tamper_threshold_set_accel(console_object, args):
-      MIN_ACCEL_VALUE = -1
-      MAX_ACCEL_VALUE = 100
+    MIN_ACCEL_VALUE = -1
+    MAX_ACCEL_VALUE = 100
 
-      accel_value = CheckValue(args[0],
-                                    'Accelerometer threshold',
-                                    MIN_ACCEL_VALUE,
-                                    MAX_ACCEL_VALUE)
-      if(isinstance(accel_value, int) is False):
-          return accel_value
+    accel_value = CheckValue(args[0],
+                             'Accelerometer threshold',
+                             MIN_ACCEL_VALUE,
+                             MAX_ACCEL_VALUE)
+    if(isinstance(accel_value, int) is False):
+        return accel_value
 
-      return console_object.cty_conn.set_tamper_threshold_accel(accel_value)
+    cmd = 'tamper threshold set accel %i\r'%(accel_value)
+
+    return console_object.cty_conn.send_raw(cmd, 5)
+
+def dks_tamper_threshold_get_accel(console_object, args):
+    cmd = 'tamper vibe value\r'
+
+    return console_object.cty_conn.send_raw(cmd, 5)
+
+def dks_tamper_set_config(console_object, args):
+    cmd = 'tamper set config\r'
+
+    return console_object.cty_conn.send_raw(cmd, 5)
+
+def dks_tamper_check(console_object, args):
+    cmd = 'tamper check\r'
+
+    return console_object.cty_conn.send_raw(cmd, 5)
+
+def dks_tamper_fault_check(console_object, args):
+    cmd = 'tamper check fault\r'
+
+    return console_object.cty_conn.send_raw(cmd, 5)
 
 def dks_tamper_test(console_object, args):
       console_object.tamper.on_tamper(None)
@@ -98,11 +164,24 @@ def add_tamper_commands(console_object):
                                   ' will fail during an ongoing tamper event.',
                             callback=dks_tamper_reset)
 
+      tamper_node.add_child(name="check", num_args=0,
+                            callback=dks_tamper_check)
+
+      tamper_node.add_child_tree(["fault", "check"], num_args=0,
+                            callback=dks_tamper_fault_check)
+
       # add parent nodes
-      threshold_node = tamper_node.add_child('threshold')
-      threshold_set_node = threshold_node.add_child('set')
+      set_node = tamper_node.add_child('set')
+      get_node = tamper_node.add_child('get')
 
       # add thresholds
-      threshold_set_node.add_child('temperature', num_args=2, callback=dks_tamper_threshold_set_temp)
-      threshold_set_node.add_child('accel', num_args=1, callback=dks_tamper_threshold_set_accel)
-      threshold_set_node.add_child('light', num_args=1, callback=dks_tamper_threshold_set_light)
+      set_node.add_child('temperature', num_args=2, callback=dks_tamper_threshold_set_temp)
+      set_node.add_child('vibe', num_args=1, callback=dks_tamper_threshold_set_accel)
+      set_node.add_child('light', num_args=1, callback=dks_tamper_threshold_set_light)
+      set_node.add_child('disable', num_args=1, callback=dks_tamper_threshold_set_disable)
+      set_node.add_child('enable', num_args=1, callback=dks_tamper_threshold_set_enable)
+      set_node.add_child('config', num_args=0, callback=dks_tamper_set_config)
+
+      get_node.add_child('temperature', num_args=2, callback=dks_tamper_threshold_get_temp)
+      get_node.add_child('vibe', num_args=1, callback=dks_tamper_threshold_get_accel)
+      get_node.add_child('light', num_args=1, callback=dks_tamper_threshold_get_light)
