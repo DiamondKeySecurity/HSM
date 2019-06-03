@@ -111,21 +111,6 @@ class CTYConnection(object):
 
         return "--------------%s--------------"%response
 
-    def set_tamper_threshold_light(self, value):
-        cmd = 'tamper threshold set light %i\r'%(value)
-
-        return self.send_raw(cmd, 5)
-
-    def set_tamper_threshold_temperature(self, lo_value, hi_value):
-        cmd = 'tamper threshold set temperature %i %i\r'%(lo_value, hi_value)
-
-        return self.send_raw(cmd, 5)
-
-    def set_tamper_threshold_accel(self, value):
-        cmd = 'tamper threshold set accel %i\r'%(value)
-
-        return self.send_raw(cmd, 5)
-
     def login(self, PIN):
         # make sure we're actually connected to an alpha
         if(not self.is_cty_connected()): return CTYError.CTY_NOT_CONNECTED
