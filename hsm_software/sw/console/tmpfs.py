@@ -87,7 +87,10 @@ class TMPFS(object):
                     except:
                         pass
 
-    def unprotected_fopen(self, filename, mode, erase_on_exit = True, open_mode = None):
+    def directory(self):
+        return self.tmpfolder
+
+    def unprotected_fopen(self, filename, mode, erase_on_exit = True, open_mode = None, contents = None):
         """ Used to add new files to the tmpfs
             without checking the file flags.
             Can also open existing files regardless
@@ -113,6 +116,11 @@ class TMPFS(object):
                                  erase_on_exit = erase_on_exit)
 
             self.files[filename] = desc
+
+        if (contents is not None):
+            fp = open(desc.truepath, "wt")
+            fp.write(contents)
+            return fp
 
         if (open_mode is not None):
             mode = open_mode
@@ -143,6 +151,7 @@ class TMPFS(object):
         # make sure the usage is allowed
         if ((('r' in mode or 'R' in mode or '+' in mode) and not desc.is_readable()) or
             (('w' in mode or 'W' in mode or '+' in mode) and not desc.is_writable()) or
+            ('a' in mode or 'A' in mode) or
             (('+' in mode ) and not desc.is_removable())):
             raise TMPFSNotAuthorized()
 
