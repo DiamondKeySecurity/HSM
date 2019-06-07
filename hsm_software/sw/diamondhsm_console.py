@@ -76,7 +76,7 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
         self.console_locked = False
         self.gpio_tamper_setter = gpio_tamper_setter
         self.temp_object = None
-        self.tmpfs = None
+        self.tmpfs = TMPFS(self.args.uploads)
 
         super(DiamondHSMConsole, self).__init__('Diamond HSM')
 
@@ -129,7 +129,7 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
         # when the console has been locked, no commands will be accepted
         self.console_locked = False
 
-        self.tmpfs = TMPFS(self.args.uploads)
+        self.tmpfs.reset()
 
         if(self.file_transfer is not None):
             self.file_transfer.close()

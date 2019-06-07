@@ -74,6 +74,18 @@ class TMPFS(object):
         self.files = {}
 
     def __del__(self):
+        self.destroy()
+
+    def reset(self):
+        self.destroy()
+
+        # make sure the path exist
+        try:
+            os.makedirs(self.tmpfolder)
+        except OSError:
+            pass
+
+    def destroy(self):
         if (self.remove_on_exit):
             try:
                 shutil.rmtree(self.tmpfolder, ignore_errors=True)
@@ -86,6 +98,8 @@ class TMPFS(object):
                         os.remove(f.truepath)
                     except:
                         pass
+
+        self.files = {}
 
     def directory(self):
         return self.tmpfolder
