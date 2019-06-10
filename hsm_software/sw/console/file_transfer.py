@@ -35,6 +35,7 @@ class FileTransfer(object):
     """Utility object for uploading files to the HSM"""
 
     def __init__(self, mgmt_code, tmpfs,
+                 start_message,
                  requested_file_path = None,
                  restart_file = None,
                  public_key = None,
@@ -72,12 +73,15 @@ class FileTransfer(object):
                                               erase_on_exit = mgmt_code != MGMTCodes.MGMTCODE_RECEIVEHSM_UPDATE.value,
                                               open_mode = "w") as _:
                 pass
+
+            self.start_message="%s:RECV:{%s}\r" % (mgmt_code, self.requested_file_path)
         else:
             # get the contents of the file that we'll send
             with self.tmpfs.fopen(filename = json_to_send,
                                   mode = "r") as fp:
                 self.json_to_send = fp.read()
             self.file_size = len(self.json_to_send)
+            self.start_message="%s:SEND:{%s}{%i}\r" % (mgmt_code, self.requested_file_path, self.file_size)
 
         # context
         self.data_context = data_context
@@ -184,6 +188,12 @@ class FileTransfer(object):
 
     def recv(self, data):
         try:
+            # send message to start transfer
+            if (self.start_message is not None):
+                msg = self.start_message
+                self.start_message = None
+                return msg
+
             """Process data comming in as a file transfer"""
             if(self.file_buffer is not None):
                 self.file_buffer += data

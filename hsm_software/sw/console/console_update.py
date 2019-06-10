@@ -96,9 +96,9 @@ def dks_do_HSM_update(console_object, pin):
                           data_context=console_object)
 
         console_object.file_transfer = ft
-        # tell dks_setup_console that it can send the data now
-        msg = "%s:RECV:%s\r" % (mgmt_code, console_object.request_file_path)
-        console_object.cty_direct_call(msg)
+
+        # the file transfer object will signal what to do
+        return True
     except Exception as e:
         console_object.cty_direct_call('\nThere was an error while receiving the'
                                        ' update.\r\n\r\n%s' % e.message)

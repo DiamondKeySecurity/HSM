@@ -147,14 +147,16 @@ def on_remote_backup_prepared(cmd, results):
         # setup a file transfer object
         ft = FileTransfer(mgmt_code=mgmt_code,
                           tmpfs = console_object.tmpfs,
+                          requested_file_path=export_json_path_remote,
                           json_to_send=json_to_send,
                           finished_callback=on_sent_remote_backup_data,
                           data_context=console_object)
 
         console_object.file_transfer = ft
-        # tell dks_setup_console that it can send the data now
-        msg = "%s:SEND:{%s}{%i}\r" % (mgmt_code, export_json_path_remote, ft.file_size)
-        console_object.cty_direct_call(msg)
+
+        # the file transfer object will signal what to do
+        return True
+
 
 def on_received_remote_kekek(console_object, result, msg):
     """Receive kekek for a remote backup"""
@@ -211,9 +213,10 @@ def got_export_options(console_object, results):
                           data_context=console_object)
 
         console_object.file_transfer = ft
-        # tell dks_setup_console that it can send the data now
-        msg = "%s:RECV:{%s}\r" % (mgmt_code, setup_json_path)
-        console_object.cty_direct_call(msg)
+
+        # the file transfer object will signal what to do
+        return True
+
     except Exception as e:
         console_object.cty_direct_call('\nThere was an error while receiving the'
                                        ' update.\r\n\r\n%s' % e.message)
@@ -304,10 +307,9 @@ def got_import_options(console_object, results):
                       data_context=console_object)
 
     console_object.file_transfer = ft
-    # tell dks_setup_console that it can send the data now
-    msg = "%s:RECV:{%s}\r" % (mgmt_code, export_json_path_remote)
-    console_object.cty_direct_call(msg)
 
+    # the file transfer object will signal what to do
+    return True
 
 def dks_start_import_script(console_object, pin):
     device_index = console_object.temp_object
@@ -369,13 +371,14 @@ def send_local_kekek_after_sync(cmd, results):
         ft = FileTransfer(mgmt_code=mgmt_code,
                           tmpfs = console_object.tmpfs,
                           json_to_send=setup_json,
+                          requested_file_path=setup_json_path_remote,
                           finished_callback=on_sent_local_kekek,
                           data_context=console_object)
 
         console_object.file_transfer = ft
-        # tell dks_setup_console that it can send the data now
-        msg = "%s:SEND:{%s}{%i}\r" % (mgmt_code, setup_json_path_remote, ft.file_size)
-        console_object.cty_direct_call(msg)
+
+        # the file transfer object will signal what to do
+        return True
     except Exception as e:
         console_object.cty_direct_call('\nThere was an error while receiving the'
                                        ' update.\r\n\r\n%s' % e.message)
