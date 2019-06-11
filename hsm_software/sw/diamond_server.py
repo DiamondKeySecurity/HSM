@@ -91,7 +91,7 @@ from tamper import TamperDetector
 synchronizer = None
 safe_shutdown = None
 tamper = None
-cty_server = None
+ssh_cty_server = None
 
 
 def start_leds(use_leds):
@@ -371,10 +371,11 @@ def main():
                                    gpio_tamper_setter = gpio_tamper_setter)
 
     # Listen for incoming TCP/IP connections from remove cryptech.muxd_client
-    # cty_server = CTYTCPServer(cty_stream, port=CTY_IP_PORT, ssl=ssl_options)
-    global cty_server
-    cty_server = SSHServer(cty_stream)
-    cty_server.start()
+    cty_server = CTYTCPServer(cty_stream, port=CTY_IP_PORT, ssl=ssl_options)
+
+    global ssh_cty_server
+    ssh_cty_server = SSHServer(cty_stream)
+    ssh_cty_server.start()
 
     # register for zeroconf if we are connected to a network
     if((my_zero_conf is not None) and 
@@ -422,8 +423,8 @@ if __name__ == "__main__":
     try:
         tornado.ioloop.IOLoop.current().run_sync(main)
     except (SystemExit, KeyboardInterrupt):
-        if(cty_server is not None):
-            cty_server.stop()
+        if(ssh_cty_server is not None):
+            ssh_cty_server.stop()
         if(synchronizer is not None):
             synchronizer.stop()
         if(tamper is not None):
