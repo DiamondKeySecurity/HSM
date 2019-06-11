@@ -23,6 +23,8 @@ import sys
 import threading
 import traceback
 
+from select import select
+
 import paramiko
 from paramiko.py3compat import b, u, decodebytes
 
@@ -128,7 +130,6 @@ class SSHServer(object):
         if (self.listening_event is not None):
             self.listening_event.set()
 
-        self.listening_event = None
         self.listening_thread = None
 
     def response_thread_body(self, e):
@@ -138,15 +139,23 @@ class SSHServer(object):
             time.sleep(0.01)
 
     def listening_thread_body(self, sock):
+        print("Listening for connection ...")
         while not self.listening_event.isSet():
             try:
-                print("Listening for connection ...")
-                client, addr = sock.accept()
+                ready, _, _ = select([sock], [], [], 1) #Timeout set to 1 seconds
+
+                if ready:
+                    client, addr = sock.accept()
+                else:
+                    continue
+
             except Exception as e:
                 print("*** Listen/accept failed: " + str(e))
                 traceback.print_exc()
 
             self.handle_stream(client, addr)
+
+        self.listening_event = None
 
     def handle_stream(self, client, address):
         "Handle one network connection."

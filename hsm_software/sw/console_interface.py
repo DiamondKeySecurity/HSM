@@ -385,7 +385,7 @@ class ConsoleInterface(CommandNode):
                 try:
                     self.attached_cty.write(message)
                 except:
-                    self.attached_cty = None
+                    pass
 
     def handle_login(self):
         if(not self.banner_shown):
