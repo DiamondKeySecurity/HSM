@@ -177,12 +177,12 @@ class ConsoleInterface(CommandNode):
         pass
 
     @abstractmethod
-    def get_login_prompt(self):
+    def get_login_prompt(self, banner_only = False):
         """Override to provide the prompt for logging in"""
         pass
 
     @abstractmethod
-    def on_login_pin_entered(self, pin):
+    def on_login_pin_entered(self, pin, user):
         """Override to handle the user logging in. Returns true if the login was successful"""
         pass
 
@@ -387,35 +387,51 @@ class ConsoleInterface(CommandNode):
                 except:
                     pass
 
-    def handle_login(self):
+    def handle_login(self, return_banner_only = False):
+        """Shows the login banner and readies the console to receive it"""
+        banner = ''
         if(not self.banner_shown):
-            self.cty_direct_call(self.banner)
+            banner = self.banner
             self.banner_shown = True
 
         # don't show the password
         self.hide_input = True
 
         if (self.is_login_available()):
-            self.cty_direct_call(self.get_login_prompt())
-            self.console_state.value = ConsoleState.PasswordRequested
-        else:
-            self.cty_direct_call(self.no_login_msg())
-            self.hide_input = False
-            self.console_state.value = ConsoleState.LoggedIn
-            self.cty_direct_call(self.prompt)
+            banner = "%s\r\n%s"%(banner, self.get_login_prompt(return_banner_only))
 
-    def handle_password_entered(self, data):
+            if (return_banner_only is False):
+                self.cty_direct_call(banner)
+                self.console_state.value = ConsoleState.PasswordRequested
+        else:
+            banner = banner + self.no_login_msg()
+
+            if (return_banner_only is False):
+                self.cty_direct_call(banner)
+                self.hide_input = False
+                self.console_state.value = ConsoleState.LoggedIn
+                self.cty_direct_call(self.prompt)
+
+        return banner
+
+    def handle_password_entered(self, data, user = 'wheel', login_only = False):
+        """Checks the password entered"""
         pin = data.rstrip('\r\n')
 
+        result = False
+
         if (len(pin) > 0):
-            result = self.on_login_pin_entered(pin)
+            result = self.on_login_pin_entered(pin, user)
 
             if(result == False):
-                self.cty_direct_call("\r\nIncorrect password. Please try again\r\n\r\nPassword: ")
+                if(login_only is not False):
+                    self.cty_direct_call("\r\nIncorrect password. Please try again\r\n\r\nPassword: ")
             else:
                 self.hide_input = False
                 self.console_state.value = ConsoleState.LoggedIn
                 self.on_login(pin)
+
+        return result
 
     def process_user_input(self, data):
         if(self.console_state.value == ConsoleState.LoggedOut):

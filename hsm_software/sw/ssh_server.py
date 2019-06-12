@@ -33,7 +33,8 @@ from paramiko.py3compat import b, u, decodebytes
 import hsm_tools.cryptech.muxd
 
 class ParamikoSSHServer(paramiko.ServerInterface):
-    def __init__(self):
+    def __init__(self, cty_mux):
+        self.cty_mux = cty_mux
         self.event = threading.Event()
 
     def check_channel_request(self, kind, chanid):
@@ -52,16 +53,12 @@ class ParamikoSSHServer(paramiko.ServerInterface):
         #     return paramiko.AUTH_SUCCESSFUL
         return paramiko.AUTH_FAILED
 
-    def check_auth_gssapi_with_mic(
-        self, username, gss_authenticated=paramiko.AUTH_FAILED, cc_file=None
-    ):
+    def check_auth_gssapi_with_mic(self, username, gss_authenticated=paramiko.AUTH_FAILED, cc_file=None):
         # if gss_authenticated == paramiko.AUTH_SUCCESSFUL:
         #     return paramiko.AUTH_SUCCESSFUL
         return paramiko.AUTH_FAILED
 
-    def check_auth_gssapi_keyex(
-        self, username, gss_authenticated=paramiko.AUTH_FAILED, cc_file=None
-    ):
+    def check_auth_gssapi_keyex(self, username, gss_authenticated=paramiko.AUTH_FAILED, cc_file=None):
         # if gss_authenticated == paramiko.AUTH_SUCCESSFUL:
         #     return paramiko.AUTH_SUCCESSFUL
         return paramiko.AUTH_FAILED
@@ -77,9 +74,7 @@ class ParamikoSSHServer(paramiko.ServerInterface):
         self.event.set()
         return True
 
-    def check_channel_pty_request(
-        self, channel, term, width, height, pixelwidth, pixelheight, modes
-    ):
+    def check_channel_pty_request(self, channel, term, width, height, pixelwidth, pixelheight, modes):
         return True
 
 class SocketChannel(object):
@@ -168,7 +163,7 @@ class SSHServer(object):
                 print("(Failed to load moduli -- gex will be unsupported.)")
                 raise
             t.add_server_key(SSHServer.host_key)
-            server = ParamikoSSHServer()
+            server = ParamikoSSHServer(self.cty_mux)
             try:
                 t.start_server(server=server)
             except paramiko.SSHException:

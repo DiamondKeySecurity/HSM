@@ -147,7 +147,7 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
         return ("\r\n\r\nWarning: No CrypTech devices have been detected. "
                 "Only 'shutdown' is available.")
 
-    def get_login_prompt(self):
+    def get_login_prompt(self, banner_only = False):
         """Override to provide the prompt for logging in"""
         initial_login_msg = ("Before using the HSM, you will need to perform"
                              " a basic setup.\r\n"
@@ -157,8 +157,10 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
                              "The HSM will not be operational until this"
                              " setup has completed.")
 
-        login_msg = ("Please login using the 'wheel' user account password"
-                     "\r\n\r\nPassword: ")
+        login_msg = "Please login using the 'wheel' user account password"
+
+        if (banner_only is False):
+            login_msg = login_msg + "\r\n\r\nPassword: "
 
         # don't show the password
         self.hide_input = True
@@ -192,7 +194,7 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
         # show login msg
         return login_msg
 
-    def on_login_pin_entered(self, pin):
+    def on_login_pin_entered(self, pin, user):
         """Override to handle the user logging in.
         Returns true if the login was successful"""
         return (self.cty_conn.login(pin) == CTYError.CTY_OK)
