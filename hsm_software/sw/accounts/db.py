@@ -18,6 +18,8 @@ import sqlite3 as sql
 import hashlib
 import os.path
 
+from threading import Lock
+
 from migrations.manager import MigrationManager
 
 class domains(object):
@@ -55,6 +57,23 @@ class DBContext(object):
 
         # make sure the database exist
         MigrationManager().update(self.dbfile)
+
+        self.conn_lock = Lock()
+        self.conn = sql.connect(self.dbfile)
+
+    def __del__(self):
+        self.conn.close()
+
+    def authenticate_user(self, username, password, domain):
+        # temporary for development
+        # TODO: check the database
+        with self.conn_lock:
+            if (username == 'wheel' and 
+                password == 'ilovediamonds' and
+                domain == 'ssh'):
+                return True
+            else:
+                return False
 
 if __name__ == "__main__":
     domain = DBContext("/home/douglas/Documents/domaintest")
