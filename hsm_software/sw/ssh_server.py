@@ -33,8 +33,8 @@ from paramiko.py3compat import b, u, decodebytes
 import hsm_tools.cryptech.muxd
 
 class ParamikoSSHServer(paramiko.ServerInterface):
-    def __init__(self, cty_mux):
-        self.cty_mux = cty_mux
+    def __init__(self, db):
+        self.db = db
         self.event = threading.Event()
 
     def check_channel_request(self, kind, chanid):
@@ -43,7 +43,7 @@ class ParamikoSSHServer(paramiko.ServerInterface):
         return paramiko.OPEN_FAILED_ADMINISTRATIVELY_PROHIBITED
 
     def check_auth_password(self, username, password):
-        if (username == "wheel") and (password == "1234"):
+        if (self.db.authenticate_user(username, password, "ssh")):
             return paramiko.AUTH_SUCCESSFUL
         return paramiko.AUTH_FAILED
 
@@ -92,10 +92,11 @@ class SSHServer(object):
 
     host_key = paramiko.rsakey.RSAKey.generate(2048)
 
-    def __init__(self, cty_mux):
+    def __init__(self, cty_mux, db):
         self.cty_mux = cty_mux
         self.listening_event = None
         self.listening_thread = None
+        self.db = db
 
     def start(self):
         try:
@@ -163,7 +164,7 @@ class SSHServer(object):
                 print("(Failed to load moduli -- gex will be unsupported.)")
                 raise
             t.add_server_key(SSHServer.host_key)
-            server = ParamikoSSHServer(self.cty_mux)
+            server = ParamikoSSHServer(self.db)
             try:
                 t.start_server(server=server)
             except paramiko.SSHException:

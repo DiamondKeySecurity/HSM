@@ -88,6 +88,8 @@ from security import HSMSecurity
 
 from tamper import TamperDetector
 
+import accounts.db
+
 synchronizer = None
 safe_shutdown = None
 tamper = None
@@ -329,6 +331,9 @@ def main():
     if(not args.no_delay):
         time.sleep(30)
 
+    # db with domain information
+    db = accounts.db.DBContext(dbpath=args.cache_save)
+
     # start the cache
     cache = HSMCache(len(rpc_list), cache_folder=args.cache_save)
     safe_shutdown.addOnShutdown(cache.backup)
@@ -374,7 +379,7 @@ def main():
     cty_server = CTYTCPServer(cty_stream, port=CTY_IP_PORT, ssl=ssl_options)
 
     global ssh_cty_server
-    ssh_cty_server = SSHServer(cty_stream)
+    ssh_cty_server = SSHServer(cty_stream, db)
     ssh_cty_server.start()
 
     # register for zeroconf if we are connected to a network
