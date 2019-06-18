@@ -59,7 +59,7 @@ class DBContext(object):
         MigrationManager().update(self.dbfile)
 
         self.conn_lock = Lock()
-        self.conn = sql.connect(self.dbfile)
+        self.conn = sql.connect(self.dbfile, check_same_thread=False)
 
     def __del__(self):
         self.conn.close()
