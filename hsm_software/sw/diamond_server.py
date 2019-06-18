@@ -78,7 +78,12 @@ from rpc_handling import RPCPreprocessor
 
 from ipconfig import NetworkInterfaces
 from settings import Settings, RPC_IP_PORT, CTY_IP_PORT, HSMSettings
-from ssh_server import SSHServer
+
+try:
+    from ssh_server import SSHServer
+    ssh_available = True
+except Exception:
+    ssh_available = False
 
 from safe_shutdown import SafeShutdown
 
@@ -379,8 +384,15 @@ def main():
     cty_server = CTYTCPServer(cty_stream, port=CTY_IP_PORT, ssl=ssl_options)
 
     global ssh_cty_server
-    ssh_cty_server = SSHServer(cty_stream, db)
-    ssh_cty_server.start()
+    global ssh_available
+
+    if (ssh_available):
+        try:
+            ssh_cty_server = SSHServer(cty_stream, db)
+            ssh_cty_server.start()
+        except Exception:
+            ssh_available = False
+            ssh_cty_server = None
 
     # register for zeroconf if we are connected to a network
     if((my_zero_conf is not None) and 
