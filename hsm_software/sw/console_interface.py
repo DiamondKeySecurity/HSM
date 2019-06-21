@@ -379,7 +379,13 @@ class ConsoleInterface(CommandNode):
                 print ("Error")
                 break
 
-            self.attached_cty.write(message)  
+            # if there aren't any CTY connections the messages
+            # will not be sent anywhere
+            if (self.attached_cty is not None):
+                try:
+                    self.attached_cty.write(message)
+                except:
+                    self.attached_cty = None
 
     def handle_login(self):
         if(not self.banner_shown):

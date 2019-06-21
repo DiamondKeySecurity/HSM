@@ -424,12 +424,44 @@ class CKA(IntEnum):
                 ]
 
     @classmethod
+    def optional_attributes(cls):
+        # list of attributes to copy if not zero
+        return [cls.CKA_ISSUER,
+                cls.CKA_SERIAL_NUMBER,
+                cls.CKA_AC_ISSUER,
+                cls.CKA_URL,
+                cls.CKA_HASH_OF_SUBJECT_PUBLIC_KEY,
+                cls.CKA_HASH_OF_ISSUER_PUBLIC_KEY,
+                cls.CKA_START_DATE,
+                cls.CKA_END_DATE,
+                cls.CKA_PUBLIC_KEY_INFO,
+                cls.CKA_OTP_FORMAT,
+                cls.CKA_OTP_LENGTH,
+                cls.CKA_OTP_TIME_INTERVAL,
+                cls.CKA_OTP_USER_FRIENDLY_MODE,
+                cls.CKA_OTP_CHALLENGE_REQUIREMENT,
+                cls.CKA_OTP_TIME_REQUIREMENT,
+                cls.CKA_OTP_COUNTER_REQUIREMENT,
+                cls.CKA_OTP_PIN_REQUIREMENT,
+                cls.CKA_OTP_COUNTER,
+                cls.CKA_OTP_TIME,
+                cls.CKA_OTP_USER_IDENTIFIER,
+                cls.CKA_OTP_SERVICE_IDENTIFIER,
+                cls.CKA_OTP_SERVICE_LOGO,
+                cls.CKA_OTP_SERVICE_LOGO_TYPE,
+                cls.CKA_GOSTR3410_PARAMS,
+                cls.CKA_GOSTR3411_PARAMS,
+                cls.CKA_GOST28147_PARAMS
+                ]
+
+    @classmethod
     def cached_attributes(cls):
         all_elements = [e for e in cls]
         exclude = cls.nonsyncd_attributes()
+        optional = cls.optional_attributes()
 
         # return a list that doesn't have the elements we have explicitly stated to not include
-        return [x.value for x in all_elements if x not in exclude]
+        return [x.value for x in all_elements if (x not in exclude and x not in optional)]
 
 
 # The defines the attributes common to all objects.
