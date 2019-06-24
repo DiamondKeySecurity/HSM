@@ -40,7 +40,9 @@ def dks_tamper_threshold_set_disable(console_object, args):
     if(isinstance(mask_value, int) is False):
         return mask_value
 
-    cmd = 'tamper threshold set disable %i\r'%(mask_value)
+    console_object.tamper_config.update_setting("disable", "tamper threshold set disable", [mask_value])
+
+    cmd = console_object.tamper_config.get_command_string("disable")
 
     return console_object.cty_conn.send_raw(cmd, 5)
 
@@ -55,7 +57,9 @@ def dks_tamper_threshold_set_enable(console_object, args):
     if(isinstance(mask_value, int) is False):
         return mask_value
 
-    cmd = 'tamper threshold set enable %i\r'%(mask_value)
+    console_object.tamper_config.update_setting("enable", "tamper threshold set enable", [mask_value])
+
+    cmd = console_object.tamper_config.get_command_string("enable")
 
     return console_object.cty_conn.send_raw(cmd, 5)
 
@@ -71,7 +75,9 @@ def dks_tamper_threshold_set_light(console_object, args):
     if(isinstance(light_value, int) is False):
         return light_value
 
-    cmd = 'tamper threshold set light %i\r'%(light_value)
+    console_object.tamper_config.update_setting("light", "tamper threshold set light", [light_value])
+
+    cmd = console_object.tamper_config.get_command_string("light")
 
     return console_object.cty_conn.send_raw(cmd, 5)
 
@@ -98,7 +104,9 @@ def dks_tamper_threshold_set_temp(console_object, args):
     if(isinstance(hi_temp_value, int) is False):
         return hi_temp_value
 
-    cmd = 'tamper threshold set temperature %i %i\r'%(lo_temp_value, hi_temp_value)
+    console_object.tamper_config.update_setting("temperature", "tamper threshold set temperature", [lo_temp_value, hi_temp_value])
+
+    cmd = console_object.tamper_config.get_command_string("temperature")
 
     return console_object.cty_conn.send_raw(cmd, 5)
 
@@ -118,7 +126,9 @@ def dks_tamper_threshold_set_accel(console_object, args):
     if(isinstance(accel_value, int) is False):
         return accel_value
 
-    cmd = 'tamper threshold set accel %i\r'%(accel_value)
+    console_object.tamper_config.update_setting("vibe", "tamper threshold set accel", [accel_value])
+
+    cmd = console_object.tamper_config.get_command_string("vibe")
 
     return console_object.cty_conn.send_raw(cmd, 5)
 
@@ -129,6 +139,8 @@ def dks_tamper_threshold_get_accel(console_object, args):
 
 def dks_tamper_set_config(console_object, args):
     cmd = 'tamper set config\r'
+
+    console_object.tamper_config.save_settings()
 
     return console_object.cty_conn.send_raw(cmd, 5)
 

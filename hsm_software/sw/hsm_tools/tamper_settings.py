@@ -17,7 +17,7 @@
 import json
 import os
 
-class tamper_settings(object):
+class TamperConfiguration(object):
     """Database for storing tamper settings between saves"""
     def __init__(self, dbpath):
         self.settings = { }
@@ -38,13 +38,21 @@ class tamper_settings(object):
         command_order = ["disable", "enable", "temperature", "light", "vibe"]
 
         for command in command_order:
-            if(command in self.settings):
-                setting = self.settings[command]
-                cmd_string = setting[0]
-                for param in setting[1]:
-                    cmd_string = "%s %s"%(cmd_string, param)
+            cmd_string = self.get_command_string(command)
 
+            if (cmd_string is not None):
                 console_connect.send_raw(cmd_string, 5)
+
+    def get_command_string(self, command):
+        if(command in self.settings):
+            setting = self.settings[command]
+            cmd_string = setting[0]
+            for param in setting[1]:
+                cmd_string = "%s %s"%(cmd_string, param)
+
+            return cmd_string
+        else:
+            return None
 
     def clear(self):
         self.settings = { }
@@ -54,7 +62,7 @@ if __name__ == "__main__":
         def send_raw(self, cmd, _):
             print " > %s"%cmd
 
-    tamper = tamper_settings("/home/douglas/Documents")
+    tamper = TamperConfiguration("/home/douglas/Documents")
 
     tamper.update_setting("disable", "tamper threshold set disable", [0])
     tamper.update_setting("enable", "tamper threshold set enable", [0])

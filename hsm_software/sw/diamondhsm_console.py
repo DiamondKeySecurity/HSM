@@ -14,6 +14,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, If not, see <https://www.gnu.org/licenses/>.
 
+import os
+
 import console_interface
 
 import time
@@ -48,6 +50,8 @@ from hsm_cache_db.alpha import CacheTableAlpha
 
 from hsm_tools.threadsafevar import ThreadSafeVariable
 
+from hsm_tools.tamper_settings import TamperConfiguration
+
 from firewall import Firewall
 
 class DiamondHSMConsole(console_interface.ConsoleInterface):
@@ -73,6 +77,8 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
         self.tamper_event_detected = ThreadSafeVariable(False)
         self.console_locked = False
         self.temp_object = None
+
+        self.tamper_config = TamperConfiguration(os.path.dirname(args.settings))
 
         super(DiamondHSMConsole, self).__init__('Diamond HSM')
 
