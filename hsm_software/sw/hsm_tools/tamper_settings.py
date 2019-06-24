@@ -43,12 +43,14 @@ class TamperConfiguration(object):
             if (cmd_string is not None):
                 console_connect.send_raw(cmd_string, 5)
 
+        console_connect.send_raw("tamper set config")
+
     def get_command_string(self, command):
         if(command in self.settings):
             setting = self.settings[command]
             cmd_string = setting[0]
             for param in setting[1]:
-                cmd_string = "%s %s"%(cmd_string, param)
+                cmd_string = "%s %s"%(cmd_string, str(param))
 
             return cmd_string
         else:
@@ -73,3 +75,13 @@ if __name__ == "__main__":
     tamper.save_settings()
     tamper.load_saved_settings()
     tamper.push_settings(connect())
+
+    print("After HSM reset, the tamper settings on the device need to be reset.")
+    print("These are the previous settings:")
+    for name, setting in tamper.settings.iteritems():
+        setting_string = "    %s : "%name.ljust(12)
+        for param in setting[1]:
+            setting_string = "%s %s"%(setting_string, str(param))
+
+        print(setting_string)
+

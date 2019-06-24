@@ -33,6 +33,7 @@ from sync import SyncCommandEnum, SyncCommand
 
 from console.scripts.masterkey import MasterKeySetScriptModule
 from console.scripts.firmware_update import FirmwareUpdateScript
+from console.scripts.tamper_settings import TamperSettingsScriptModule
 
 from console.console_debug import add_debug_commands
 from console.console_keystore import add_keystore_commands
@@ -181,15 +182,27 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
                 self.after_login_callback = self.initialize_cache
 
         # if the masterkey has not been set, prompt
-        if((self.script_module is None) and
-           (not self.settings.get_setting(HSMSettings.MASTERKEY_SET))):
+        if(self.script_module is None):
+            if (True):
+                self.script_module = TamperSettingsScriptModule(self.cty_conn,
+                                                                self.cty_direct_call,
+                                                                self.tamper_config,
+                                                                finished_callback = on_tamper_settings_set)
+            elif (not self.settings.get_setting(HSMSettings.MASTERKEY_SET)):
+                self.script_module = MasterKeySetScriptModule(self.cty_conn,
+                                                            self.cty_direct_call,
+                                                            self.settings)
 
+        # show login msg
+        return login_msg
+
+    def on_tamper_settings_set(self, results):
+        # if the masterkey has not been set, prompt
+        if(not self.settings.get_setting(HSMSettings.MASTERKEY_SET)):
             self.script_module = MasterKeySetScriptModule(self.cty_conn,
                                                           self.cty_direct_call,
                                                           self.settings)
 
-        # show login msg
-        return login_msg
 
     def on_login_pin_entered(self, pin):
         """Override to handle the user logging in.
