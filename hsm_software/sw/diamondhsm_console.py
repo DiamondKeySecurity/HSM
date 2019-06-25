@@ -80,6 +80,7 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
         self.temp_object = None
 
         self.tamper_config = TamperConfiguration(os.path.dirname(args.settings))
+        self.tamper_config.load_saved_settings()
 
         super(DiamondHSMConsole, self).__init__('Diamond HSM')
 
@@ -183,11 +184,11 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
 
         # if the masterkey has not been set, prompt
         if(self.script_module is None):
-            if (True):
+            if (len(self.tamper_config.settings) > 0):
                 self.script_module = TamperSettingsScriptModule(self.cty_conn,
                                                                 self.cty_direct_call,
                                                                 self.tamper_config,
-                                                                finished_callback = on_tamper_settings_set)
+                                                                finished_callback = self.on_tamper_settings_set)
             elif (not self.settings.get_setting(HSMSettings.MASTERKEY_SET)):
                 self.script_module = MasterKeySetScriptModule(self.cty_conn,
                                                             self.cty_direct_call,
@@ -197,6 +198,7 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
         return login_msg
 
     def on_tamper_settings_set(self, results):
+        print 'sdfa'
         # if the masterkey has not been set, prompt
         if(not self.settings.get_setting(HSMSettings.MASTERKEY_SET)):
             self.script_module = MasterKeySetScriptModule(self.cty_conn,

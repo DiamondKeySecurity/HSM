@@ -22,18 +22,17 @@ class TamperSettingsScriptModule(ScriptModule):
         self.cty_direct_call = cty_direct_call
         self.tamper_configs = tamper_configs
 
-        self.cty_direct_call("After HSM reset, the tamper settings on the device need to be reset.")
-        self.cty_direct_call("These are the previous settings:")
+        setting_string = "\r\nAfter HSM reset, the tamper settings on the device need to be reset.\r\nThese are the previous settings:"
         for name, setting in tamper_configs.settings.iteritems():
-            setting_string = "    %s : "%name.ljust(12)
+            setting_string = "%s\r\n    %s : "%(setting_string, name.ljust(12))
             for param in setting[1]:
                 setting_string = "%s %s"%(setting_string, str(param))
 
-            cty_direct_call(setting_string)
-
+        setting_string = "%s\r\nWould you like to use the previous settings now? (y/n) "%setting_string
+        
         super(TamperSettingsScriptModule, self).__init__([
                         script_node('usePreviousSettings',
-                                    'Would you like to use the previous settings now? (y/n) ',
+                                    str(setting_string),
                                     ValueType.YesNo, callback=self.setUsePreviousSettings)
                         ], finished_callback = finished_callback)
 

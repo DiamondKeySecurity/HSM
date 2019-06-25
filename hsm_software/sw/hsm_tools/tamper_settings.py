@@ -27,12 +27,18 @@ class TamperConfiguration(object):
         self.settings[name] = (command, values)
 
     def save_settings(self):
-        with open(self.dbpath, "wt") as fp:
-            json.dump(self.settings, fp)
+        try:
+            with open(self.dbpath, "wt") as fp:
+                json.dump(self.settings, fp)
+        except:
+            pass
 
     def load_saved_settings(self):
-        with open(self.dbpath, "rt") as fp:
-            self.settings = json.load(fp)
+        try:
+            with open(self.dbpath, "rt") as fp:
+                self.settings = json.load(fp)
+        except:
+            pass
 
     def push_settings(self, console_connect):
         command_order = ["disable", "enable", "temperature", "light", "vibe"]
@@ -43,7 +49,7 @@ class TamperConfiguration(object):
             if (cmd_string is not None):
                 console_connect.send_raw(cmd_string, 5)
 
-        console_connect.send_raw("tamper set config")
+        console_connect.send_raw("tamper set config", 5)
 
     def get_command_string(self, command):
         if(command in self.settings):
