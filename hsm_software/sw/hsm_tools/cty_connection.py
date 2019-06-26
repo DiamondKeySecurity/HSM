@@ -87,6 +87,30 @@ class CTYConnection(object):
         if (self.feedback_function is not None):
             self.feedback_function(message)
 
+    def send_raw(self, cmd, delay):
+        response = ''
+        cryptech_prompt = "\r\ncryptech> "
+
+        print cmd
+
+        for device_index in xrange(0, len(self.cty_list)):
+            response_from_device = ""
+            with WaitFeedback.Start(self.feedback):
+                management_port_serial = self.cty_list[device_index].serial
+
+                management_port_serial.write(cmd)
+
+                for _ in xrange(0, delay):
+                    time.sleep(1)
+                    response_from_device = "%s%s"%(response_from_device, management_port_serial.read())
+                    if(response_from_device.endswith(cryptech_prompt)):
+                        response_from_device = response_from_device[:-len(cryptech_prompt)]
+                        break
+
+                response = '%s\r\nCTY:%i-%s'%(response, device_index, response_from_device)
+
+        return "--------------%s--------------"%response
+
     def login(self, PIN):
         # make sure we're actually connected to an alpha
         if(not self.is_cty_connected()): return CTYError.CTY_NOT_CONNECTED
@@ -254,8 +278,7 @@ class CTYConnection(object):
         ready_state = self.check_ready()
         if(ready_state is not CTYError.CTY_OK): return ready_state
 
-        return CTYError.CTY_OK
-        # return self._do_upload(self.binary_path + "/hsm.bin", UploadArgs(firmware = True, pin = PIN))
+        return self._do_upload(self.binary_path + "/tamper.bin", UploadArgs(tamper = True, pin = PIN))
 
     def check_ready(self):
         # make sure we're actually connected to an alpha
@@ -317,6 +340,7 @@ class CTYConnection(object):
                 args.fpga = upload_args.fpga
                 args.firmware = upload_args.firmware
                 args.bootloader = upload_args.bootloader
+                args.tamper = upload_args.tamper
                 args.pin = upload_args.pin
                 self.feedback("Uploading Binary")
                 send_file(src, size, args, dst)

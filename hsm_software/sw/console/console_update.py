@@ -202,10 +202,10 @@ def add_update_commands(console_object):
                             usage=' - Updates the FPGA cores on the'
                             ' CrypTech devices.',
                             callback=dks_update_cryptech_fpga)
-    # cryptech_node.add_child('tamper', num_args=0,
-    #                         usage=' - Updates the tamper firmware on the'
-    #                         ' CrypTech devices.',
-    #                         callback=dks_update_cryptech_tamper)
+    cryptech_node.add_child('tamper', num_args=0,
+                            usage=' - Updates the tamper firmware on the'
+                            ' CrypTech devices.',
+                            callback=dks_update_cryptech_tamper)
 
     update_node.add_child('HSM', num_args=1,
                           usage='<path to file> - Updates the HSM'

@@ -18,7 +18,7 @@ import os
 
 class SafeShutdown(object):
     """Class to ensure the HSM shuts down correctly"""
-    def __init__(self, debug):
+    def __init__(self, debug = False):
         self.debug = debug
         self.callbacks = []
         self.restart_callbacks = []

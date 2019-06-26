@@ -107,7 +107,7 @@ class MuxSession:
 
 class RPCPreprocessor:
     """Able to load balance between multiple rpcs"""
-    def __init__(self, rpc_list, cache, settings, netiface, tamper):
+    def __init__(self, rpc_list, cache, settings, netiface):
         self.cache = cache
         self.settings = settings
         self.rpc_list = rpc_list
@@ -122,7 +122,6 @@ class RPCPreprocessor:
         self.netiface = netiface
         self.hsm_locked = True
         self.debug = False
-        self.tamper = tamper
         self.tamper_detected = ThreadSafeVariable(False)
 
         # used by load balancing heuristic
@@ -137,8 +136,6 @@ class RPCPreprocessor:
         self.next_any_device = 0
         self.next_any_device_uses = 0
         self.choose_any_thread_lock = threading.Lock()
-
-        tamper.add_observer(self.on_tamper_event)
 
     def device_count(self):
         return len(self.rpc_list)
@@ -306,7 +303,7 @@ class RPCPreprocessor:
         session.current_request = decoded_request
 
         # check to see if there's an ongoing tamper event
-        if (self.tamper.get_tamper_state() and session.from_ethernet):
+        if (self.tamper_detected.value and session.from_ethernet):
             return self.create_error_response(code, client,
                                               DKS_HALError.HAL_ERROR_TAMPER)
 
@@ -1166,5 +1163,6 @@ class RPCPreprocessor:
         self.function_table[DKS_RPCFunc.RPC_FUNC_SET_RPC_DEVICE] = self.handle_set_rpc
         self.function_table[DKS_RPCFunc.RPC_FUNC_ENABLE_CACHE_KEYGEN] = self.handle_enable_cache_keygen
         self.function_table[DKS_RPCFunc.RPC_FUNC_DISABLE_CACHE_KEYGEN] = self.handle_disable_cache_keygen
+        self.function_table[DKS_RPCFunc.RPC_FUNC_CHECK_TAMPER] = self.handle_rpc_usecurrent
         self.function_table[DKS_RPCFunc.RPC_FUNC_USE_INCOMING_DEVICE_UUIDS] = self.handle_use_incoming_device_uuids
         self.function_table[DKS_RPCFunc.RPC_FUNC_USE_INCOMING_MASTER_UUIDS] = self.handle_use_incoming_master_uuids

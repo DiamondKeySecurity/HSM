@@ -17,35 +17,45 @@
 
 import hsm_tools.cryptech.muxd
 
-from hsm_tools.observerable import observable
-
 from hsm_tools.threadsafevar import ThreadSafeVariable
-from settings import HSMSettings
+from hsm_tools.observerable import observable
+from hsm_tools.stoppable_thread import stoppable_thread
+from hsm_tools.hsm import PFUNIX_HSM
+from hsm_tools.cryptech_port import DKS_HALError
 
+import time
 
-class TamperDetector(observable):
-    def __init__(self, settings):
-        super(TamperDetector, self).__init__()
+class TamperDetector(observable, PFUNIX_HSM):
+    def __init__(self, sockname, rpc_count):
+        observable.__init__(self)
+        PFUNIX_HSM.__init__(self, sockname)
 
         self.tamper_event_detected = ThreadSafeVariable(False)
 
-        if (settings.get_setting(HSMSettings.GPIO_TAMPER)):
-            self.detector = TamperDetector.get_gpio_detector()
-        elif (settings.get_setting(HSMSettings.MGMGPORT_TAMPER)):
-            self.detector = TamperDetector.get_rpc_detector()
-        else:
-            self.detector = TamperDetector.get_test_detector()
+        self.rpc_count = rpc_count
 
-        # get notification from detector
-        self.detector.add_observer(self.on_tamper)
+        print('tamper rpc')
 
-    def on_tamper(self, tamper_object):
-        self.tamper_event_detected.value = True
+    def dowork(self, hsm):
+        pass
+        # for rpc_index in xrange(self.rpc_count):
+        #     hsm.rpc_set_device(rpc_index)
+        #     if (hsm.rpc_check_tamper() == DKS_HALError.HAL_ERROR_TAMPER):
+        #         self.on_tamper()
+        #         return
 
-        print("!!!!!!! TAMPER !!!!!!!!!!")
-        hsm_tools.cryptech.muxd.logger.info("!!!!!!! TAMPER !!!!!!!!!!")
+    def stop(self):
+        PFUNIX_HSM.stop(self)
+
+    def on_tamper(self):
+        if (self.tamper_event_detected.value is not True):
+            self.tamper_event_detected.value = True
+
+            print("!!!!!!! TAMPER !!!!!!!!!!")
+            hsm_tools.cryptech.muxd.logger.info("!!!!!!! TAMPER !!!!!!!!!!")
 
         # tell our observers of the tamper event
+        # continuously signal
         self.notify()
 
     def get_tamper_state(self):
@@ -55,25 +65,4 @@ class TamperDetector(observable):
         self.tamper_event_detected.value = False
 
         # notify changed state to all observers
-        self.notify()
-
-    def stop(self):
-        self.detector.stop()
-
-    @staticmethod
-    def get_test_detector():
-        import tamper_test
-        return tamper_test.Tamper_Test()
-
-    @staticmethod
-    def get_rpc_detector():
-        import tamper_rpc
-        return tamper_rpc.Tamper_RPC()
-
-    @staticmethod
-    def get_gpio_detector():
-        try:
-            import tamper_gpio
-            return tamper_gpio.Tamper_GPIO()
-        except ImportError:
-            return None
+        self.notify()        

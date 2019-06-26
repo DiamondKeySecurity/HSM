@@ -14,6 +14,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, If not, see <https://www.gnu.org/licenses/>.
 
+import os
+
 import console_interface
 
 import time
@@ -31,6 +33,7 @@ from sync import SyncCommandEnum, SyncCommand
 
 from console.scripts.masterkey import MasterKeySetScriptModule
 from console.scripts.firmware_update import FirmwareUpdateScript
+from console.scripts.tamper_settings import TamperSettingsScriptModule
 
 from console.console_debug import add_debug_commands
 from console.console_keystore import add_keystore_commands
@@ -50,12 +53,14 @@ from hsm_cache_db.alpha import CacheTableAlpha
 
 from hsm_tools.threadsafevar import ThreadSafeVariable
 
+from hsm_tools.tamper_settings import TamperConfiguration
+
 from firewall import Firewall
 
 class DiamondHSMConsole(console_interface.ConsoleInterface):
     def __init__(self, args, cty_list, rpc_preprocessor, synchronizer,
                  cache, netiface, settings, safe_shutdown, led,
-                 zero_conf_object, tamper, gpio_tamper_setter):
+                 zero_conf_object, tamper):
         self.args = args
         self.cty_conn = CTYConnection(cty_list, args.binaries,
                                       self.quick_write)
@@ -74,9 +79,11 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
         self.tamper = tamper
         self.tamper_event_detected = ThreadSafeVariable(False)
         self.console_locked = False
-        self.gpio_tamper_setter = gpio_tamper_setter
         self.temp_object = None
         self.tmpfs = TMPFS(self.args.uploads)
+
+        self.tamper_config = TamperConfiguration(os.path.dirname(args.settings))
+        self.tamper_config.load_saved_settings()
 
         super(DiamondHSMConsole, self).__init__('Diamond HSM')
 
@@ -97,8 +104,6 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
                 add_set_commands(self)
                 add_sync_commands(self)
                 add_tamper_commands(self)
-                if (self.gpio_tamper_setter is not None):
-                    self.add_gpio_tamper_commands()
 
             add_update_commands(self)
 
@@ -107,7 +112,8 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
         # always allow shutdown
         add_shutdown_commands(self)
 
-        self.tamper.add_observer(self.on_tamper_event)
+        if (self.tamper is not None):
+            self.tamper.add_observer(self.on_tamper_event)
 
     def on_tamper_event(self, tamper_detector):
         if((self.is_logged_in()) and
@@ -184,15 +190,28 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
                 self.after_login_callback = self.initialize_cache
 
         # if the masterkey has not been set, prompt
-        if((self.script_module is None) and
-           (not self.settings.get_setting(HSMSettings.MASTERKEY_SET))):
+        if(self.script_module is None):
+            if (len(self.tamper_config.settings) > 0):
+                self.script_module = TamperSettingsScriptModule(self.cty_conn,
+                                                                self.cty_direct_call,
+                                                                self.tamper_config,
+                                                                finished_callback = self.on_tamper_settings_set)
+            elif (not self.settings.get_setting(HSMSettings.MASTERKEY_SET)):
+                self.script_module = MasterKeySetScriptModule(self.cty_conn,
+                                                            self.cty_direct_call,
+                                                            self.settings)
 
+        # show login msg
+        return login_msg
+
+    def on_tamper_settings_set(self, results):
+        print 'sdfa'
+        # if the masterkey has not been set, prompt
+        if(not self.settings.get_setting(HSMSettings.MASTERKEY_SET)):
             self.script_module = MasterKeySetScriptModule(self.cty_conn,
                                                           self.cty_direct_call,
                                                           self.settings)
 
-        # show login msg
-        return login_msg
 
     def on_login_pin_entered(self, pin, user):
         """Override to handle the user logging in.
@@ -296,31 +315,6 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
                 self.quick_write(result)
         else:
             self.readCTYUserData(data)
-
-    def add_gpio_tamper_commands(self):
-        gpio_tamper_node = self.add_child_tree(['gpio', 'tamper'])
-
-        gpio_tamper_node.add_child('disable',
-                                   num_args=0,
-                                   usage=(' - Disable GPIO checking'
-                                          ' tamper events.'),
-                                   callback=self.dks_gpio_disable_tamper)
-
-        gpio_tamper_node.add_child_tree(['reset', 'masterkey', 'connection'],
-                                        num_args=0,
-                                        usage=(' - Reset tamper after a'
-                                               ' tamper event'),
-                                        callback=self.dks_gpio_reset_tamper)
-
-    def dks_gpio_reset_tamper(self, args):
-        self.gpio_tamper_setter.enable_tamper()
-
-        return "Tamper connection to master key memory enabled."
-
-    def dks_gpio_disable_tamper(self, args):
-        self.tamper.stop()
-
-        return "Tamper connection to master key memory disabled."
 
     def sync_callback(self, cmd, result):
         self.cty_direct_call(result)
