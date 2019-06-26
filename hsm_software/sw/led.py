@@ -249,6 +249,28 @@ class LEDContainer(object):
             self.system_led.blink()
             self.tamper_led.on()
 
+    def led_error_login_failure(self):
+        if(self.tamper_detected.value is not True):
+            self.system_led.off()
+            self.tamper_led.off()
+
+            self.system_led.set_red()
+            self.tamper_led.set_green()
+
+            self.system_led.blink()
+            self.tamper_led.on()
+
+    def led_error_login_partialfailure(self):
+        if(self.tamper_detected.value is not True):
+            self.system_led.off()
+            self.tamper_led.off()
+
+            self.system_led.set_yellow()
+            self.tamper_led.set_green()
+
+            self.system_led.blink()
+            self.tamper_led.on()
+
     def led_error_tamper(self):
         self.system_led.off()
         self.tamper_led.off()

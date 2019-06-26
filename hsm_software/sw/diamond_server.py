@@ -416,10 +416,15 @@ def main():
     #  that's a TODO
     if futures:
         if(led_container is not None):
-            if (len(rpc_list) == DEVICES_IN_CHASE):
-                led_container.led_ready()
-            else:
+            if (len(rpc_list) != DEVICES_IN_CHASE):
                 led_container.led_error_cryptech_partial_failure()
+            elif (len(cty_list) == 0):
+                led_container.led_error_login_failure()
+            elif (len(cty_list) != DEVICES_IN_CHASE):
+                led_container.led_error_login_partialfailure()
+            else:
+                led_container.led_ready()
+                
 
         wait_iterator = tornado.gen.WaitIterator(*futures)
         while not wait_iterator.done():
