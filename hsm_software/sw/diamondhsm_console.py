@@ -47,6 +47,8 @@ from console.console_sync import add_sync_commands
 from console.console_tamper import add_tamper_commands
 from console.console_update import add_update_commands
 
+from console.tmpfs import TMPFS, TMPFSDoesNotExist, TMPFSNotAuthorized
+
 from hsm_cache_db.alpha import CacheTableAlpha
 
 from hsm_tools.threadsafevar import ThreadSafeVariable
@@ -78,6 +80,7 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
         self.tamper_event_detected = ThreadSafeVariable(False)
         self.console_locked = False
         self.temp_object = None
+        self.tmpfs = TMPFS(self.args.uploads)
 
         self.tamper_config = TamperConfiguration(os.path.dirname(args.settings))
         self.tamper_config.load_saved_settings()
@@ -132,6 +135,8 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
         # when the console has been locked, no commands will be accepted
         self.console_locked = False
 
+        self.tmpfs.reset()
+
         if(self.file_transfer is not None):
             self.file_transfer.close()
             self.file_transfer = None
@@ -148,7 +153,7 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
         return ("\r\n\r\nWarning: No CrypTech devices have been detected. "
                 "Only 'shutdown' is available.")
 
-    def get_login_prompt(self):
+    def get_login_prompt(self, banner_only = False):
         """Override to provide the prompt for logging in"""
         initial_login_msg = ("Before using the HSM, you will need to perform"
                              " a basic setup.\r\n"
@@ -158,8 +163,10 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
                              "The HSM will not be operational until this"
                              " setup has completed.")
 
-        login_msg = ("Please login using the 'wheel' user account password"
-                     "\r\n\r\nPassword: ")
+        login_msg = "Please login using the 'wheel' user account password"
+
+        if (banner_only is False):
+            login_msg = login_msg + "\r\n\r\nPassword: "
 
         # don't show the password
         self.hide_input = True
@@ -206,7 +213,7 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
                                                           self.settings)
 
 
-    def on_login_pin_entered(self, pin):
+    def on_login_pin_entered(self, pin, user):
         """Override to handle the user logging in.
         Returns true if the login was successful"""
         return (self.cty_conn.login(pin) == CTYError.CTY_OK)

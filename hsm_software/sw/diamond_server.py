@@ -79,6 +79,12 @@ from rpc_handling import RPCPreprocessor
 from ipconfig import NetworkInterfaces
 from settings import Settings, RPC_IP_PORT, CTY_IP_PORT, HSMSettings
 
+try:
+    from ssh_server import SSHServer
+    ssh_available = True
+except Exception:
+    ssh_available = False
+
 from safe_shutdown import SafeShutdown
 
 from sync import Synchronizer
@@ -87,10 +93,12 @@ from security import HSMSecurity
 
 from tamper import TamperDetector
 
+import accounts.db
 
 synchronizer = None
 safe_shutdown = None
 tamper = None
+ssh_cty_server = None
 
 
 def start_leds(use_leds):
@@ -307,6 +315,9 @@ def main():
     if(not args.no_delay):
         time.sleep(30)
 
+    # db with domain information
+    db = accounts.db.DBContext(dbpath=args.cache_save)
+
     # start the cache
     cache = HSMCache(len(rpc_list), cache_folder=args.cache_save)
     safe_shutdown.addOnShutdown(cache.backup)
@@ -370,6 +381,17 @@ def main():
     # Listen for incoming TCP/IP connections from remove cryptech.muxd_client
     cty_server = CTYTCPServer(cty_stream, port=CTY_IP_PORT, ssl=ssl_options)
 
+    global ssh_cty_server
+    global ssh_available
+
+    if (ssh_available):
+        try:
+            ssh_cty_server = SSHServer(cty_stream, db)
+            ssh_cty_server.start()
+        except Exception:
+            ssh_available = False
+            ssh_cty_server = None
+
     # register for zeroconf if we are connected to a network
     if((my_zero_conf is not None) and 
        (settings.get_setting(HSMSettings.ZERO_CONFIG_ENABLED) is True)):
@@ -416,6 +438,8 @@ if __name__ == "__main__":
     try:
         tornado.ioloop.IOLoop.current().run_sync(main)
     except (SystemExit, KeyboardInterrupt):
+        if(ssh_cty_server is not None):
+            ssh_cty_server.stop()
         if(synchronizer is not None):
             synchronizer.stop()
         if(tamper is not None):
