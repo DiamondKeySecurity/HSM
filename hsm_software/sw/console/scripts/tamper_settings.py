@@ -43,6 +43,7 @@ class TamperSettingsScriptModule(ScriptModule):
             self.cty_direct_call("The tamper settings have been applied")
         else:
             self.tamper_configs.clear()
+            self.tamper_configs.save_settings()
             self.cty_direct_call("The tamper settings have have not been set. Please enter new tamper settings.")
 
         return self

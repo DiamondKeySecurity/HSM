@@ -148,6 +148,7 @@ class ManagementPortAbstract(object):
 
     def __init__(self, args):
         self.args = args
+        self._read_timeout = None
 
     def write(self, data):
         numeric = isinstance(data, (int, long))
@@ -163,7 +164,9 @@ class ManagementPortAbstract(object):
     def read(self):
         res = ""
         x = self.recv()
-        while not x:
+        if (self._read_timeout is not None):
+            start_time = time.time()
+        while not x and ((self._read_timeout is None) or (time.time()-start_time < self._read_timeout)):
             x = self.recv()
         while x:
             res += x
@@ -191,6 +194,14 @@ class ManagementPortAbstract(object):
         self.write(cmd + "\r")
         response = self.read()
         return response
+
+    def _set_read_timeout(self, value):
+        if ((value is not None) and (not isinstance(value, (int, float)))):
+            raise ValueError()
+
+        self._read_timeout = value
+
+    read_timeout = property(None, _set_read_timeout)
 
 
 class ManagementPortSerial(ManagementPortAbstract):

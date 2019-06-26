@@ -100,12 +100,16 @@ class CTYConnection(object):
 
                 management_port_serial.write(cmd)
 
+                management_port_serial.read_timeout = 0.5
+
                 for _ in xrange(0, delay):
                     time.sleep(1)
                     response_from_device = "%s%s"%(response_from_device, management_port_serial.read())
                     if(response_from_device.endswith(cryptech_prompt)):
                         response_from_device = response_from_device[:-len(cryptech_prompt)]
                         break
+
+                management_port_serial.read_timeout = None
 
                 response = '%s\r\nCTY:%i-%s'%(response, device_index, response_from_device)
 

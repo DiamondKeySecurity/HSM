@@ -51,12 +51,12 @@ class TamperConfiguration(object):
 
         console_connect.send_raw("tamper set config", 5)
 
-    def get_command_string(self, command):
+    def get_command_string(self, command, suffix = ''):
         if(command in self.settings):
             setting = self.settings[command]
             cmd_string = setting[0]
             for param in setting[1]:
-                cmd_string = "%s %s"%(cmd_string, str(param))
+                cmd_string = "%s %s%s"%(cmd_string, str(param), suffix)
 
             return cmd_string
         else:
