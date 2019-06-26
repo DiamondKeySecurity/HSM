@@ -87,8 +87,8 @@ def dks_do_HSM_update(console_object, pin):
         mgmt_code = MGMTCodes.MGMTCODE_RECEIVEHSM_UPDATE.value
         # setup a file transfer object
         ft = FileTransfer(mgmt_code=mgmt_code,
+                          tmpfs = console_object.tmpfs,
                           requested_file_path=console_object.request_file_path,
-                          uploads_dir=console_object.args.uploads,
                           restart_file=console_object.args.restart,
                           public_key=console_object.args.hsmpublickey,
                           finished_callback=dks_hsm_update_finished,
@@ -96,9 +96,9 @@ def dks_do_HSM_update(console_object, pin):
                           data_context=console_object)
 
         console_object.file_transfer = ft
-        # tell dks_setup_console that it can send the data now
-        msg = "%s:RECV:%s\r" % (mgmt_code, console_object.request_file_path)
-        console_object.cty_direct_call(msg)
+
+        # the file transfer object will signal what to do
+        return True
     except Exception as e:
         console_object.cty_direct_call('\nThere was an error while receiving the'
                                        ' update.\r\n\r\n%s' % e.message)
