@@ -123,7 +123,8 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
 
         self.on_cryptech_update_finished = None
 
-        self.current_user = 'wheel'
+        # when current user is none, the username will be requested at login
+        self.current_user = None
 
         # when the console has been locked, no commands will be accepted
         self.console_locked = False
@@ -152,13 +153,23 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
                              " time the HSM powers up\r\n"
                              "to ensure that is is running properly.\r\n\r\n"
                              "The HSM will not be operational until this"
-                             " setup has completed.")
+                             " setup has completed.\r\n")
 
-        login_msg = ("Please login using the security officer('SO') user account password"
-                     "\r\n\r\nPassword: ")
+        if (self.current_user == 'so'):
+            username_msg = "'so'(security officer)"
+        elif (self.current_user == 'wheel'):
+            username_msg = "'wheel'"
+        else:
+            self.current_user = None
+            username_msg = "'so'(security officer) or\r\n'wheel'"
 
-        # don't show the password
-        self.hide_input = True
+        if (self.current_user is None):
+            prompt = "Username"
+        else:
+            prompt = "Password"
+
+        login_msg = ("Please login using the %s user account password"
+                     "\r\n\r\n%s: ")%(username_msg, prompt)
 
         # make sure the firmware and tamper are up-to-date
         if(not self.settings.hardware_firmware_match() or
@@ -189,10 +200,15 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
         # show login msg
         return login_msg
 
-    def on_login_pin_entered(self, pin, username='wheel'):
+    def on_login_username_entered(self, username):
+        """Override to handle the user logging in.
+        Returns true if the username is valid"""
+        return (username == 'so' or username =='wheel')
+
+    def on_login_pin_entered(self, pin, username):
         """Override to handle the user logging in.
         Returns true if the login was successful"""
-        return (self.cty_conn.login(pin, username) == CTYError.CTY_OK)
+        return (self.cty_conn.login(username, pin) == CTYError.CTY_OK)
 
     def on_login(self, pin, username):
         """Override to handle the user logging in.
@@ -244,7 +260,7 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
         # update the firewall rules
         Firewall.generate_firewall_rules(self.settings, '/var/tmp')
 
-    def initialize_cache(self, console_object, pin):
+    def initialize_cache(self, console_object, pin, username):
         # start the synchronizer
         self.synchronizer.initialize(self.rpc_preprocessor.device_count(), pin,
                                      self.synchronizer_init_callback)

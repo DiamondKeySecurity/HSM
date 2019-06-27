@@ -157,6 +157,7 @@ class ConsoleState(IntEnum):
     LoggedOut = 0
     PasswordRequested = 1
     LoggedIn = 2
+    UsernameRequested = 3
 
 class ConsoleInterface(CommandNode):
     __metaclass__ = ABCMeta
@@ -184,6 +185,11 @@ class ConsoleInterface(CommandNode):
     @abstractmethod
     def on_login_pin_entered(self, pin, username):
         """Override to handle the user logging in. Returns true if the login was successful"""
+        pass
+
+    @abstractmethod
+    def on_login_username_entered(self, username):
+        """Override to handle the user logging in. Returns true if the username is valid"""
         pass
 
     @abstractmethod
@@ -225,6 +231,8 @@ class ConsoleInterface(CommandNode):
         self.request_file_path = None
         self.history = collections.deque(maxlen=100)
         self.history_index = 0
+
+        # when current user is none, the username will be requested at login
         self.current_user = None
 
         self.on_reset()
@@ -232,6 +240,8 @@ class ConsoleInterface(CommandNode):
     @property
     def prompt(self):
         if (not self.ignore_user_input):
+            if (self.console_state.value == ConsoleState.UsernameRequested):
+                return '\r\nUsername: '
             if (self.console_state.value == ConsoleState.PasswordRequested):
                 return '\r\nPassword: '
             elif ((self.script_module is not None) and 
@@ -393,17 +403,36 @@ class ConsoleInterface(CommandNode):
             self.cty_direct_call(self.banner)
             self.banner_shown = True
 
-        # don't show the password
-        self.hide_input = True
-
         if (self.is_login_available()):
             self.cty_direct_call(self.get_login_prompt())
-            self.console_state.value = ConsoleState.PasswordRequested
+            if (self.current_user is not None):
+
+                # don't show the password
+                self.hide_input = True
+
+                self.console_state.value = ConsoleState.PasswordRequested
+            else:
+                self.console_state.value = ConsoleState.UsernameRequested
         else:
             self.cty_direct_call(self.no_login_msg())
             self.hide_input = False
             self.console_state.value = ConsoleState.LoggedIn
             self.cty_direct_call(self.prompt)
+
+    def handle_username_entered(self, data):
+        username = data.rstrip('\r\n')
+
+        if (len(username) > 0):
+            result = self.on_login_username_entered(username)
+
+            if(result == False):
+                self.cty_direct_call("\r\nInvalid user name. Please try again\r\n\r\nUsername: ")
+            else:
+                self.current_user = username
+                self.hide_input = True
+                self.console_state.value = ConsoleState.PasswordRequested
+                self.cty_direct_call(self.prompt)
+
 
     def handle_password_entered(self, data):
         pin = data.rstrip('\r\n')
@@ -437,11 +466,14 @@ class ConsoleInterface(CommandNode):
                     self.script_module = self.script_module.accept_validated_response(validated_response)
 
                     # show the next prompt
-                    self.cty_direct_call(self.prompt)
+                    if (self.console_state.value == ConsoleState.LoggedIn):
+                        self.cty_direct_call(self.prompt)
 
             elif(len(input) > 0):
-                if (self.console_state.value == ConsoleState.PasswordRequested):
-                    self.handle_password_entered(input)
+                if (self.console_state.value == ConsoleState.UsernameRequested):
+                    self.handle_username_entered(input)
+                elif (self.console_state.value == ConsoleState.PasswordRequested):
+                    self.handle_password_entered(input)                    
                 elif (self.console_state.value == ConsoleState.LoggedIn):
                     # add to history
                     self.history.appendleft(input)

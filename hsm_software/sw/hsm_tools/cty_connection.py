@@ -87,7 +87,7 @@ class CTYConnection(object):
         if (self.feedback_function is not None):
             self.feedback_function(message)
 
-    def login(self, username, PIN):
+    def login(self, username, pin):
         # make sure we're actually connected to an alpha
         if(not self.is_cty_connected()): return CTYError.CTY_NOT_CONNECTED
 
@@ -97,7 +97,7 @@ class CTYConnection(object):
             for hsm_cty in self.cty_list:
                 management_port_serial = hsm_cty.serial
                 management_port_serial.args.username = username
-                management_port_serial.args.pin = PIN
+                management_port_serial.args.pin = pin
 
                 # use execute to login
                 response = management_port_serial.execute("\r")
