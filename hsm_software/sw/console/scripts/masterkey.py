@@ -25,7 +25,7 @@ class MasterKeySetScriptModule(ScriptModule):
         self.settings = settings
         super(MasterKeySetScriptModule, self).__init__([
                         script_node('setmasterkey',
-                                    'Because of a system reset, the master key may not be set.\r\nWould you like to set it now? (y/n) ',
+                                    '\r\nAre you sure you want to set the master key? (y/n) ',
                                     ValueType.YesNo, callback=self.setMasterKeyPromptCallback)
                         ])
 

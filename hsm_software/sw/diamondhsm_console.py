@@ -29,7 +29,7 @@ from hsm_tools.cty_connection import CTYConnection, CTYError
 
 from sync import SyncCommandEnum, SyncCommand
 
-from console.scripts.masterkey import MasterKeySetScriptModule
+from console.scripts.masterkey_reset import MasterKeyResetScriptModule
 from console.scripts.firmware_update import FirmwareUpdateScript
 
 from console.console_debug import add_debug_commands
@@ -192,9 +192,7 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
         if((self.script_module is None) and
            (not self.settings.get_setting(HSMSettings.MASTERKEY_SET))):
 
-            self.script_module = MasterKeySetScriptModule(self.cty_conn,
-                                                          self.cty_direct_call,
-                                                          self.settings)
+            self.script_module = MasterKeyResetScriptModule(self)
 
         # show login msg
         return login_msg
