@@ -35,8 +35,6 @@ from console.scripts.firmware_update import FirmwareUpdateScript
 from console.console_debug import add_debug_commands
 from console.console_keystore import add_keystore_commands
 from console.console_list import add_list_commands
-from console.console_masterkey import add_masterkey_commands
-from console.console_restore import add_restore_commands
 from console.console_set import add_set_commands
 from console.console_show import add_show_commands
 from console.console_shutdown import add_shutdown_commands
@@ -89,8 +87,6 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
                 if (args.debug): add_debug_commands(self)
                 add_keystore_commands(self)
                 add_list_commands(self)
-                add_masterkey_commands(self)
-                add_restore_commands(self)
                 add_set_commands(self)
                 add_sync_commands(self)
                 add_tamper_commands(self)
@@ -125,6 +121,9 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
 
         # when current user is none, the username will be requested at login
         self.current_user = None
+
+        # list of user's that must log in to complete an operation
+        self.redo_user_order = []
 
         # when the console has been locked, no commands will be accepted
         self.console_locked = False
@@ -216,22 +215,34 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
         self.rpc_preprocessor.unlock_hsm()
 
         if(self.after_login_callback is not None):
-            callback = self.after_login_callback
-            self.after_login_callback = None
-            callback(self, pin, username)
+
+            if(len(self.redo_user_order) > 0):
+                self.redo_login(self.after_login_callback, False)
+            else:
+                callback = self.after_login_callback
+                self.after_login_callback = None
+                callback(self, pin, username)
         else:
             self.cty_direct_call(self.prompt)
 
-    def redo_login(self, after_login_callback):
-        self.cty_direct_call(('\r\n!-----------------------------------------'
-                              '-----------------------------!'
-                              '\r\n!WARNING!'
-                              '\r\nYou will need to re-enter the wheel'
-                              ' password to complete this operation.'
-                              '\r\nIf this was a mistake, please restart the'
-                              ' console.'
-                              '\r\n!-----------------------------------------'
-                              '-----------------------------!\r\n'))
+    def redo_login(self, after_login_callback, create_redo_list = True):
+        if (create_redo_list):
+            if(self.current_user =='wheel'):
+                self.redo_user_order = ['so', 'wheel']
+            else:
+                self.redo_user_order = ['wheel', 'so']
+
+        self.current_user = self.redo_user_order.pop(0)
+
+        self.cty_direct_call(("\r\n!-----------------------------------------"
+                              "-----------------------------!"
+                              "\r\n!WARNING!"
+                              "\r\nYou will need to re-enter the '%s'"
+                              " password to complete this operation."
+                              "\r\nIf this was a mistake, please restart the"
+                              " console."
+                              "\r\n!-----------------------------------------"
+                              "-----------------------------!\r\n")%self.current_user)
 
         self.after_login_callback = after_login_callback
 
@@ -262,7 +273,7 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
 
     def initialize_cache(self, console_object, pin, username):
         # start the synchronizer
-        self.synchronizer.initialize(self.rpc_preprocessor.device_count(), pin,
+        self.synchronizer.initialize(self.rpc_preprocessor.device_count(), username, pin,
                                      self.synchronizer_init_callback)
 
     def synchronizer_init_callback(self, cmd, result):

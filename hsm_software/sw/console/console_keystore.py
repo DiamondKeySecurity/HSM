@@ -14,34 +14,103 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, If not, see <https://www.gnu.org/licenses/>.
 
+import time
+
+from scripts.masterkey import MasterKeySetScriptModule
+
 from hsm_tools.cty_connection import CTYError
 
-def dks_keystore_erase(console_object, args):
-    if(console_object.cty_conn.clearKeyStore(preservePINs=False) == CTYError.CTY_OK):
-        # clear the cache
-        console_object.cache.clear()
-
-        return 'keystore cleared. preservePINs == False'
-
-def dks_keystore_erase_preservePINs(console_object, args):
+def dks_do_erase(console_object, pin, username):
     if(console_object.cty_conn.clearKeyStore(preservePINs=True) == CTYError.CTY_OK):
         # clear the cache
         console_object.cache.clear()
 
-        return 'keystore cleared. preservePINs == True'
+        console_object.cty_direct_call('keystore cleared.')
+    else:
+        console_object.cty_direct_call('There was an error erasing the keystore.')
+
+
+def dks_keystore_erase(console_object, args):
+    console_object.cty_direct_call(('\r\n!------------------------------------------'
+                            '----------------------------!'
+                            '\r\n!KEYSTORE ERASURE WARNING!'
+                            '\r\nThis will delete the entire keystore on all CrypTech devices.'
+                            '\r\nThis is irreversible. '
+                            '\r\n!------------------------------------------'
+                            '----------------------------!\r\n'))
+
+    console_object.redo_login(dks_do_erase)
+
+    return True
+
+def dks_do_restore(console_object, pin, username):
+    if(console_object.cty_conn.clearKeyStore(preservePINs=False) == CTYError.CTY_OK):
+        # clear the cache
+        console_object.cache.clear()
+
+        console_object.cty_direct_call('keystore cleared.')
+
+        # restore settings
+        console_object.settings.add_default_settings()
+
+        console_object.cty_direct_call('Restore complete')
+
+        console_object.cty_direct_call("HSM Shutting Down in 5 seconds....")
+        time.sleep(5)
+
+        console_object.safe_shutdown.shutdown()
+    else:
+        console_object.cty_direct_call('There was an error erasing the keystore.')
+
+def dks_restore(console_object, args):
+    console_object.cty_direct_call(('\r\n!------------------------------------------'
+                            '----------------------------!'
+                            '\r\n!RESTORE TO FACTORY SETTINGS WARNING!'
+                            '\r\n!KEYSTORE ERASURE WARNING!'
+                            '\r\nThis will delete the entire keystore on all CrypTech devices.'
+                            '\r\nThis is irreversible. '
+                            '\r\n!------------------------------------------'
+                            '----------------------------!\r\n'))
+
+    console_object.redo_login(dks_do_restore)
+
+    return True
+
+def dks_do_masterkey_set(console_object, pin, username):
+    # use script to set the master key
+    console_object.script_module = MasterKeySetScriptModule(console_object.cty_conn,
+                                                            console_object.cty_direct_call,
+                                                            console_object.settings)
+
+    console_object.cty_direct_call(console_object.prompt)
+
+
+def dks_masterkey_set(console_object, args):
+    console_object.cty_direct_call(('\r\n!------------------------------------------'
+                            '----------------------------!'
+                            '\r\n!MASTER KEY WARNING!'
+                            '\r\nThis will set the master key for the HSM.'
+                            '\r\nPrevious values will not be saved.'
+                            '\r\n!------------------------------------------'
+                            '----------------------------!\r\n'))
+
+    console_object.redo_login(dks_do_masterkey_set)
+
+    return True
 
 def add_keystore_commands(console_object):
-    keystore_node = console_object.add_child('keystore')
-    keystore_erase_node = keystore_node.add_child('erase')
-    keystore_erase_node.add_child('YesIAmSure', num_args=0,
-                                    usage=' - Erases the entire keystore'
-                                        ' including PINs.',
-                                    callback=dks_keystore_erase)
+    console_object.add_child_tree(['keystore', 'erase', 'YesIAmSure'],
+                                   num_args=0,
+                                   usage=' - Erases the entire keystore',
+                                   callback=dks_keystore_erase)
 
-    # use erase_callback to meet PEP8 style
-    erase_callback = dks_keystore_erase_preservePINs
-    keystore_erase_node.add_child_tree(['preservePINs', 'YesIAmSure'],
-                                        num_args=0,
-                                        usage=' - Erases the keystore.'
-                                                ' Preserves PINs.',
-                                        callback=erase_callback)
+    console_object.add_child_tree(['restore', 'ERASE-ALL', 'YesIAmSure'],
+                                  num_args=0,
+                                  usage=' - Restores the HSM to factory settings'
+                                        ' without downgrading the HSM firmware.',
+                                  callback=dks_restore)
+
+    console_object.add_child_tree(['masterkey', 'set'],
+                                  num_args=0,
+                                  usage=" - sets the master key.",
+                                  callback=dks_masterkey_set)

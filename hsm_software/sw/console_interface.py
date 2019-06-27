@@ -487,9 +487,12 @@ class ConsoleInterface(CommandNode):
             else:
                 self.cty_direct_call(self.prompt)
 
-    def logout(self, message = None):
+    def logout(self, message = None, clear_user = False):
         self.console_state.value = ConsoleState.LoggedOut
         self.allow_user_input(message)
+
+        if (clear_user):
+            self.current_user = None
 
     def is_logged_in(self):
         return self.console_state.value == ConsoleState.LoggedIn
