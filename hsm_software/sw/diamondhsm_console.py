@@ -123,6 +123,8 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
 
         self.on_cryptech_update_finished = None
 
+        self.current_user = 'wheel'
+
         # when the console has been locked, no commands will be accepted
         self.console_locked = False
 
@@ -152,7 +154,7 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
                              "The HSM will not be operational until this"
                              " setup has completed.")
 
-        login_msg = ("Please login using the 'wheel' user account password"
+        login_msg = ("Please login using the security officer('SO') user account password"
                      "\r\n\r\nPassword: ")
 
         # don't show the password
@@ -187,12 +189,12 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
         # show login msg
         return login_msg
 
-    def on_login_pin_entered(self, pin):
+    def on_login_pin_entered(self, pin, username='wheel'):
         """Override to handle the user logging in.
         Returns true if the login was successful"""
-        return (self.cty_conn.login(pin) == CTYError.CTY_OK)
+        return (self.cty_conn.login(pin, username) == CTYError.CTY_OK)
 
-    def on_login(self, pin):
+    def on_login(self, pin, username):
         """Override to handle the user logging in.
         Called after a successful login"""
         self.rpc_preprocessor.unlock_hsm()
@@ -200,7 +202,7 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
         if(self.after_login_callback is not None):
             callback = self.after_login_callback
             self.after_login_callback = None
-            callback(self, pin)
+            callback(self, pin, username)
         else:
             self.cty_direct_call(self.prompt)
 

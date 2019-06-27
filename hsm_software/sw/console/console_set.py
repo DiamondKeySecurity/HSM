@@ -76,7 +76,11 @@ def dks_set_pin(console_object, args):
     else:
         return "<user> must be 'wheel', 'so', or 'user'"
 
-def dks_set_ip_dhcp_onlogin(console_object, pin):
+def dks_set_ip_dhcp_onlogin(console_object, pin, username):
+    if (username.lower() != 'wheel' and username.lower() != 'so'):
+        console_object.cty_direct_call("Insufficient privileges to carry out this operation.\r\nMust be 'wheel' or 'so'.")
+        return
+
     message = ['This will set the HSM to use a DHCP server for IP',
                 'address selection. It is recommended to always use DHCP.',
                 'When a static ip is needed, it is recommended to',
@@ -95,7 +99,11 @@ def dks_set_ip_dhcp_onlogin(console_object, pin):
 
     console_object.cty_direct_call(console_object.prompt)
 
-def dks_set_ip_static_onlogin(console_object, pin):
+def dks_set_ip_static_onlogin(console_object, pin, username):
+    if (username.lower() != 'wheel' and username.lower() != 'so'):
+        console_object.cty_direct_call("Insufficient privileges to carry out this operation.\r\nMust be 'wheel' or 'so'.")
+        return
+
     message = ['This will set the HSM to use a manually set static IP',
                 'address. Please use caution when setting a static IP',
                 'because the ethernet port is the only way to communicate',

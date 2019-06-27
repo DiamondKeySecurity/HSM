@@ -25,7 +25,11 @@ from console.scripts.updateRestart import UpdateRestartScriptModule
 
 from console.file_transfer import MGMTCodes, FileTransfer
 
-def dks_do_update(console_object, command, pin, on_update_finished = None):
+def dks_do_update(console_object, command, pin, username, on_update_finished = None):
+    if (username.lower() != 'wheel' and username.lower() != 'so'):
+        console_object.cty_direct_call("Insufficient privileges to carry out this operation.\r\nMust be 'wheel' or 'so'.")
+        return True
+
     result = command(pin)
     console_object.cty_direct_call(console_object.cty_conn.get_error_msg(result))
 
@@ -45,27 +49,27 @@ def dks_do_update(console_object, command, pin, on_update_finished = None):
 
     return True
 
-def dks_update_tamperfirmware(console_object, pin):
+def dks_update_tamperfirmware(console_object, pin, username):
     return dks_do_update(console_object,
                          console_object.cty_conn.uploadTamperFirmware,
-                         pin,
+                         pin, username,
                          console_object.settings.set_tamper_updated)
 
-def dks_update_firmware(console_object, pin):
+def dks_update_firmware(console_object, pin, username):
     return dks_do_update(console_object,
                          console_object.cty_conn.uploadFirmware,
-                         pin,
+                         pin, username,
                          console_object.settings.set_firmware_updated)
 
-def dks_update_bootloader(console_object, pin):
+def dks_update_bootloader(console_object, pin, username):
     return dks_do_update(console_object,
                          console_object.cty_conn.uploadBootloader,
-                         pin)
+                         pin, username)
 
-def dks_update_fpga(console_object, pin):
+def dks_update_fpga(console_object, pin, username):
     return dks_do_update(console_object,
                          console_object.cty_conn.uploadFPGABitStream,
-                         pin)
+                         pin, username)
 
 def dks_hsm_update_finished(console_object, result, msg):
     # we don't need to close the file_transfer object because it will
@@ -79,7 +83,11 @@ def dks_hsm_update_finished(console_object, result, msg):
 
     console_object.allow_user_input(msg)
 
-def dks_do_HSM_update(console_object, pin):
+def dks_do_HSM_update(console_object, pin, username):
+    if (username.lower() != 'wheel' and username.lower() != 'so'):
+        console_object.cty_direct_call("Insufficient privileges to carry out this operation.\r\nMust be 'wheel' or 'so'.")
+        return True
+        
     try:
         # stop excepting normal user data
         console_object.set_ignore_user('The HSM is preparing to receive an update')

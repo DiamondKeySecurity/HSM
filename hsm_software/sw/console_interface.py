@@ -182,12 +182,12 @@ class ConsoleInterface(CommandNode):
         pass
 
     @abstractmethod
-    def on_login_pin_entered(self, pin):
+    def on_login_pin_entered(self, pin, username):
         """Override to handle the user logging in. Returns true if the login was successful"""
         pass
 
     @abstractmethod
-    def on_login(self, pin):
+    def on_login(self, pin, username):
         """Override to handle the user logging in. Called after a successful login"""
         pass
 
@@ -225,6 +225,7 @@ class ConsoleInterface(CommandNode):
         self.request_file_path = None
         self.history = collections.deque(maxlen=100)
         self.history_index = 0
+        self.current_user = None
 
         self.on_reset()
 
@@ -408,14 +409,14 @@ class ConsoleInterface(CommandNode):
         pin = data.rstrip('\r\n')
 
         if (len(pin) > 0):
-            result = self.on_login_pin_entered(pin)
+            result = self.on_login_pin_entered(pin, self.current_user)
 
             if(result == False):
                 self.cty_direct_call("\r\nIncorrect password. Please try again\r\n\r\nPassword: ")
             else:
                 self.hide_input = False
                 self.console_state.value = ConsoleState.LoggedIn
-                self.on_login(pin)
+                self.on_login(pin, self.current_user)
 
     def process_user_input(self, data):
         if(self.console_state.value == ConsoleState.LoggedOut):
