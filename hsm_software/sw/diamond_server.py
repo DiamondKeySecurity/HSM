@@ -424,7 +424,6 @@ def main():
                 led_container.led_error_login_partialfailure()
             else:
                 led_container.led_ready()
-                
 
         wait_iterator = tornado.gen.WaitIterator(*futures)
         while not wait_iterator.done():
