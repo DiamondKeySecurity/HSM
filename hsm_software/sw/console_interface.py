@@ -268,12 +268,13 @@ class ConsoleInterface(CommandNode):
     def flush(self):
         self.readCTYUserData('\r')
 
-    def allow_user_input(self, msg):
+    def allow_user_input(self, msg, flush = True):
         if(msg is not None):
             self.cty_direct_call(msg)
 
         self.ignore_user_input = False
-        self.flush()
+        if (flush):
+            self.flush()
 
     def set_ignore_user(self, msg):
         if(msg is not None):
@@ -472,6 +473,8 @@ class ConsoleInterface(CommandNode):
                     if (self.console_state.value == ConsoleState.LoggedIn or
                         self.console_state.value == ConsoleState.Setup):
                         self.cty_direct_call(self.prompt)
+                    else:
+                        self.flush()
 
             elif(len(input) > 0):
                 if (self.console_state.value == ConsoleState.UsernameRequested):
@@ -491,9 +494,9 @@ class ConsoleInterface(CommandNode):
             else:
                 self.cty_direct_call(self.prompt)
 
-    def logout(self, message = None, clear_user = False):
+    def logout(self, message = None, clear_user = False, flush = True):
         self.console_state.value = ConsoleState.LoggedOut
-        self.allow_user_input(message)
+        self.allow_user_input(message, flush)
 
         if (clear_user):
             self.current_user = None

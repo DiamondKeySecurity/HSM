@@ -21,7 +21,7 @@ import threading
 
 from enum import Enum
 
-HSM_SOFTWARE_VERSION = '19.05.22.p1'
+HSM_SOFTWARE_VERSION = '19.06.28.p1'
 
 # this is the version of the firmware that's built into the current release
 BUILTIN_FIRMWARE_VERSION = '2019-03-11v1'
@@ -58,6 +58,8 @@ class HSMSettings(str, Enum):
     DATA_FIREWALL_SETTINGS   = 'DATA_FIREWALL_SETTINGS'
     MGMT_FIREWALL_SETTINGS   = 'MGMT_FIREWALL_SETTINGS'
     WEB_FIREWALL_SETTINGS    = 'WEB_FIREWALL_SETTINGS'
+
+    HSM_AUTHORIZATION_SETUP  = 'HSM_AUTHORIZATION_SETUP'
 
 # Changes to hardware settings to apply after a firmware update
 HARDWARE_MAPPING = {
@@ -115,6 +117,11 @@ class Settings(object):
         if(safe_shutdown is not None):
             safe_shutdown.addOnShutdown(self.save_settings)
             safe_shutdown.addOnRestartOnly(self.on_restart)
+
+    def clear_settings(self):
+        self.dictionary = { }
+
+        self.save_settings()
 
     def get_setting(self, name):
         try:

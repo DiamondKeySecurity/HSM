@@ -135,9 +135,10 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
 
         self.tamper_event_detected.value = False
 
-        self.console_state.value = console_interface.ConsoleState.Setup
-
-        self.script_module = HSMSetupScriptModule(self)
+        authorization_set = self.settings.get_setting(HSMSettings.HSM_AUTHORIZATION_SETUP)
+        if (authorization_set is None or authorization_set is False):
+            self.console_state.value = console_interface.ConsoleState.Setup
+            self.script_module = HSMSetupScriptModule(self)
 
     def is_login_available(self):
         """Override and return true if there is a mechanism
@@ -150,6 +151,8 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
                 "Only 'shutdown' is available.")
 
     def get_login_prompt(self):
+        self.script_module =  None
+
         """Override to provide the prompt for logging in"""
         initial_login_msg = ("Before using the HSM, you will need to perform"
                              " a basic setup.\r\n"

@@ -51,7 +51,7 @@ def dks_do_restore(console_object, pin, username):
         console_object.cty_direct_call('keystore cleared.')
 
         # restore settings
-        console_object.settings.add_default_settings()
+        console_object.settings.clear_settings()
 
         console_object.cty_direct_call('Restore complete')
 

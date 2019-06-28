@@ -116,7 +116,10 @@ class ScriptModule(object):
             self.sub_module = self.sub_module.accept_validated_response(validated_response)
 
             # always return self if there's a submodule
-            return self        
+            if(self.sub_module is not None):
+                return self
+            if(self.is_done()):
+                return None
 
         # get the node we're working on
         node = self.node_list[self.current]

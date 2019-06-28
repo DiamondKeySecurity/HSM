@@ -32,6 +32,8 @@ class PasswordScriptModule(ScriptModule):
             node_list.append(script_node('continue',
                                          "Would you like to set the '%s' PIN? (y/n) "%DKS_HALUser.to_name(user),
                                          ValueType.YesNo, callback=self.continuePromptCallback))
+        else:
+            self.set_hide_input(True)
 
         node_list.append(script_node('password',
                                      "Enter the new '%s' PIN: "%DKS_HALUser.to_name(user),
@@ -64,10 +66,11 @@ class PasswordScriptModule(ScriptModule):
 
             self.cty_connection.setPassword(DKS_HALUser.to_name(self.user), password)
 
-        self.set_hide_input(False)
+            self.set_hide_input(False)
 
         if (accepted == False):
             # go back to the first node
+            self.set_hide_input(True)
             self.current = 0
             return self
         else:

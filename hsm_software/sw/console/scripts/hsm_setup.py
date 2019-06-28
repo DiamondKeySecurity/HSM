@@ -20,6 +20,7 @@ from script import ScriptModule, script_node, ValueType
 
 from password import PasswordScriptModule
 
+from settings import HSMSettings
 from hsm_tools.cryptech_port import DKS_HALUser
 from hsm_tools.cty_connection import CTYError
 
@@ -57,14 +58,26 @@ class HSMSetupScriptModule(ScriptModule):
                                                self.console_object.set_hide_input,
                                                self.console_object.cty_conn,
                                                DKS_HALUser.HAL_USER_WHEEL,
-                                               must_set=True)
+                                               must_set=True,
+                                               finished_callback=self.set_so_pw)
 
-    def set_so_pw(self):
+    def set_so_pw(self, _):
         self.sub_module = PasswordScriptModule(self.console_object.cty_direct_call,
                                                self.console_object.set_hide_input,
                                                self.console_object.cty_conn,
                                                DKS_HALUser.HAL_USER_SO,
-                                               must_set=True)
+                                               must_set=True,
+                                               finished_callback=self.finished)
+        return self.sub_module
+
+    def finished(self, _):
+        self.console_object.settings.set_setting(HSMSettings.HSM_AUTHORIZATION_SETUP, True)
+
+        self.console_object.script_module = None
+
+        self.console_object.logout(message="\r\n'wheel' and 'so' have been set. Please log in again.\r\n",
+                                   clear_user=True, flush=False)
+        return None
 
     def wheel_pw_entered(self, response):
         self.console_object.set_hide_input(False)
@@ -79,7 +92,9 @@ class HSMSetupScriptModule(ScriptModule):
 
             self.console_object.set_hide_input(True)
 
-        return self
+            return self
+        else:
+            return self.handle_post_login()
 
     def continuePromptCallback(self, response):
         if(response == True):
@@ -99,9 +114,16 @@ class HSMSetupScriptModule(ScriptModule):
                                                 "Enter the 'wheel' password: ",
                                                 ValueType.AnyString, callback=self.wheel_pw_entered))
 
-            return self
+                return self
+            else:
+                return self.handle_post_login()
         else:
             self.console_object.cty_direct_call("The HSM will shutdown in 5 seconds....")
             time.sleep(5)
 
             self.console_object.safe_shutdown.shutdown()
+
+    def handle_post_login(self):
+        self.set_wheel_pw()
+
+        return self
