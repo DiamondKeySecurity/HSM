@@ -31,6 +31,7 @@ from sync import SyncCommandEnum, SyncCommand
 
 from console.scripts.masterkey_reset import MasterKeyResetScriptModule
 from console.scripts.firmware_update import FirmwareUpdateScript
+from console.scripts.hsm_setup import HSMSetupScriptModule
 
 from console.console_debug import add_debug_commands
 from console.console_keystore import add_keystore_commands
@@ -133,6 +134,10 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
             self.file_transfer = None
 
         self.tamper_event_detected.value = False
+
+        self.console_state.value = console_interface.ConsoleState.Setup
+
+        self.script_module = HSMSetupScriptModule(self)
 
     def is_login_available(self):
         """Override and return true if there is a mechanism

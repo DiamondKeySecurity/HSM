@@ -130,13 +130,16 @@ class ScriptModule(object):
         # move to the next node
         self.current += 1
 
+        rval = self
+
         # do the callback
         if(callback is not None):
-            return callback(validated_response)
+            rval = callback(validated_response)
 
-        if (self.is_done()):
+        if (rval is None or self.is_done()):
             if(self.finished_callback is not None):
-                self.finished_callback(self.results)
-            return None
-        else:
-            return self
+                rval = self.finished_callback(self.results)
+            else:
+                rval = None
+
+        return rval

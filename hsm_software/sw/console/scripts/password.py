@@ -20,7 +20,7 @@ from script import ScriptModule, script_node, ValueType
 from hsm_tools.cryptech_port import DKS_HALUser
 
 class PasswordScriptModule(ScriptModule):
-    def __init__(self, cty_direct_call, set_hide_input, cty_connection, user, must_set = False):
+    def __init__(self, cty_direct_call, set_hide_input, cty_connection, user, must_set = False, finished_callback = None):
         self.cty_direct_call = cty_direct_call
         self.set_hide_input = set_hide_input
         self.cty_connection = cty_connection
@@ -41,7 +41,7 @@ class PasswordScriptModule(ScriptModule):
                                      ValueType.AnyString, callback=self.confirmPassword))
 
 
-        super(PasswordScriptModule, self).__init__(node_list = node_list)
+        super(PasswordScriptModule, self).__init__(node_list = node_list, finished_callback = finished_callback)
 
     def continuePromptCallback(self, response):
         if(response == True):

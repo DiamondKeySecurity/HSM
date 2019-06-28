@@ -158,6 +158,8 @@ class ConsoleState(IntEnum):
     PasswordRequested = 1
     LoggedIn = 2
     UsernameRequested = 3
+    # when in setup mode, all commands are disabled
+    Setup = 4
 
 class ConsoleInterface(CommandNode):
     __metaclass__ = ABCMeta
@@ -452,7 +454,8 @@ class ConsoleInterface(CommandNode):
             self.handle_login()
         else:
             input = data.strip('\r\n')
-            if ((self.console_state.value == ConsoleState.LoggedIn) and
+            if ((self.console_state.value == ConsoleState.LoggedIn or
+                 self.console_state.value == ConsoleState.Setup) and
                 (self.script_module is not None) and
                 (not self.script_module.is_done())):
                 validated_response = self.script_module.validate_response(input)
@@ -466,7 +469,8 @@ class ConsoleInterface(CommandNode):
                     self.script_module = self.script_module.accept_validated_response(validated_response)
 
                     # show the next prompt
-                    if (self.console_state.value == ConsoleState.LoggedIn):
+                    if (self.console_state.value == ConsoleState.LoggedIn or
+                        self.console_state.value == ConsoleState.Setup):
                         self.cty_direct_call(self.prompt)
 
             elif(len(input) > 0):
