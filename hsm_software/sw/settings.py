@@ -21,7 +21,7 @@ import threading
 
 from enum import Enum
 
-HSM_SOFTWARE_VERSION = '19.07.01.surfnet6'
+HSM_SOFTWARE_VERSION = '19.07.01.surfnet7'
 
 # this is the version of the firmware that's built into the current release
 BUILTIN_FIRMWARE_VERSION = '2019-03-11v1'
@@ -251,6 +251,8 @@ class Settings(object):
             import RPi.GPIO as GPIO
 
             GPIO.setmode(GPIO.BCM)
+
+            self.set_setting(HSMSettings.GPIO_LEDS, True)
         except:
             self.set_setting(HSMSettings.GPIO_LEDS, False)
             self.set_setting(HSMSettings.GPIO_TAMPER, False)

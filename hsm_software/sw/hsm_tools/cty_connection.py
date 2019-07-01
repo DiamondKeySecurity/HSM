@@ -301,19 +301,24 @@ class CTYConnection(object):
         while (attempt < 4 and (status == False)):
             if (attempt < 2 or attempt == 3):
                 # update FGPA
-                self.feedback("Attempt %i: Attempting to update FPGA cores in flash.\r\n"%attempt)
+                self.feedback("\r\nAttempt %i: Attempting to update FPGA cores in flash.\r\n"%attempt)
                 self.uploadFPGABitStream(username, pin, cty_index)
             else:
                 # update firmware
-                self.feedback("Attempt %i: Attempting to update firmware.\r\n"%attempt)
+                self.feedback("\r\nAttempt %i: Attempting to update firmware.\r\n"%attempt)
                 self.uploadFirmware(username, pin, cty_index)
 
-            self.feedback("Waiting for CrypTech devices to start.  ")
+            self.feedback("\r\nWaiting for CrypTech devices to start.  ")
             with WaitFeedback.Start(self.feedback):
                 time.sleep(45)
 
             attempt += 1
             status = self.check_fpga(cty_index)
+
+        if (status == True):
+            self.feedback("\r\nOK")
+        else:
+            self.feedback("\r\nFAILED")
 
         return status
 

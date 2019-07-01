@@ -54,6 +54,7 @@ class HSMSetupScriptModule(ScriptModule):
         return self.console_object.cty_conn.login(username, password) == CTYError.CTY_OK
 
     def set_wheel_pw(self):
+        self.console_object.cty_direct_call("\r\nYou will need to set the 'wheel' (HSM Maintainer) password to continue.\r\n")
         self.sub_module = PasswordScriptModule(self.console_object.cty_direct_call,
                                                self.console_object.set_hide_input,
                                                self.console_object.cty_conn,
@@ -62,6 +63,7 @@ class HSMSetupScriptModule(ScriptModule):
                                                finished_callback=self.set_so_pw)
 
     def set_so_pw(self, _):
+        self.console_object.cty_direct_call("\r\nYou will need to set the 'so' (Security Officer) password to continue.\r\n")
         self.sub_module = PasswordScriptModule(self.console_object.cty_direct_call,
                                                self.console_object.set_hide_input,
                                                self.console_object.cty_conn,
@@ -71,6 +73,7 @@ class HSMSetupScriptModule(ScriptModule):
         return self.sub_module
 
     def set_user_pw(self, _):
+        self.console_object.cty_direct_call("\r\nYou will need to set the 'user' (PKCS #11 Applications) password to continue.\r\n")
         self.sub_module = PasswordScriptModule(self.console_object.cty_direct_call,
                                                self.console_object.set_hide_input,
                                                self.console_object.cty_conn,
