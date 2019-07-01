@@ -113,6 +113,9 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
     def on_reset(self):
         """Override to add commands that must be executed to reset the system
          after a new user logs in"""
+        self.firmware_checked = False
+        self.cache_checked = False
+
         self.welcome_shown = False
         self.after_login_callback = []
 
@@ -179,8 +182,9 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
                      "\r\n\r\n%s: ")%(username_msg, prompt)
 
         # make sure the firmware and tamper are up-to-date
-        if(not self.settings.hardware_firmware_match() or
-           not self.settings.hardware_tamper_match()):
+        if(not self.firmware_checked and (not self.settings.hardware_firmware_match() or
+                                          not self.settings.hardware_tamper_match())):
+            self.firmware_checked = True
 
             self.cty_direct_call(initial_login_msg)
 
@@ -196,7 +200,9 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
                 self.cty_direct_call(initial_login_msg)
 
                 # start up normally
-                self.after_login_callback.append(self.initialize_cache)
+                if (not self.cache_checked):
+                    self.after_login_callback.append(self.initialize_cache)
+                    self.cache_checked = True
 
         # if the masterkey has not been set, prompt
         if((self.script_module is None) and
