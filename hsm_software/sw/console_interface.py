@@ -265,6 +265,9 @@ class ConsoleInterface(CommandNode):
     def set_hide_input(self, toggle):
         self.hide_input = toggle
 
+    def show_prompt(self):
+        self.cty_direct_call(self.prompt)
+
     def flush(self):
         self.readCTYUserData('\r')
 
@@ -473,8 +476,6 @@ class ConsoleInterface(CommandNode):
                     if (self.console_state.value == ConsoleState.LoggedIn or
                         self.console_state.value == ConsoleState.Setup):
                         self.cty_direct_call(self.prompt)
-                    else:
-                        self.flush()
 
             elif(len(input) > 0):
                 if (self.console_state.value == ConsoleState.UsernameRequested):

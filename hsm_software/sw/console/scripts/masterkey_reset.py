@@ -15,6 +15,7 @@
 # along with this program; if not, If not, see <https://www.gnu.org/licenses/>.
 
 from console.console_keystore import dks_masterkey_set
+from settings import HSMSettings
 
 from script import ScriptModule, script_node, ValueType
 
@@ -31,5 +32,7 @@ class MasterKeyResetScriptModule(ScriptModule):
         """Process user response about whether they want to set the master key"""
         if(response == True):
             dks_masterkey_set(self.console_object, None)
+        else:
+            self.console_object.settings.set_setting(HSMSettings.MASTERKEY_SET, True)
 
         return None

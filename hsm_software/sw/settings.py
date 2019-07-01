@@ -21,7 +21,7 @@ import threading
 
 from enum import Enum
 
-HSM_SOFTWARE_VERSION = '19.07.01.p1'
+HSM_SOFTWARE_VERSION = '19.07.01.surfnet4'
 
 # this is the version of the firmware that's built into the current release
 BUILTIN_FIRMWARE_VERSION = '2019-03-11v1'
@@ -119,7 +119,18 @@ class Settings(object):
             safe_shutdown.addOnRestartOnly(self.on_restart)
 
     def clear_settings(self):
+        firmware_version = self.get_setting(HSMSettings.BUILTIN_FIRMWARE_VERSION)
+        tamper_version = self.get_setting(HSMSettings.BUILTIN_TAMPER_VERSION)
+
         self.dictionary = { }
+
+        if (firmware_version is not None):
+            self.set_setting(HSMSettings.BUILTIN_FIRMWARE_VERSION, firmware_version)
+
+        if (tamper_version is not None):
+            self.set_setting(HSMSettings.BUILTIN_TAMPER_VERSION, tamper_version)
+
+        self.__check_security_settings()
 
         self.save_settings()
 

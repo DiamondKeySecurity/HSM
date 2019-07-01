@@ -189,6 +189,8 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
             self.script_module = FirmwareUpdateScript(self,
                                                       self.cty_direct_call,
                                                       self.settings)
+
+
         elif ((self.synchronizer is not None) and (self.cache is not None)):
             if(not self.synchronizer.cache_initialized()):
                 self.cty_direct_call(initial_login_msg)
@@ -233,7 +235,7 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
                 for callback in callbacks:
                     callback(self, pin, username)
         else:
-            self.cty_direct_call(self.prompt)
+            self.show_prompt()
 
     def redo_login(self, after_login_callback, create_redo_list = True):
         if (create_redo_list):
@@ -255,7 +257,7 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
                               "-----------------------------!\r\n")%self.current_user)
 
         if (after_login_callback is not None):
-            self.after_login_callback.append()
+            self.after_login_callback.append(after_login_callback)
 
         self.logout()
 

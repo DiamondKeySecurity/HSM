@@ -298,8 +298,8 @@ class CTYConnection(object):
         attempt = 0
         status = False
 
-        while (attempt < 3 and (status == False)):
-            if (attempt < 2):
+        while (attempt < 4 and (status == False)):
+            if (attempt < 2 or attempt == 3):
                 # update FGPA
                 self.feedback("Attempt %i: Attempting to update FPGA cores in flash.\r\n"%attempt)
                 self.uploadFPGABitStream(username, pin, cty_index)
