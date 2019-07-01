@@ -67,6 +67,15 @@ class HSMSetupScriptModule(ScriptModule):
                                                self.console_object.cty_conn,
                                                DKS_HALUser.HAL_USER_SO,
                                                must_set=True,
+                                               finished_callback=self.set_user_pw)
+        return self.sub_module
+
+    def set_user_pw(self, _):
+        self.sub_module = PasswordScriptModule(self.console_object.cty_direct_call,
+                                               self.console_object.set_hide_input,
+                                               self.console_object.cty_conn,
+                                               DKS_HALUser.HAL_USER_NORMAL,
+                                               must_set=True,
                                                finished_callback=self.finished)
         return self.sub_module
 
