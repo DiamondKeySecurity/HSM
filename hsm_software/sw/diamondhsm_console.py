@@ -114,7 +114,7 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
         """Override to add commands that must be executed to reset the system
          after a new user logs in"""
         self.welcome_shown = False
-        self.after_login_callback = None
+        self.after_login_callback = []
 
         self.temp_object = None
 
@@ -194,7 +194,7 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
                 self.cty_direct_call(initial_login_msg)
 
                 # start up normally
-                self.after_login_callback = self.initialize_cache
+                self.after_login_callback.append(self.initialize_cache)
 
         # if the masterkey has not been set, prompt
         if((self.script_module is None) and
@@ -220,14 +220,18 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
         Called after a successful login"""
         self.rpc_preprocessor.unlock_hsm()
 
-        if(self.after_login_callback is not None):
+        if (len(self.after_login_callback) > 0):
 
             if(len(self.redo_user_order) > 0):
-                self.redo_login(self.after_login_callback, False)
+                self.redo_login(None, False)
             else:
-                callback = self.after_login_callback
-                self.after_login_callback = None
-                callback(self, pin, username)
+                # do any callbacks
+                callbacks = self.after_login_callback
+
+                self.after_login_callback = []
+
+                for callback in callbacks:
+                    callback(self, pin, username)
         else:
             self.cty_direct_call(self.prompt)
 
@@ -250,7 +254,8 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
                               "\r\n!-----------------------------------------"
                               "-----------------------------!\r\n")%self.current_user)
 
-        self.after_login_callback = after_login_callback
+        if (after_login_callback is not None):
+            self.after_login_callback.append()
 
         self.logout()
 

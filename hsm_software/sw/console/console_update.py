@@ -30,7 +30,7 @@ def dks_do_update(console_object, command, pin, username, on_update_finished = N
         console_object.cty_direct_call("Insufficient privileges to carry out this operation.\r\nMust be 'wheel' or 'so'.")
         return True
 
-    result = command(pin)
+    result = command(username, pin)
     console_object.cty_direct_call(console_object.cty_conn.get_error_msg(result))
 
     if (result == CTYError.CTY_OK):

@@ -70,13 +70,17 @@ class HSMSetupScriptModule(ScriptModule):
                                                finished_callback=self.finished)
         return self.sub_module
 
-    def finished(self, _):
+    def check_passwords(self, console_object, pin, username):
+        # start the synchronizer
         self.console_object.settings.set_setting(HSMSettings.HSM_AUTHORIZATION_SETUP, True)
 
+    def finished(self, _):
         self.console_object.script_module = None
 
-        self.console_object.logout(message="\r\n'wheel' and 'so' have been set. Please log in again.\r\n",
-                                   clear_user=True, flush=False)
+        self.console_object.cty_direct_call("\r\n'wheel' and 'so' have been set. Please log in again to confirm.\r\n")
+
+        self.console_object.redo_login(self.check_passwords)
+
         return None
 
     def wheel_pw_entered(self, response):
@@ -94,7 +98,7 @@ class HSMSetupScriptModule(ScriptModule):
 
             return self
         else:
-            return self.handle_post_login()
+            return self.handle_post_login(response)
 
     def continuePromptCallback(self, response):
         if(response == True):
@@ -116,14 +120,39 @@ class HSMSetupScriptModule(ScriptModule):
 
                 return self
             else:
-                return self.handle_post_login()
+                return self.handle_post_login(default_wheel_pin)
         else:
             self.console_object.cty_direct_call("The HSM will shutdown in 5 seconds....")
             time.sleep(5)
 
             self.console_object.safe_shutdown.shutdown()
 
-    def handle_post_login(self):
+    def handle_post_login(self, password):
+        self.console_object.cty_direct_call("Verifying CrypTech Device FPGA bitstream.")
+        for cty_index in xrange(self.console_object.cty_conn.cty_count):
+            self.console_object.cty_direct_call("Device %i:"%cty_index)
+            if (self.console_object.cty_conn.check_fpga(cty_index) is False):
+                self.console_object.cty_direct_call("Alpha cores not detected")
+                status = self.console_object.cty_conn.check_fix_fpga(cty_index, "wheel", password)
+                if (status == False):
+                    self.on_error("Unable to load CrypTech device FPGA cores.")
+            else:
+                self.console_object.cty_direct_call("OK")
+
+        self.console_object.cty_conn.show_fpga_cores()
+
+        # log back in
+        if (self.log_into_devices("wheel", password) is False):
+            self.on_error("There was an error resetting the CrypTech device")
+
         self.set_wheel_pw()
 
         return self
+
+    def on_error(self, message):
+        self.console_object.cty_direct_call("Setup Error: %s"%message)
+        self.console_object.cty_direct_call("Please cycle power on the HSM after it shuts down.")
+        self.console_object.cty_direct_call("The HSM will shutdown in 5 seconds....")
+        time.sleep(5)
+
+        self.console_object.safe_shutdown.shutdown()
