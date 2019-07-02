@@ -33,11 +33,12 @@ import cryptech.muxd
 
 class UploadArgs(object):
     """Used to match interface in CrypTech code"""
-    def __init__(self, fpga = False, firmware = False, bootloader = False, tamper = False, pin = None):
+    def __init__(self, fpga = False, firmware = False, bootloader = False, tamper = False, pin = None, username='wheel'):
         self.fpga = fpga
         self.firmware = firmware
         self.bootloader = bootloader
         self.tamper = tamper
+        self.username = username
 
         # this will be changed by the user
         self.pin = pin
@@ -48,9 +49,6 @@ class CtyArg(UploadArgs):
         super(CtyArg, self).__init__()
         self.device = device
         self.debug = debug
-
-        # always use 'wheel'
-        self.username = 'wheel'
 
         self.quiet = True
         self.separate_pins = False

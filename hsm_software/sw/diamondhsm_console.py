@@ -31,15 +31,14 @@ from hsm_tools.cty_connection import CTYConnection, CTYError
 
 from sync import SyncCommandEnum, SyncCommand
 
-from console.scripts.masterkey import MasterKeySetScriptModule
+from console.scripts.masterkey_reset import MasterKeyResetScriptModule
 from console.scripts.firmware_update import FirmwareUpdateScript
 from console.scripts.tamper_settings import TamperSettingsScriptModule
+from console.scripts.hsm_setup import HSMSetupScriptModule
 
 from console.console_debug import add_debug_commands
 from console.console_keystore import add_keystore_commands
 from console.console_list import add_list_commands
-from console.console_masterkey import add_masterkey_commands
-from console.console_restore import add_restore_commands
 from console.console_set import add_set_commands
 from console.console_show import add_show_commands
 from console.console_shutdown import add_shutdown_commands
@@ -99,8 +98,6 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
                 if (args.debug): add_debug_commands(self)
                 add_keystore_commands(self)
                 add_list_commands(self)
-                add_masterkey_commands(self)
-                add_restore_commands(self)
                 add_set_commands(self)
                 add_sync_commands(self)
                 add_tamper_commands(self)
@@ -125,12 +122,21 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
     def on_reset(self):
         """Override to add commands that must be executed to reset the system
          after a new user logs in"""
+        self.firmware_checked = False
+        self.cache_checked = False
+
         self.welcome_shown = False
-        self.after_login_callback = None
+        self.after_login_callback = []
 
         self.temp_object = None
 
         self.on_cryptech_update_finished = None
+
+        # when current user is none, the username will be requested at login
+        self.current_user = None
+
+        # list of user's that must log in to complete an operation
+        self.redo_user_order = []
 
         # when the console has been locked, no commands will be accepted
         self.console_locked = False
@@ -143,6 +149,11 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
 
         self.tamper_event_detected.value = False
 
+        authorization_set = self.settings.get_setting(HSMSettings.HSM_AUTHORIZATION_SETUP)
+        if (authorization_set is None or authorization_set is False):
+            self.console_state.value = console_interface.ConsoleState.Setup
+            self.script_module = HSMSetupScriptModule(self)
+
     def is_login_available(self):
         """Override and return true if there is a mechanism
         to login to the system"""
@@ -153,7 +164,9 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
         return ("\r\n\r\nWarning: No CrypTech devices have been detected. "
                 "Only 'shutdown' is available.")
 
-    def get_login_prompt(self, banner_only = False):
+    def get_login_prompt(self):
+        self.script_module =  None
+
         """Override to provide the prompt for logging in"""
         initial_login_msg = ("Before using the HSM, you will need to perform"
                              " a basic setup.\r\n"
@@ -161,19 +174,28 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
                              " time the HSM powers up\r\n"
                              "to ensure that is is running properly.\r\n\r\n"
                              "The HSM will not be operational until this"
-                             " setup has completed.")
+                             " setup has completed.\r\n")
 
-        login_msg = "Please login using the 'wheel' user account password"
+        if (self.current_user == 'so'):
+            username_msg = "'so'(security officer)"
+        elif (self.current_user == 'wheel'):
+            username_msg = "'wheel'"
+        else:
+            self.current_user = None
+            username_msg = "'so'(security officer) or\r\n'wheel'"
 
-        if (banner_only is False):
-            login_msg = login_msg + "\r\n\r\nPassword: "
+        if (self.current_user is None):
+            prompt = "Username"
+        else:
+            prompt = "Password"
 
-        # don't show the password
-        self.hide_input = True
+        login_msg = ("Please login using the %s user account password"
+                     "\r\n\r\n%s: ")%(username_msg, prompt)
 
         # make sure the firmware and tamper are up-to-date
-        if(not self.settings.hardware_firmware_match() or
-           not self.settings.hardware_tamper_match()):
+        if(not self.firmware_checked and (not self.settings.hardware_firmware_match() or
+                                          not self.settings.hardware_tamper_match())):
+            self.firmware_checked = True
 
             self.cty_direct_call(initial_login_msg)
 
@@ -182,12 +204,16 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
             self.script_module = FirmwareUpdateScript(self,
                                                       self.cty_direct_call,
                                                       self.settings)
+
+
         elif ((self.synchronizer is not None) and (self.cache is not None)):
             if(not self.synchronizer.cache_initialized()):
                 self.cty_direct_call(initial_login_msg)
 
                 # start up normally
-                self.after_login_callback = self.initialize_cache
+                if (not self.cache_checked):
+                    self.after_login_callback.append(self.initialize_cache)
+                    self.cache_checked = True
 
         # if the masterkey has not been set, prompt
         if(self.script_module is None):
@@ -195,53 +221,70 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
                 self.script_module = TamperSettingsScriptModule(self.cty_conn,
                                                                 self.cty_direct_call,
                                                                 self.tamper_config,
-                                                                finished_callback = self.on_tamper_settings_set)
-            elif (not self.settings.get_setting(HSMSettings.MASTERKEY_SET)):
-                self.script_module = MasterKeySetScriptModule(self.cty_conn,
-                                                            self.cty_direct_call,
-                                                            self.settings)
+                                                                finished_callback = self.check_master_key_set)
+            else:
+                # willl check mas
+                self.check_master_key_set(None)
 
         # show login msg
         return login_msg
 
-    def on_tamper_settings_set(self, results):
-        print 'sdfa'
+    def check_master_key_set(self, _):
         # if the masterkey has not been set, prompt
         if(not self.settings.get_setting(HSMSettings.MASTERKEY_SET)):
-            self.script_module = MasterKeySetScriptModule(self.cty_conn,
-                                                          self.cty_direct_call,
-                                                          self.settings)
+            self.script_module = MasterKeyResetScriptModule(self)
 
+    def on_login_username_entered(self, username):
+        """Override to handle the user logging in.
+        Returns true if the username is valid"""
+        return (username == 'so' or username =='wheel')
 
-    def on_login_pin_entered(self, pin, user):
+    def on_login_pin_entered(self, pin, username):
         """Override to handle the user logging in.
         Returns true if the login was successful"""
-        return (self.cty_conn.login(pin) == CTYError.CTY_OK)
+        return (self.cty_conn.login(username, pin) == CTYError.CTY_OK)
 
-    def on_login(self, pin):
+    def on_login(self, pin, username):
         """Override to handle the user logging in.
         Called after a successful login"""
         self.rpc_preprocessor.unlock_hsm()
 
-        if(self.after_login_callback is not None):
-            callback = self.after_login_callback
-            self.after_login_callback = None
-            callback(self, pin)
+        if (len(self.after_login_callback) > 0):
+
+            if(len(self.redo_user_order) > 0):
+                self.redo_login(None, False)
+            else:
+                # do any callbacks
+                callbacks = self.after_login_callback
+
+                self.after_login_callback = []
+
+                for callback in callbacks:
+                    callback(self, pin, username)
         else:
-            self.cty_direct_call(self.prompt)
+            self.show_prompt()
 
-    def redo_login(self, after_login_callback):
-        self.cty_direct_call(('\r\n!-----------------------------------------'
-                              '-----------------------------!'
-                              '\r\n!WARNING!'
-                              '\r\nYou will need to re-enter the wheel'
-                              ' password to complete this operation.'
-                              '\r\nIf this was a mistake, please restart the'
-                              ' console.'
-                              '\r\n!-----------------------------------------'
-                              '-----------------------------!\r\n'))
+    def redo_login(self, after_login_callback, create_redo_list = True):
+        if (create_redo_list):
+            if(self.current_user =='wheel'):
+                self.redo_user_order = ['so', 'wheel']
+            else:
+                self.redo_user_order = ['wheel', 'so']
 
-        self.after_login_callback = after_login_callback
+        self.current_user = self.redo_user_order.pop(0)
+
+        self.cty_direct_call(("\r\n!-----------------------------------------"
+                              "-----------------------------!"
+                              "\r\n!WARNING!"
+                              "\r\nYou will need to re-enter the '%s'"
+                              " password to complete this operation."
+                              "\r\nIf this was a mistake, please restart the"
+                              " console."
+                              "\r\n!-----------------------------------------"
+                              "-----------------------------!\r\n")%self.current_user)
+
+        if (after_login_callback is not None):
+            self.after_login_callback.append(after_login_callback)
 
         self.logout()
 
@@ -268,9 +311,9 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
         # update the firewall rules
         Firewall.generate_firewall_rules(self.settings, '/var/tmp')
 
-    def initialize_cache(self, console_object, pin):
+    def initialize_cache(self, console_object, pin, username):
         # start the synchronizer
-        self.synchronizer.initialize(self.rpc_preprocessor.device_count(), pin,
+        self.synchronizer.initialize(self.rpc_preprocessor.device_count(), username, pin,
                                      self.synchronizer_init_callback)
 
     def synchronizer_init_callback(self, cmd, result):
