@@ -89,7 +89,6 @@ class HSMHardwareSetupScriptModule(ScriptModule):
         self.console_object.cty_conn.show_fpga_cores()
 
     def check_masterkey(self):
-        print "master key"
         if(not self.settings.get_setting(HSMSettings.MASTERKEY_SET)):
             self.sub_module = MasterKeySetScriptModule(self.console_object.cty_conn,
                                                 self.console_object.cty_direct_call,
@@ -102,9 +101,6 @@ class HSMHardwareSetupScriptModule(ScriptModule):
             self.init_cache(None)
 
     def init_cache(self, _):
-        print "setup init cache"
-        print 'username: %s'%self.username
-        print 'pin: %s'%self.pin
         self.console_object.initialize_cache(self.console_object, self.pin, self.username)
 
 
