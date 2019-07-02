@@ -180,7 +180,7 @@ class ConsoleInterface(CommandNode):
         pass
 
     @abstractmethod
-    def get_login_prompt(self, banner_only = False):
+    def get_login_prompt(self):
         """Override to provide the prompt for logging in"""
         pass
 
@@ -404,7 +404,7 @@ class ConsoleInterface(CommandNode):
                 except:
                     pass
 
-    def handle_login(self, return_banner_only = False):
+    def handle_login(self):
         """Shows the login banner and readies the console to receive it"""
         banner = ''
         if(not self.banner_shown):
@@ -412,18 +412,17 @@ class ConsoleInterface(CommandNode):
             self.banner_shown = True
 
         if (self.is_login_available()):
-            banner = "%s\r\n%s"%(banner, self.get_login_prompt(return_banner_only))
+            banner = "%s\r\n%s"%(banner, self.get_login_prompt())
 
-            if (return_banner_only is False):
-                self.cty_direct_call(banner)
-                if (self.current_user is not None):
+            self.cty_direct_call(banner)
+            if (self.current_user is not None):
 
-                    # don't show the password
-                    self.hide_input = True
+                # don't show the password
+                self.hide_input = True
 
-                    self.console_state.value = ConsoleState.PasswordRequested
-                else:
-                    self.console_state.value = ConsoleState.UsernameRequested
+                self.console_state.value = ConsoleState.PasswordRequested
+            else:
+                self.console_state.value = ConsoleState.UsernameRequested
         else:
             banner = banner + self.no_login_msg()
 
