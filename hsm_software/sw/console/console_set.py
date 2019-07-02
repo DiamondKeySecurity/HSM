@@ -25,7 +25,6 @@ from scripts.ip_static import StaticIPScriptModule
 from scripts.updateRestart import UpdateRestartScriptModule
 from scripts.password import PasswordScriptModule
 from scripts.set_firewall import FirewallChangeSettingScript
-from scripts.firmware_update import FirmwareUpdateScript
 
 def dks_set_firewall_settings(console_object, args):
     if (args[0].lower() == "mgmt"):
