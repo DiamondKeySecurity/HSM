@@ -29,9 +29,8 @@ from hsm_tools.cty_connection import CTYConnection, CTYError
 
 from sync import SyncCommandEnum, SyncCommand
 
-from console.scripts.masterkey_reset import MasterKeyResetScriptModule
-from console.scripts.firmware_update import FirmwareUpdateScript
-from console.scripts.hsm_setup import HSMSetupScriptModule
+from console.scripts.hsm_hardware_setup import HSMHardwareSetupScriptModule
+from console.scripts.hsm_auth_setup import HSMAuthSetupScriptModule
 
 from console.console_debug import add_debug_commands
 from console.console_keystore import add_keystore_commands
@@ -141,7 +140,7 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
         authorization_set = self.settings.get_setting(HSMSettings.HSM_AUTHORIZATION_SETUP)
         if (authorization_set is None or authorization_set is False):
             self.console_state.value = console_interface.ConsoleState.Setup
-            self.script_module = HSMSetupScriptModule(self)
+            self.script_module = HSMAuthSetupScriptModule(self)
 
     def is_login_available(self):
         """Override and return true if there is a mechanism
@@ -181,34 +180,16 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
         login_msg = ("Please login using the %s user account password"
                      "\r\n\r\n%s: ")%(username_msg, prompt)
 
-        # make sure the firmware and tamper are up-to-date
-        if(not self.firmware_checked and (not self.settings.hardware_firmware_match() or
-                                          not self.settings.hardware_tamper_match())):
-            self.firmware_checked = True
-
-            self.cty_direct_call(initial_login_msg)
-
-            # prompt the user to update the firmware and the tamper
-            # the HSM will remain locked until there's an update
-            self.script_module = FirmwareUpdateScript(self,
-                                                      self.cty_direct_call,
-                                                      self.settings)
-
-
-        elif ((self.synchronizer is not None) and (self.cache is not None)):
+        # make sure the system has been checked.
+        # use cache initialization as the flag
+        if ((self.synchronizer is not None) and (self.cache is not None)):
             if(not self.synchronizer.cache_initialized()):
                 self.cty_direct_call(initial_login_msg)
 
                 # start up normally
                 if (not self.cache_checked):
-                    self.after_login_callback.append(self.initialize_cache)
+                    self.after_login_callback.append(self.initialize_hardware)
                     self.cache_checked = True
-
-        # if the masterkey has not been set, prompt
-        if((self.script_module is None) and
-           (not self.settings.get_setting(HSMSettings.MASTERKEY_SET))):
-
-            self.script_module = MasterKeyResetScriptModule(self)
 
         # show login msg
         return login_msg
@@ -290,8 +271,15 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
         # update the firewall rules
         Firewall.generate_firewall_rules(self.settings, '/var/tmp')
 
+    def initialize_hardware(self, console_object, pin, username):
+        # start the synchronizer
+        self.script_module = HSMHardwareSetupScriptModule(self, username, pin)
+
+        self.show_prompt()
+
     def initialize_cache(self, console_object, pin, username):
         # start the synchronizer
+        print 'init cache %s'%username
         self.synchronizer.initialize(self.rpc_preprocessor.device_count(), username, pin,
                                      self.synchronizer_init_callback)
 
