@@ -101,6 +101,7 @@ class HSMHardwareSetupScriptModule(ScriptModule):
             self.init_cache(None)
 
     def init_cache(self, _):
+        self.console_object.set_ignore_user("Waiting for HSM cache to initialize.")
         self.console_object.initialize_cache(self.console_object, self.pin, self.username)
 
 

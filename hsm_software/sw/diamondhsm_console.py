@@ -291,6 +291,8 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
 
             self.build_cache(cmd.src, cmd.dest)
 
+        self.allow_user_input("Ready----")
+
     def build_cache(self, src, dest):
         self.set_ignore_user("Building HSM Cache\r\n")
         self.synchronizer.queue_command(SyncCommand(SyncCommandEnum.BuildCache,
