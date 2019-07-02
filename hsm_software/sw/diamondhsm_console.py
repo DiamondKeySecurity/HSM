@@ -279,7 +279,6 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
 
     def initialize_cache(self, console_object, pin, username):
         # start the synchronizer
-        print 'init cache %s'%username
         self.synchronizer.initialize(self.rpc_preprocessor.device_count(), username, pin,
                                      self.synchronizer_init_callback)
 
