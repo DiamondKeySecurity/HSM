@@ -183,6 +183,7 @@ class DKS_HALUser(IntEnum):
         elif (name == 'wheel'):
             return cls.HAL_USER_WHEEL
         else:
+            print 'eg is notne'
             return None
 
 class DKS_HALKeyFlag(IntEnum):

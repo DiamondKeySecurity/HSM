@@ -288,6 +288,7 @@ class CTYConnection(object):
         hsm_cty = self.cty_list[cty_index]
 
         cty_output = self.send_command(cmd, hsm_cty.serial)
+        print cty_output
 
         # check for the ALPHA core
         if ('0000: ALPHA' in cty_output):

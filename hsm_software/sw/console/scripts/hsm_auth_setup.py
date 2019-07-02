@@ -24,7 +24,7 @@ from settings import HSMSettings
 from hsm_tools.cryptech_port import DKS_HALUser
 from hsm_tools.cty_connection import CTYError
 
-class HSMSetupScriptModule(ScriptModule):
+class HSMAuthSetupScriptModule(ScriptModule):
     def __init__(self, console_object):
         self.console_object = console_object
 
@@ -46,7 +46,7 @@ class HSMSetupScriptModule(ScriptModule):
                                      first_time_msg,
                                      ValueType.YesNo, callback=self.continuePromptCallback))
 
-        super(HSMSetupScriptModule, self).__init__(node_list = node_list)
+        super(HSMAuthSetupScriptModule, self).__init__(node_list = node_list)
 
     def log_into_devices(self, username, password):
         self.console_object.cty_direct_call("\r\nConnecting to the internal CrypTech devices")
