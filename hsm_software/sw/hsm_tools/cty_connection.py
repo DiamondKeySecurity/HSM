@@ -91,6 +91,41 @@ class CTYConnection(object):
         if (self.feedback_function is not None):
             self.feedback_function(message)
 
+    def send_raw(self, cmd, serial, delay):
+        cryptech_prompt = "\r\ncryptech> "
+        response_from_device = ""
+
+        serial.write(cmd)
+
+        serial.read_timeout = 0.5
+
+        for _ in xrange(0, delay):
+            time.sleep(1)
+            response_from_device = "%s%s"%(response_from_device, serial.read())
+            if(response_from_device.endswith(cryptech_prompt)):
+                response_from_device = response_from_device[:-len(cryptech_prompt)]
+                break
+
+        serial.read_timeout = None
+
+        return response_from_device
+
+    def send_raw_all(self, cmd, delay):
+        response = ''
+
+        print cmd
+
+        for device_index in xrange(0, len(self.cty_list)):
+            response_from_device = ""
+            with WaitFeedback.Start(self.feedback):
+                management_port_serial = self.cty_list[device_index].serial
+
+                response_from_device = self.send_raw(cmd, management_port_serial, delay)
+
+                response = '%s\r\nCTY:%i-%s'%(response, device_index, response_from_device)
+
+        return "--------------%s--------------"%response
+
     def login(self, username, pin):
         # make sure we're actually connected to an alpha
         if(not self.is_cty_connected()): return CTYError.CTY_NOT_CONNECTED
@@ -156,6 +191,7 @@ class CTYConnection(object):
                 management_port_serial = self.cty_list[i].serial
 
                 time.sleep(20)
+
                 management_port_serial.write(cmd)
 
                 response = management_port_serial.read()
@@ -163,25 +199,28 @@ class CTYConnection(object):
                     return response
                 response.strip("\r\n")
 
-                if(i == 0):
-                    # this is the first one
-                    # parse the result to get the master key
-                    split_reponse = response.split()
+                try:
+                    if(i == 0):
+                        # this is the first one
+                        # parse the result to get the master key
+                        split_reponse = response.split()
 
-                    # find the start
-                    start = 1
-                    for token in split_reponse:
-                        if('key:' in token):
-                            break
-                        start += 1
+                        # find the start
+                        start = 1
+                        for token in split_reponse:
+                            if('key:' in token):
+                                break
+                            start += 1
 
-                    # tokens from (start) to (start+7) are the master key
-                    masterkey = ""
-                    for i in xrange(start, start+8):
-                        masterkey += "%s "%split_reponse[i]
+                        # tokens from (start) to (start+7) are the master key
+                        masterkey = ""
+                        for i in xrange(start, start+8):
+                            masterkey += "%s "%split_reponse[i]
 
-                    # send master key to all other alphas
-                    cmd = "masterkey set %s\r"%masterkey
+                        # send master key to all other alphas
+                        cmd = "masterkey set %s\r"%masterkey
+                except Exception as e:
+                    return "Failed parsing output from CTY:%i - %s"%(i, e.message)
 
         # show the result to the user
         return "\r\n\r\nSuccess:%s key:\r\n%s\r\n"%(split_reponse[start-2], masterkey)
@@ -282,11 +321,11 @@ class CTYConnection(object):
             # device not found
             return None
 
-        cmd = "fpga show cores"
+        cmd = "fpga show cores\r"
 
         hsm_cty = self.cty_list[cty_index]
 
-        cty_output = self.send_command(cmd, hsm_cty.serial)
+        cty_output = self.send_raw(cmd, hsm_cty.serial, 3)
         print cty_output
 
         # check for the ALPHA core
@@ -314,6 +353,10 @@ class CTYConnection(object):
                 time.sleep(45)
 
             attempt += 1
+
+            # must log in before we can check the fpga
+            self.login(username, pin)
+
             status = self.check_fpga(cty_index)
 
         if (status == True):
