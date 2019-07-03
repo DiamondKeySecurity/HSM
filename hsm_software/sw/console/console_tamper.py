@@ -44,7 +44,7 @@ def dks_tamper_threshold_set_disable(console_object, args):
 
     cmd = console_object.tamper_config.get_command_string("disable", '\r')
 
-    return console_object.cty_conn.send_raw(cmd, 5)
+    return console_object.cty_conn.send_raw_all(cmd, 5)
 
 def dks_tamper_threshold_set_enable(console_object, args):
     MIN_VALUE = 0
@@ -61,7 +61,7 @@ def dks_tamper_threshold_set_enable(console_object, args):
 
     cmd = console_object.tamper_config.get_command_string("enable", '\r')
 
-    return console_object.cty_conn.send_raw(cmd, 5)
+    return console_object.cty_conn.send_raw_all(cmd, 5)
 
 
 def dks_tamper_threshold_set_light(console_object, args):
@@ -79,12 +79,12 @@ def dks_tamper_threshold_set_light(console_object, args):
 
     cmd = console_object.tamper_config.get_command_string("light", '\r')
 
-    return console_object.cty_conn.send_raw(cmd, 5)
+    return console_object.cty_conn.send_raw_all(cmd, 5)
 
 def dks_tamper_threshold_get_light(console_object, args):
     cmd = 'tamper light value\r'
 
-    return console_object.cty_conn.send_raw(cmd, 5)
+    return console_object.cty_conn.send_raw_all(cmd, 5)
 
 def dks_tamper_threshold_set_temp(console_object, args):
     MIN_TEMPERATURE_VALUE = -1
@@ -108,12 +108,12 @@ def dks_tamper_threshold_set_temp(console_object, args):
 
     cmd = console_object.tamper_config.get_command_string("temperature", '\r')
 
-    return console_object.cty_conn.send_raw(cmd, 5)
+    return console_object.cty_conn.send_raw_all(cmd, 5)
 
 def dks_tamper_threshold_get_temp(console_object, args):
     cmd = 'tamper temperature value\r'
 
-    return console_object.cty_conn.send_raw(cmd, 5)
+    return console_object.cty_conn.send_raw_all(cmd, 5)
 
 def dks_tamper_threshold_set_accel(console_object, args):
     MIN_ACCEL_VALUE = -1
@@ -130,29 +130,29 @@ def dks_tamper_threshold_set_accel(console_object, args):
 
     cmd = console_object.tamper_config.get_command_string("vibe", '\r')
 
-    return console_object.cty_conn.send_raw(cmd, 5)
+    return console_object.cty_conn.send_raw_all(cmd, 5)
 
 def dks_tamper_threshold_get_accel(console_object, args):
     cmd = 'tamper vibe value\r'
 
-    return console_object.cty_conn.send_raw(cmd, 5)
+    return console_object.cty_conn.send_raw_all(cmd, 5)
 
 def dks_tamper_set_config(console_object, args):
     cmd = 'tamper set config\r'
 
     console_object.tamper_config.save_settings()
 
-    return console_object.cty_conn.send_raw(cmd, 5)
+    return console_object.cty_conn.send_raw_all(cmd, 5)
 
 def dks_tamper_check(console_object, args):
     cmd = 'tamper check\r'
 
-    return console_object.cty_conn.send_raw(cmd, 5)
+    return console_object.cty_conn.send_raw_all(cmd, 5)
 
 def dks_tamper_fault_check(console_object, args):
     cmd = 'tamper check fault\r'
 
-    return console_object.cty_conn.send_raw(cmd, 5)
+    return console_object.cty_conn.send_raw_all(cmd, 5)
 
 def dks_tamper_test(console_object, args):
       console_object.tamper.on_tamper(None)
