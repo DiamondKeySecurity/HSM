@@ -21,7 +21,11 @@ import threading
 
 from enum import Enum
 
+<<<<<<< HEAD
 HSM_SOFTWARE_VERSION = '19.07.03.field03'
+=======
+HSM_SOFTWARE_VERSION = '19.07.08.surfnet12'
+>>>>>>> devSurfNet
 
 # this is the version of the firmware that's built into the current release
 BUILTIN_FIRMWARE_VERSION = '2019-06-26-tamper'
