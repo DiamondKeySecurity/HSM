@@ -154,6 +154,8 @@ def on_remote_backup_prepared(cmd, results):
 
         console_object.file_transfer = ft
 
+        ft.start(console_object)
+
         # the file transfer object will signal what to do
         return True
 
@@ -213,6 +215,8 @@ def got_export_options(console_object, results):
                           data_context=console_object)
 
         console_object.file_transfer = ft
+
+        ft.start(console_object)
 
         # the file transfer object will signal what to do
         return True
@@ -312,6 +316,8 @@ def got_import_options(console_object, results):
 
     console_object.file_transfer = ft
 
+    ft.start(console_object)
+
     # the file transfer object will signal what to do
     return True
 
@@ -384,6 +390,8 @@ def send_local_kekek_after_sync(cmd, results):
                           data_context=console_object)
 
         console_object.file_transfer = ft
+
+        ft.start(console_object)
 
         # the file transfer object will signal what to do
         return True

@@ -35,7 +35,6 @@ class FileTransfer(object):
     """Utility object for uploading files to the HSM"""
 
     def __init__(self, mgmt_code, tmpfs,
-                 start_message,
                  requested_file_path = None,
                  restart_file = None,
                  public_key = None,
@@ -74,7 +73,11 @@ class FileTransfer(object):
                                               open_mode = "w") as _:
                 pass
 
-            self.start_message="%s:RECV:{%s}\r" % (mgmt_code, self.requested_file_path)
+            if (mgmt_code == MGMTCodes.MGMTCODE_RECEIVEHSM_UPDATE.value):
+                # for compatibility with older versions of dks_setup_console
+                self.start_message="%s:RECV:%s\r" % (mgmt_code, self.requested_file_path)
+            else:
+                self.start_message="%s:RECV:{%s}\r" % (mgmt_code, self.requested_file_path)
         else:
             # get the contents of the file that we'll send
             with self.tmpfs.fopen(filename = json_to_send,
@@ -91,6 +94,14 @@ class FileTransfer(object):
     def __del__(self):
         """backup to make sure the file has been closed"""
         self.close()
+
+    def start(self, console):
+        # send message to start transfer
+        if (self.start_message is not None):
+            msg = self.start_message
+            self.start_message = None
+
+            console.quick_write(msg)
 
     def close(self):
         if(self.file_obj is not None):
@@ -188,12 +199,6 @@ class FileTransfer(object):
 
     def recv(self, data):
         try:
-            # send message to start transfer
-            if (self.start_message is not None):
-                msg = self.start_message
-                self.start_message = None
-                return msg
-
             """Process data comming in as a file transfer"""
             if(self.file_buffer is not None):
                 self.file_buffer += data

@@ -105,6 +105,8 @@ def dks_do_HSM_update(console_object, pin, username):
 
         console_object.file_transfer = ft
 
+        ft.start(console_object)
+
         # the file transfer object will signal what to do
         return True
     except Exception as e:
