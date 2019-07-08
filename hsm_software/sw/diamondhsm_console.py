@@ -137,10 +137,11 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
 
         self.tamper_event_detected.value = False
 
-        authorization_set = self.settings.get_setting(HSMSettings.HSM_AUTHORIZATION_SETUP)
-        if (authorization_set is None or authorization_set is False):
-            self.console_state.value = console_interface.ConsoleState.Setup
-            self.script_module = HSMAuthSetupScriptModule(self)
+        if (self.is_login_available()):
+            authorization_set = self.settings.get_setting(HSMSettings.HSM_AUTHORIZATION_SETUP)
+            if (authorization_set is None or authorization_set is False):
+                self.console_state.value = console_interface.ConsoleState.Setup
+                self.script_module = HSMAuthSetupScriptModule(self)
 
     def is_login_available(self):
         """Override and return true if there is a mechanism
