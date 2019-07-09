@@ -80,14 +80,53 @@ class CTYConnection(object):
         else:
             return "Unknown CTY error"
 
+    @property
+    def cty_count(self):
+        return len(self.cty_list)
+
     def is_cty_connected(self):
-        return len(self.cty_list) > 0
+        return self.cty_count > 0
 
     def feedback(self, message):
         if (self.feedback_function is not None):
             self.feedback_function(message)
 
-    def login(self, PIN):
+    def send_raw(self, cmd, serial, delay):
+        cryptech_prompt = "\r\ncryptech> "
+        response_from_device = ""
+
+        serial.write(cmd)
+
+        serial.read_timeout = 0.5
+
+        for _ in xrange(0, delay):
+            time.sleep(1)
+            response_from_device = "%s%s"%(response_from_device, serial.read())
+            if(response_from_device.endswith(cryptech_prompt)):
+                response_from_device = response_from_device[:-len(cryptech_prompt)]
+                break
+
+        serial.read_timeout = None
+
+        return response_from_device
+
+    def send_raw_all(self, cmd, delay):
+        response = ''
+
+        print cmd
+
+        for device_index in xrange(0, len(self.cty_list)):
+            response_from_device = ""
+            with WaitFeedback.Start(self.feedback):
+                management_port_serial = self.cty_list[device_index].serial
+
+                response_from_device = self.send_raw(cmd, management_port_serial, delay)
+
+                response = '%s\r\nCTY:%i-%s'%(response, device_index, response_from_device)
+
+        return "--------------%s--------------"%response
+
+    def login(self, username, pin):
         # make sure we're actually connected to an alpha
         if(not self.is_cty_connected()): return CTYError.CTY_NOT_CONNECTED
 
@@ -96,7 +135,8 @@ class CTYConnection(object):
         with WaitFeedback.Start(self.feedback):
             for hsm_cty in self.cty_list:
                 management_port_serial = hsm_cty.serial
-                management_port_serial.args.pin = PIN
+                management_port_serial.args.username = username
+                management_port_serial.args.pin = pin
 
                 # use execute to login
                 response = management_port_serial.execute("\r")
@@ -151,6 +191,7 @@ class CTYConnection(object):
                 management_port_serial = self.cty_list[i].serial
 
                 time.sleep(20)
+
                 management_port_serial.write(cmd)
 
                 response = management_port_serial.read()
@@ -158,25 +199,28 @@ class CTYConnection(object):
                     return response
                 response.strip("\r\n")
 
-                if(i == 0):
-                    # this is the first one
-                    # parse the result to get the master key
-                    split_reponse = response.split()
+                try:
+                    if(i == 0):
+                        # this is the first one
+                        # parse the result to get the master key
+                        split_reponse = response.split()
 
-                    # find the start
-                    start = 1
-                    for token in split_reponse:
-                        if('key:' in token):
-                            break
-                        start += 1
+                        # find the start
+                        start = 1
+                        for token in split_reponse:
+                            if('key:' in token):
+                                break
+                            start += 1
 
-                    # tokens from (start) to (start+7) are the master key
-                    masterkey = ""
-                    for i in xrange(start, start+8):
-                        masterkey += "%s "%split_reponse[i]
+                        # tokens from (start) to (start+7) are the master key
+                        masterkey = ""
+                        for i in xrange(start, start+8):
+                            masterkey += "%s "%split_reponse[i]
 
-                    # send master key to all other alphas
-                    cmd = "masterkey set %s\r"%masterkey
+                        # send master key to all other alphas
+                        cmd = "masterkey set %s\r"%masterkey
+                except Exception as e:
+                    return "Failed parsing output from CTY:%i - %s"%(i, e.message)
 
         # show the result to the user
         return "\r\n\r\nSuccess:%s key:\r\n%s\r\n"%(split_reponse[start-2], masterkey)
@@ -228,28 +272,34 @@ class CTYConnection(object):
 
         return CTYError.CTY_OK
 
-    def uploadFPGABitStream(self, PIN):
+    def uploadFPGABitStream(self, username, PIN, cty_index = None):
         # make sure we have an alpha that's ready to receive commands
         ready_state = self.check_ready()
         if(ready_state is not CTYError.CTY_OK): return ready_state
 
-        return self._do_upload(self.binary_path + "/alpha_fmc.bit", UploadArgs(fpga = True, pin = PIN))
+        return self._do_upload(self.binary_path + "/alpha_fmc.bit",
+                               UploadArgs(fpga = True, pin = PIN, username=username),
+                               cty_index)
 
-    def uploadBootloader(self, PIN):
+    def uploadBootloader(self, username, PIN, cty_index = None):
         # make sure we have an alpha that's ready to receive commands
         ready_state = self.check_ready()
         if(ready_state is not CTYError.CTY_OK): return ready_state
 
-        return self._do_upload(self.binary_path + "/bootloader.bin", UploadArgs(bootloader = True, pin = PIN))
+        return self._do_upload(self.binary_path + "/bootloader.bin",
+                               UploadArgs(bootloader = True, pin = PIN, username=username),
+                               cty_index)
 
-    def uploadFirmware(self, PIN):
+    def uploadFirmware(self, username, PIN, cty_index = None):
         # make sure we have an alpha that's ready to receive commands
         ready_state = self.check_ready()
         if(ready_state is not CTYError.CTY_OK): return ready_state
 
-        return self._do_upload(self.binary_path + "/hsm.bin", UploadArgs(firmware = True, pin = PIN))
+        return self._do_upload(self.binary_path + "/hsm.bin",
+                               UploadArgs(firmware = True, pin = PIN, username=username),
+                               cty_index)
 
-    def uploadTamperFirmware(self, PIN):
+    def uploadTamperFirmware(self, username, PIN, cty_index = None):
         # make sure we have an alpha that's ready to receive commands
         ready_state = self.check_ready()
         if(ready_state is not CTYError.CTY_OK): return ready_state
@@ -265,6 +315,56 @@ class CTYConnection(object):
         if(not self.is_logged_in): return CTYError.CTY_NOT_LOGGED_IN
 
         return CTYError.CTY_OK
+
+    def check_fpga(self, cty_index):
+        if (cty_index < 0 or cty_index >= self.cty_count):
+            # device not found
+            return None
+
+        cmd = "fpga show cores\r"
+
+        hsm_cty = self.cty_list[cty_index]
+
+        cty_output = self.send_raw(cmd, hsm_cty.serial, 3)
+        print cty_output
+
+        # check for the ALPHA core
+        if ('0000: ALPHA' in cty_output):
+            return True
+        else:
+            return False
+
+    def check_fix_fpga(self, cty_index, username, pin):
+        attempt = 0
+        status = False
+
+        while (attempt < 4 and (status == False)):
+            if (attempt < 2 or attempt == 3):
+                # update FGPA
+                self.feedback("\r\nAttempt %i: Attempting to update FPGA cores in flash.\r\n"%attempt)
+                self.uploadFPGABitStream(username, pin, cty_index)
+            else:
+                # update firmware
+                self.feedback("\r\nAttempt %i: Attempting to update firmware.\r\n"%attempt)
+                self.uploadFirmware(username, pin, cty_index)
+
+            self.feedback("\r\nWaiting for CrypTech devices to start.  ")
+            with WaitFeedback.Start(self.feedback):
+                time.sleep(45)
+
+            attempt += 1
+
+            # must log in before we can check the fpga
+            self.login(username, pin)
+
+            status = self.check_fpga(cty_index)
+
+        if (status == True):
+            self.feedback("\r\nOK")
+        else:
+            self.feedback("\r\nFAILED")
+
+        return status
 
     def show_fpga_cores(self):
         cmd = "fpga show cores"
@@ -300,32 +400,38 @@ class CTYConnection(object):
         return output
 
 
-    def _do_upload(self, name, upload_args):
+    def _do_upload(self, name, upload_args, cty_index):
         # make sure we have an alpha that's ready to receive commands
         ready_state = self.check_ready()
         if(ready_state is not CTYError.CTY_OK): return ready_state
 
-        for hsm_cty in self.cty_list:
-            with WaitFeedback.Start(self.feedback):
-                self.feedback("Opening Binary")
-                src = open(name, "r") # open the file here because send_file closes it
-                self.feedback("Binary Opened")
-                size = os.fstat(src.fileno()).st_size
+        for index in range(self.cty_count):
+            if (cty_index is None or index == cty_index):
+                hsm_cty = self.cty_list[index]
 
-                dst = hsm_cty.serial
-                args = dst.args
-                args.fpga = upload_args.fpga
-                args.firmware = upload_args.firmware
-                args.bootloader = upload_args.bootloader
-                args.pin = upload_args.pin
-                self.feedback("Uploading Binary")
-                send_file(src, size, args, dst)
-                self.feedback("Binary Uploaded")
+                with WaitFeedback.Start(self.feedback):
+                    self.feedback("Opening Binary  ")
+                    src = open(name, "r") # open the file here because send_file closes it
+                    self.feedback("Binary Opened  ")
+                    size = os.fstat(src.fileno()).st_size
 
-                # clear the PIN
-                args.pin = None
+                    dst = hsm_cty.serial
+                    args = dst.args
+                    args.fpga = upload_args.fpga
+                    args.firmware = upload_args.firmware
+                    args.bootloader = upload_args.bootloader
+                    args.pin = upload_args.pin
+                    self.feedback("Uploading Binary  ")
+                    if(send_file(src, size, args, dst) == False):
+                        self.feedback("Error: Unable to send binary.  ")
+                        return CTYError.CTY_ERROR
 
-                time.sleep(10)
+                    self.feedback("Binary Uploaded  ")
+
+                    # clear the PIN
+                    args.pin = None
+
+                    time.sleep(10)
 
         return CTYError.CTY_OK
 

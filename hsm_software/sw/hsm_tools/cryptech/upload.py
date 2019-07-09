@@ -162,6 +162,7 @@ class ManagementPortAbstract(object):
             x = self.recv()
         if self.args.debug:
             print ("Read {!r}".format(res))
+
         return res
 
     def execute(self, cmd):

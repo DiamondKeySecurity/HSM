@@ -205,7 +205,11 @@ def got_export_options(console_object, results):
         console_object.cty_direct_call('\nThere was an error while receiving the'
                                        ' update.\r\n\r\n%s' % e.message)
 
-def dks_start_export_script(console_object, pin):
+def dks_start_export_script(console_object, pin, username):
+    if (username.lower() != 'wheel' and username.lower() != 'so'):
+        console_object.cty_direct_call("Insufficient privileges to carry out this operation.\r\nMust be 'wheel' or 'so'.")
+        return
+
     # get the source parameter
     device_index = console_object.temp_object
 
@@ -296,7 +300,11 @@ def got_import_options(console_object, results):
     console_object.cty_direct_call(msg)
 
 
-def dks_start_import_script(console_object, pin):
+def dks_start_import_script(console_object, pin, username):
+    if (username.lower() != 'wheel' and username.lower() != 'so'):
+        console_object.cty_direct_call("Insufficient privileges to carry out this operation.\r\nMust be 'wheel' or 'so'.")
+        return
+
     device_index = console_object.temp_object
 
     console_object.script_module = SyncImport(console_object.cty_direct_call,
@@ -376,7 +384,11 @@ def got_import_setup_options(console_object, results):
     console_object.synchronizer.queue_command(cmd)
 
 
-def dks_start_import_setup_script(console_object, pin):
+def dks_start_import_setup_script(console_object, pin, username):
+    if (username.lower() != 'wheel' and username.lower() != 'so'):
+        console_object.cty_direct_call("Insufficient privileges to carry out this operation.\r\nMust be 'wheel' or 'so'.")
+        return
+
     device_index = console_object.temp_object
 
     console_object.script_module = SyncImportSetup(console_object.cty_direct_call,

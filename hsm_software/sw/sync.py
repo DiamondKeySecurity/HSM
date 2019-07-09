@@ -106,9 +106,9 @@ class Synchronizer(PFUNIX_HSM):
     def cache_initialized(self):
         return self.cache.is_initialized()
 
-    def initialize(self, rpc_count, pin, callback):
+    def initialize(self, rpc_count, username, pin, callback):
         # login to all hsms using the PIN
-        self.command_queue.put(SyncCommand(SyncCommandEnum.Initialize, 0,rpc_count, callback, pin))
+        self.command_queue.put(SyncCommand(SyncCommandEnum.Initialize, 0,rpc_count, callback, (username, pin)))
 
     def dowork(self, hsm):
         while(self.command_queue.empty() is False):
@@ -120,12 +120,12 @@ class Synchronizer(PFUNIX_HSM):
         if(cmd.callback is not None):
             cmd.callback(cmd, result)
 
-    def init_device(self, hsm, rpc_index, pin):
+    def init_device(self, hsm, rpc_index, user, pin):
         # select the device
         hsm.rpc_set_device(rpc_index)
 
         # login
-        hsm.login(DKS_HALUser.HAL_USER_WHEEL, pin)
+        hsm.login(user, pin)
 
     def create_sync_file_from_src_id(self, file_name, mode):
         return open(file_name, mode)
@@ -201,9 +201,10 @@ class Synchronizer(PFUNIX_HSM):
     def cmd_initialization(self, hsm, cmd):
         # login to all alphas now that we have the wheel pin
         rpc_count = cmd.dest
-        pin = cmd.param
+        user = DKS_HALUser.from_name(cmd.param[0])
+        pin = cmd.param[1]
         for rpc_index in range(0, rpc_count):
-            self.init_device(hsm, rpc_index, pin)
+            self.init_device(hsm, rpc_index, user, pin)
 
         self.__initialized__ = True
 
