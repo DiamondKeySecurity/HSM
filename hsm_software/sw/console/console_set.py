@@ -17,13 +17,14 @@
 
 from settings import HSMSettings
 
+from hsm_tools.cryptech_port import DKS_HALUser
+
 from scripts.masterkey import MasterKeySetScriptModule
 from scripts.ip_dhcp import DHCPScriptModule
 from scripts.ip_static import StaticIPScriptModule
 from scripts.updateRestart import UpdateRestartScriptModule
 from scripts.password import PasswordScriptModule
 from scripts.set_firewall import FirewallChangeSettingScript
-from scripts.firmware_update import FirmwareUpdateScript
 
 def dks_set_firewall_settings(console_object, args):
     if (args[0].lower() == "mgmt"):
@@ -63,20 +64,28 @@ def dks_set_rpc(console_object, args):
     return console_object.rpc_preprocessor.set_current_rpc(index)
 
 def dks_set_pin(console_object, args):
+    current_user = DKS_HALUser.from_name(console_object.current_user)
     user = DKS_HALUser.from_name(args[0])
     if(user is not None):
-        # start the script
-        console_object.script_module = PasswordScriptModule(console_object.cty_direct_call,
-                                                    console_object.set_hide_input,
-                                                    console_object.cty_conn, user)
+        if (user == DKS_HALUser.HAL_USER_NORMAL or user == current_user):
+            # start the script
+            console_object.script_module = PasswordScriptModule(console_object.cty_direct_call,
+                                                        console_object.set_hide_input,
+                                                        console_object.cty_conn, user)
 
-        console_object.cty_direct_call(console_object.prompt)
+            console_object.cty_direct_call(console_object.prompt)
 
-        return True
+            return True
+        else:
+            return "Not authorized to change the '%s' password."%args[0]
     else:
         return "<user> must be 'wheel', 'so', or 'user'"
 
-def dks_set_ip_dhcp_onlogin(console_object, pin):
+def dks_set_ip_dhcp_onlogin(console_object, pin, username):
+    if (username.lower() != 'wheel' and username.lower() != 'so'):
+        console_object.cty_direct_call("Insufficient privileges to carry out this operation.\r\nMust be 'wheel' or 'so'.")
+        return
+
     message = ['This will set the HSM to use a DHCP server for IP',
                 'address selection. It is recommended to always use DHCP.',
                 'When a static ip is needed, it is recommended to',
@@ -95,7 +104,11 @@ def dks_set_ip_dhcp_onlogin(console_object, pin):
 
     console_object.cty_direct_call(console_object.prompt)
 
-def dks_set_ip_static_onlogin(console_object, pin):
+def dks_set_ip_static_onlogin(console_object, pin, username):
+    if (username.lower() != 'wheel' and username.lower() != 'so'):
+        console_object.cty_direct_call("Insufficient privileges to carry out this operation.\r\nMust be 'wheel' or 'so'.")
+        return
+
     message = ['This will set the HSM to use a manually set static IP',
                 'address. Please use caution when setting a static IP',
                 'because the ethernet port is the only way to communicate',

@@ -157,6 +157,9 @@ class ConsoleState(IntEnum):
     LoggedOut = 0
     PasswordRequested = 1
     LoggedIn = 2
+    UsernameRequested = 3
+    # when in setup mode, all commands are disabled
+    Setup = 4
 
 class ConsoleInterface(CommandNode):
     __metaclass__ = ABCMeta
@@ -182,12 +185,17 @@ class ConsoleInterface(CommandNode):
         pass
 
     @abstractmethod
-    def on_login_pin_entered(self, pin):
+    def on_login_pin_entered(self, pin, username):
         """Override to handle the user logging in. Returns true if the login was successful"""
         pass
 
     @abstractmethod
-    def on_login(self, pin):
+    def on_login_username_entered(self, username):
+        """Override to handle the user logging in. Returns true if the username is valid"""
+        pass
+
+    @abstractmethod
+    def on_login(self, pin, username):
         """Override to handle the user logging in. Called after a successful login"""
         pass
 
@@ -226,11 +234,16 @@ class ConsoleInterface(CommandNode):
         self.history = collections.deque(maxlen=100)
         self.history_index = 0
 
+        # when current user is none, the username will be requested at login
+        self.current_user = None
+
         self.on_reset()
 
     @property
     def prompt(self):
         if (not self.ignore_user_input):
+            if (self.console_state.value == ConsoleState.UsernameRequested):
+                return '\r\nUsername: '
             if (self.console_state.value == ConsoleState.PasswordRequested):
                 return '\r\nPassword: '
             elif ((self.script_module is not None) and 
@@ -252,15 +265,19 @@ class ConsoleInterface(CommandNode):
     def set_hide_input(self, toggle):
         self.hide_input = toggle
 
+    def show_prompt(self):
+        self.cty_direct_call(self.prompt)
+
     def flush(self):
         self.readCTYUserData('\r')
 
-    def allow_user_input(self, msg):
+    def allow_user_input(self, msg, flush = True):
         if(msg is not None):
             self.cty_direct_call(msg)
 
         self.ignore_user_input = False
-        self.flush()
+        if (flush):
+            self.flush()
 
     def set_ignore_user(self, msg):
         if(msg is not None):
@@ -392,37 +409,57 @@ class ConsoleInterface(CommandNode):
             self.cty_direct_call(self.banner)
             self.banner_shown = True
 
-        # don't show the password
-        self.hide_input = True
-
         if (self.is_login_available()):
             self.cty_direct_call(self.get_login_prompt())
-            self.console_state.value = ConsoleState.PasswordRequested
+            if (self.current_user is not None):
+
+                # don't show the password
+                self.hide_input = True
+
+                self.console_state.value = ConsoleState.PasswordRequested
+            else:
+                self.console_state.value = ConsoleState.UsernameRequested
         else:
             self.cty_direct_call(self.no_login_msg())
             self.hide_input = False
             self.console_state.value = ConsoleState.LoggedIn
             self.cty_direct_call(self.prompt)
 
+    def handle_username_entered(self, data):
+        username = data.rstrip('\r\n')
+
+        if (len(username) > 0):
+            result = self.on_login_username_entered(username)
+
+            if(result == False):
+                self.cty_direct_call("\r\nInvalid user name. Please try again\r\n\r\nUsername: ")
+            else:
+                self.current_user = username
+                self.hide_input = True
+                self.console_state.value = ConsoleState.PasswordRequested
+                self.cty_direct_call(self.prompt)
+
+
     def handle_password_entered(self, data):
         pin = data.rstrip('\r\n')
 
         if (len(pin) > 0):
-            result = self.on_login_pin_entered(pin)
+            result = self.on_login_pin_entered(pin, self.current_user)
 
             if(result == False):
                 self.cty_direct_call("\r\nIncorrect password. Please try again\r\n\r\nPassword: ")
             else:
                 self.hide_input = False
                 self.console_state.value = ConsoleState.LoggedIn
-                self.on_login(pin)
+                self.on_login(pin, self.current_user)
 
     def process_user_input(self, data):
         if(self.console_state.value == ConsoleState.LoggedOut):
             self.handle_login()
         else:
             input = data.strip('\r\n')
-            if ((self.console_state.value == ConsoleState.LoggedIn) and
+            if ((self.console_state.value == ConsoleState.LoggedIn or
+                 self.console_state.value == ConsoleState.Setup) and
                 (self.script_module is not None) and
                 (not self.script_module.is_done())):
                 validated_response = self.script_module.validate_response(input)
@@ -436,11 +473,15 @@ class ConsoleInterface(CommandNode):
                     self.script_module = self.script_module.accept_validated_response(validated_response)
 
                     # show the next prompt
-                    self.cty_direct_call(self.prompt)
+                    if (self.console_state.value == ConsoleState.LoggedIn or
+                        self.console_state.value == ConsoleState.Setup):
+                        self.cty_direct_call(self.prompt)
 
             elif(len(input) > 0):
-                if (self.console_state.value == ConsoleState.PasswordRequested):
-                    self.handle_password_entered(input)
+                if (self.console_state.value == ConsoleState.UsernameRequested):
+                    self.handle_username_entered(input)
+                elif (self.console_state.value == ConsoleState.PasswordRequested):
+                    self.handle_password_entered(input)                    
                 elif (self.console_state.value == ConsoleState.LoggedIn):
                     # add to history
                     self.history.appendleft(input)
@@ -454,9 +495,12 @@ class ConsoleInterface(CommandNode):
             else:
                 self.cty_direct_call(self.prompt)
 
-    def logout(self, message = None):
+    def logout(self, message = None, clear_user = False, flush = True):
         self.console_state.value = ConsoleState.LoggedOut
-        self.allow_user_input(message)
+        self.allow_user_input(message, flush)
+
+        if (clear_user):
+            self.current_user = None
 
     def is_logged_in(self):
         return self.console_state.value == ConsoleState.LoggedIn

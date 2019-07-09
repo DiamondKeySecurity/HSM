@@ -19,15 +19,19 @@ from settings import HSMSettings
 from script import ScriptModule, script_node, ValueType
 
 class MasterKeySetScriptModule(ScriptModule):
-    def __init__(self, cty_conn, cty_direct_call, settings):
+    def __init__(self, cty_conn, cty_direct_call, settings, message = None, finished_callback = None):
         self.cty_conn = cty_conn
         self.cty_direct_call = cty_direct_call
         self.settings = settings
+
+        if (message is None):
+            message = '\r\nAre you sure you want to set the master key? (y/n) '
+
         super(MasterKeySetScriptModule, self).__init__([
                         script_node('setmasterkey',
-                                    'Because of a system reset, the master key may not be set.\r\nWould you like to set it now? (y/n) ',
+                                    message,
                                     ValueType.YesNo, callback=self.setMasterKeyPromptCallback)
-                        ])
+                        ], finished_callback = finished_callback)
 
     def setMasterKeyPromptCallback(self, response):
         """Process user response about whether they want to set the master key"""
@@ -37,7 +41,9 @@ class MasterKeySetScriptModule(ScriptModule):
                                                              '  -------- -------- -------- -------- -------- -------- -------- --------\r\n'
                                                              '> '),
                                                             ValueType.AnyString, callback=self.setMasterKeyCallback))
-        return self
+            return self
+        else:
+            return None
 
     def setMasterKeyCallback(self, response):
         """Use the user's response to set the master key"""
@@ -50,5 +56,5 @@ class MasterKeySetScriptModule(ScriptModule):
         else:
             self.settings.set_setting(HSMSettings.MASTERKEY_SET, True)
 
-        return self
+        return None
 

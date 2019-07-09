@@ -40,22 +40,27 @@ class ScriptModule(object):
         self.current = 0
         self.results = {}
         self.finished_callback = finished_callback
+        self.sub_module = None
 
     def is_done(self):
-        return self.current >= len(self.node_list)
+        return (self.current >= len(self.node_list)) and (self.sub_module is None)
 
     def getPrompt(self):
         if(self.is_done()): return None
 
-        return self.node_list[self.current].prompt
-
-    def getCurrentCallback(self):
-        if(self.is_done()): return None
-
-        return self.node_list[self.current].callback
+        if(self.sub_module is not None):
+            # return from sub module
+            return self.sub_module.getPrompt()
+        else:
+            return self.node_list[self.current].prompt
+            
 
     def validate_response(self, response):
         if(self.is_done()): return None
+
+        if(self.sub_module is not None):
+            # return from sub module
+            return self.sub_module.validate_response(response)
 
         node = self.node_list[self.current]
 
@@ -106,6 +111,16 @@ class ScriptModule(object):
     def accept_validated_response(self, validated_response):
         if(self.is_done()): return None
 
+        if(self.sub_module is not None):
+            # use the submodule to process
+            self.sub_module = self.sub_module.accept_validated_response(validated_response)
+
+            # always return self if there's a submodule
+            if(self.sub_module is not None):
+                return self
+            if(self.is_done()):
+                return None
+
         # get the node we're working on
         node = self.node_list[self.current]
 
@@ -118,13 +133,16 @@ class ScriptModule(object):
         # move to the next node
         self.current += 1
 
+        rval = self
+
         # do the callback
         if(callback is not None):
-            return callback(validated_response)
+            rval = callback(validated_response)
 
-        if (self.is_done()):
+        if (rval is None or self.is_done()):
             if(self.finished_callback is not None):
-                self.finished_callback(self.results)
-            return None
-        else:
-            return self
+                rval = self.finished_callback(self.results)
+            else:
+                rval = None
+
+        return rval
