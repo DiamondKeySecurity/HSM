@@ -22,6 +22,7 @@ from masterkey import MasterKeySetScriptModule
 
 from settings import HSMSettings
 from hsm_tools.cty_connection import CTYError
+from hsm_tools.statusobject import SetStatus
 
 class HSMHardwareSetupScriptModule(ScriptModule):
     def __init__(self, console_object, username, pin):
@@ -107,20 +108,20 @@ class HSMHardwareSetupScriptModule(ScriptModule):
 
     def continuePromptCallback(self, response):
         if(response == True):
-            self.check_firmware()
+            with SetStatus(self.console_object, "Check HSM Hardware---"):
+                self.check_firmware()
 
-            # make sure we are still logged in
-            if (self.log_into_devices(self.username, self.pin) is False):
-                self.on_error("There was an error resetting the CrypTech device")
+                # make sure we are still logged in
+                if (self.log_into_devices(self.username, self.pin) is False):
+                    self.on_error("There was an error resetting the CrypTech device")
 
-            self.check_fpga()
+                self.check_fpga()
 
-            # make sure we are still logged in
-            if (self.log_into_devices(self.username, self.pin) is False):
-                self.on_error("There was an error resetting the CrypTech device")
+                # make sure we are still logged in
+                if (self.log_into_devices(self.username, self.pin) is False):
+                    self.on_error("There was an error resetting the CrypTech device")
 
-            self.check_masterkey()
-
+                self.check_masterkey()
         else:
             self.console_object.cty_direct_call("The HSM will shutdown in 5 seconds....")
             time.sleep(5)

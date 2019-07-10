@@ -23,6 +23,7 @@ from password import PasswordScriptModule
 from settings import HSMSettings
 from hsm_tools.cryptech_port import DKS_HALUser
 from hsm_tools.cty_connection import CTYError
+from hsm_tools.statusobject import SetStatus
 
 class HSMAuthSetupScriptModule(ScriptModule):
     def __init__(self, console_object):
@@ -141,21 +142,22 @@ class HSMAuthSetupScriptModule(ScriptModule):
 
     def handle_post_login(self, password):
         self.console_object.cty_direct_call("Verifying CrypTech Device FPGA bitstream.")
-        for cty_index in xrange(self.console_object.cty_conn.cty_count):
-            self.console_object.cty_direct_call("Device %i:"%cty_index)
-            if (self.console_object.cty_conn.check_fpga(cty_index) is False):
-                self.console_object.cty_direct_call("Alpha cores not detected")
-                status = self.console_object.cty_conn.check_fix_fpga(cty_index, "wheel", password)
-                if (status == False):
-                    self.on_error("Unable to load CrypTech device FPGA cores.")
-            else:
-                self.console_object.cty_direct_call("OK")
+        with SetStatus(self.console_object, "Initial Setup: Check HSM Hardware---"):
+            for cty_index in xrange(self.console_object.cty_conn.cty_count):
+                self.console_object.cty_direct_call("Device %i:"%cty_index)
+                if (self.console_object.cty_conn.check_fpga(cty_index) is False):
+                    self.console_object.cty_direct_call("Alpha cores not detected")
+                    status = self.console_object.cty_conn.check_fix_fpga(cty_index, "wheel", password)
+                    if (status == False):
+                        self.on_error("Unable to load CrypTech device FPGA cores.")
+                else:
+                    self.console_object.cty_direct_call("OK")
 
-        self.console_object.cty_conn.show_fpga_cores()
+            self.console_object.cty_conn.show_fpga_cores()
 
-        # log back in
-        if (self.log_into_devices("wheel", password) is False):
-            self.on_error("There was an error resetting the CrypTech device")
+            # log back in
+            if (self.log_into_devices("wheel", password) is False):
+                self.on_error("There was an error resetting the CrypTech device")
 
         self.set_wheel_pw()
 

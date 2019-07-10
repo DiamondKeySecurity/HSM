@@ -22,6 +22,7 @@ from enum import IntEnum
 from cryptech.upload import ManagementPortSerial, send_file
 
 from stoppable_thread import stoppable_thread
+from statusobject import StatusObject, SetStatus
 
 from hsm import UploadArgs
 
@@ -61,9 +62,11 @@ class WaitFeedback(stoppable_thread):
         return feedback
 
 
-class CTYConnection(object):
+class CTYConnection(StatusObject):
     """High-level interface for connecting to alpha's CTY port """
     def __init__(self, cty_list, binary_path, feedback_function):
+        super(CTYConnection, self).__init__()
+
         self.cty_list = cty_list
         self.is_logged_in = False
         self.binary_path = binary_path
@@ -113,16 +116,15 @@ class CTYConnection(object):
     def send_raw_all(self, cmd, delay):
         response = ''
 
-        print cmd
+        with SetStatus(self, "Sending raw command"):
+            for device_index in xrange(0, len(self.cty_list)):
+                response_from_device = ""
+                with WaitFeedback.Start(self.feedback):
+                    management_port_serial = self.cty_list[device_index].serial
 
-        for device_index in xrange(0, len(self.cty_list)):
-            response_from_device = ""
-            with WaitFeedback.Start(self.feedback):
-                management_port_serial = self.cty_list[device_index].serial
+                    response_from_device = self.send_raw(cmd, management_port_serial, delay)
 
-                response_from_device = self.send_raw(cmd, management_port_serial, delay)
-
-                response = '%s\r\nCTY:%i-%s'%(response, device_index, response_from_device)
+                    response = '%s\r\nCTY:%i-%s'%(response, device_index, response_from_device)
 
         return "--------------%s--------------"%response
 
@@ -132,20 +134,21 @@ class CTYConnection(object):
 
         self.logout()
 
-        with WaitFeedback.Start(self.feedback):
-            for hsm_cty in self.cty_list:
-                management_port_serial = hsm_cty.serial
-                management_port_serial.args.username = username
-                management_port_serial.args.pin = pin
+        with SetStatus(self, "Logging in"):
+            with WaitFeedback.Start(self.feedback):
+                for hsm_cty in self.cty_list:
+                    management_port_serial = hsm_cty.serial
+                    management_port_serial.args.username = username
+                    management_port_serial.args.pin = pin
 
-                # use execute to login
-                response = management_port_serial.execute("\r")
+                    # use execute to login
+                    response = management_port_serial.execute("\r")
 
-                if not response.endswith(("> ", "# ")):
-                    return CTYError.CTY_INCORRECT_PASSWORD
+                    if not response.endswith(("> ", "# ")):
+                        return CTYError.CTY_INCORRECT_PASSWORD
 
-                # clear PIN
-                management_port_serial.args.pin = '1234'
+                    # clear PIN
+                    management_port_serial.args.pin = '1234'
 
         self.is_logged_in = True
 
@@ -155,19 +158,20 @@ class CTYConnection(object):
         # make sure we're actually connected to an alpha
         if(not self.is_cty_connected()): return CTYError.CTY_NOT_CONNECTED
 
-        with WaitFeedback.Start(self.feedback):
-            for hsm_cty in self.cty_list:
-                management_port_serial = hsm_cty.serial
-                management_port_serial.write("\r")
-                prompt = management_port_serial.read()
-
-                assert "bootloader" not in prompt
-
-                if not prompt.endswith("Username: "):
-                    management_port_serial.write("exit\r")
+        with SetStatus(self, "Logging out"):
+            with WaitFeedback.Start(self.feedback):
+                for hsm_cty in self.cty_list:
+                    management_port_serial = hsm_cty.serial
+                    management_port_serial.write("\r")
                     prompt = management_port_serial.read()
+
+                    assert "bootloader" not in prompt
+
                     if not prompt.endswith("Username: "):
-                        return CTYError.CTY_ERROR
+                        management_port_serial.write("exit\r")
+                        prompt = management_port_serial.read()
+                        if not prompt.endswith("Username: "):
+                            return CTYError.CTY_ERROR
 
         self.is_logged_in = False
 
@@ -185,42 +189,43 @@ class CTYConnection(object):
 
         self.feedback('\r\nSetting master key. This may take upto 45 seconds.')
 
-        for i in xrange(0, len(self.cty_list)):
-            with WaitFeedback.Start(self.feedback):
-                # set the master key on one alpha and get the result
-                management_port_serial = self.cty_list[i].serial
+        with SetStatus(self, "Setting Master Key"):
+            for i in xrange(0, len(self.cty_list)):
+                with WaitFeedback.Start(self.feedback):
+                    # set the master key on one alpha and get the result
+                    management_port_serial = self.cty_list[i].serial
 
-                time.sleep(20)
+                    time.sleep(20)
 
-                management_port_serial.write(cmd)
+                    management_port_serial.write(cmd)
 
-                response = management_port_serial.read()
-                if("Failed" in response):
-                    return response
-                response.strip("\r\n")
+                    response = management_port_serial.read()
+                    if("Failed" in response):
+                        return response
+                    response.strip("\r\n")
 
-                try:
-                    if(i == 0):
-                        # this is the first one
-                        # parse the result to get the master key
-                        split_reponse = response.split()
+                    try:
+                        if(i == 0):
+                            # this is the first one
+                            # parse the result to get the master key
+                            split_reponse = response.split()
 
-                        # find the start
-                        start = 1
-                        for token in split_reponse:
-                            if('key:' in token):
-                                break
-                            start += 1
+                            # find the start
+                            start = 1
+                            for token in split_reponse:
+                                if('key:' in token):
+                                    break
+                                start += 1
 
-                        # tokens from (start) to (start+7) are the master key
-                        masterkey = ""
-                        for i in xrange(start, start+8):
-                            masterkey += "%s "%split_reponse[i]
+                            # tokens from (start) to (start+7) are the master key
+                            masterkey = ""
+                            for i in xrange(start, start+8):
+                                masterkey += "%s "%split_reponse[i]
 
-                        # send master key to all other alphas
-                        cmd = "masterkey set %s\r"%masterkey
-                except Exception as e:
-                    return "Failed parsing output from CTY:%i - %s"%(i, e.message)
+                            # send master key to all other alphas
+                            cmd = "masterkey set %s\r"%masterkey
+                    except Exception as e:
+                        return "Failed parsing output from CTY:%i - %s"%(i, e.message)
 
         # show the result to the user
         return "\r\n\r\nSuccess:%s key:\r\n%s\r\n"%(split_reponse[start-2], masterkey)
@@ -232,19 +237,20 @@ class CTYConnection(object):
 
         cmd = "\rkeystore set pin %s %s\r"%(user, newPIN)
 
-        for hsm_cty in self.cty_list:
-            with WaitFeedback.Start(self.feedback):
-                management_port_serial = hsm_cty.serial
-                management_port_serial.write(cmd)
+        with SetStatus(self, "Setting Password"):
+            for hsm_cty in self.cty_list:
+                with WaitFeedback.Start(self.feedback):
+                    management_port_serial = hsm_cty.serial
+                    management_port_serial.write(cmd)
 
-                time.sleep(8)
-                
-                # get response
-                management_port_serial.read()
+                    time.sleep(8)
 
-                # make sure we get the real prompt
-                management_port_serial.write("\r")
-                management_port_serial.read()
+                    # get response
+                    management_port_serial.read()
+
+                    # make sure we get the real prompt
+                    management_port_serial.write("\r")
+                    management_port_serial.read()
 
         return CTYError.CTY_OK
 
@@ -260,15 +266,16 @@ class CTYConnection(object):
 
         self.feedback('\r\nClearing the keystore. This may take upto 45 seconds.')
 
-        with WaitFeedback.Start(self.feedback):
-            for hsm_cty in self.cty_list:
-                management_port_serial = hsm_cty.serial
-                management_port_serial.write(cmd)
-                prompt = management_port_serial.read()
+        with SetStatus(self, "Clearing Keystore"):
+            with WaitFeedback.Start(self.feedback):
+                for hsm_cty in self.cty_list:
+                    management_port_serial = hsm_cty.serial
+                    management_port_serial.write(cmd)
+                    prompt = management_port_serial.read()
 
-                print prompt
+                    print prompt
 
-            time.sleep(45)
+                time.sleep(45)
 
         return CTYError.CTY_OK
 
@@ -277,27 +284,42 @@ class CTYConnection(object):
         ready_state = self.check_ready()
         if(ready_state is not CTYError.CTY_OK): return ready_state
 
-        return self._do_upload(self.binary_path + "/alpha_fmc.bit",
-                               UploadArgs(fpga = True, pin = PIN, username=username),
-                               cty_index)
+        name = self.binary_path + "/alpha_fmc.bit"
+        upload_args = UploadArgs(fpga = True, pin = PIN, username=username)
+
+        if (cty_index is None):
+            with SetStatus(self, "Updating CrypTech FPGA Bitstream - ALL"):
+                return self._do_upload(name = name, upload_args = upload_args, cty_index = cty_index)
+        else:
+            return self._do_upload(name = name, upload_args = upload_args, cty_index = cty_index)
 
     def uploadBootloader(self, username, PIN, cty_index = None):
         # make sure we have an alpha that's ready to receive commands
         ready_state = self.check_ready()
         if(ready_state is not CTYError.CTY_OK): return ready_state
 
-        return self._do_upload(self.binary_path + "/bootloader.bin",
-                               UploadArgs(bootloader = True, pin = PIN, username=username),
-                               cty_index)
+        name = self.binary_path + "/bootloader.bin"
+        upload_args = UploadArgs(bootloader = True, pin = PIN, username=username)
+
+        if (cty_index is None):
+            with SetStatus(self, "Updating CrypTech Bootloader - ALL"):
+                return self._do_upload(name = name, upload_args = upload_args, cty_index = cty_index)
+        else:
+            return self._do_upload(name = name, upload_args = upload_args, cty_index = cty_index)
 
     def uploadFirmware(self, username, PIN, cty_index = None):
         # make sure we have an alpha that's ready to receive commands
         ready_state = self.check_ready()
         if(ready_state is not CTYError.CTY_OK): return ready_state
 
-        return self._do_upload(self.binary_path + "/hsm.bin",
-                               UploadArgs(firmware = True, pin = PIN, username=username),
-                               cty_index)
+        name = self.binary_path + "/hsm.bin"
+        upload_args = UploadArgs(firmware = True, pin = PIN, username=username)
+
+        if (cty_index is None):
+            with SetStatus(self, "Updating CrypTech Firmware - ALL"):
+                return self._do_upload(name = name, upload_args = upload_args, cty_index = cty_index)
+        else:
+            return self._do_upload(name = name, upload_args = upload_args, cty_index = cty_index)
 
     def uploadTamperFirmware(self, username, PIN, cty_index = None):
         # make sure we have an alpha that's ready to receive commands
@@ -338,26 +360,30 @@ class CTYConnection(object):
         attempt = 0
         status = False
 
-        while (attempt < 4 and (status == False)):
-            if (attempt < 2 or attempt == 3):
-                # update FGPA
-                self.feedback("\r\nAttempt %i: Attempting to update FPGA cores in flash.\r\n"%attempt)
-                self.uploadFPGABitStream(username, pin, cty_index)
-            else:
-                # update firmware
-                self.feedback("\r\nAttempt %i: Attempting to update firmware.\r\n"%attempt)
-                self.uploadFirmware(username, pin, cty_index)
+        with SetStatus(self, "Check CrypTech FPGA State"):
+            while (attempt < 4 and (status == False)):
+                if (attempt < 2 or attempt == 3):
+                    # update FGPA
+                    self.status = "Check CrypTech FPGA State: Updating FPGA Cores"
+                    self.feedback("\r\nAttempt %i: Attempting to update FPGA cores in flash.\r\n"%attempt)
+                    self.uploadFPGABitStream(username, pin, cty_index)
+                else:
+                    # update firmware
+                    self.status = "Check CrypTech FPGA State: Updating Firmware"
+                    self.feedback("\r\nAttempt %i: Attempting to update firmware.\r\n"%attempt)
+                    self.uploadFirmware(username, pin, cty_index)
 
-            self.feedback("\r\nWaiting for CrypTech devices to start.  ")
-            with WaitFeedback.Start(self.feedback):
-                time.sleep(45)
+                self.feedback("\r\nWaiting for CrypTech devices to start.  ")
+                self.status = "Check CrypTech FPGA State: Waiting for devices"
+                with WaitFeedback.Start(self.feedback):
+                    time.sleep(45)
 
-            attempt += 1
+                attempt += 1
 
-            # must log in before we can check the fpga
-            self.login(username, pin)
+                # must log in before we can check the fpga
+                self.login(username, pin)
 
-            status = self.check_fpga(cty_index)
+                status = self.check_fpga(cty_index)
 
         if (status == True):
             self.feedback("\r\nOK")

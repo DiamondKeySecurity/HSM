@@ -334,6 +334,8 @@ class CTYTCPServer(TCPServer):
 
         cryptech.muxd.logger.info("CTY connected to %r", stream)
 
+        self.cty_mux.reset()
+
         try:
             self.cty_mux.attached_cty = stream
             while self.cty_mux.attached_cty is stream:
@@ -342,10 +344,10 @@ class CTYTCPServer(TCPServer):
 
         except tornado.iostream.StreamClosedError:
             stream.close()
-            e.set()
 
         finally:
             cryptech.muxd.logger.info("CTY disconnected from %r", stream)
+            e.set()
             if self.cty_mux.attached_cty is stream:
                 self.cty_mux.attached_cty = None
                 self.cty_mux.reset()

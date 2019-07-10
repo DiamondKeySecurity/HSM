@@ -29,6 +29,7 @@ from console.scripts.script import ScriptModule, script_node, ValueType
 from abc import abstractmethod, ABCMeta
 
 from hsm_tools.threadsafevar import ThreadSafeVariable
+from hsm_tools.statusobject import SetStatus, StatusObject
 
 # import Python compatibility layer incase we switch to Python 3 later
 import six
@@ -161,7 +162,7 @@ class ConsoleState(IntEnum):
     # when in setup mode, all commands are disabled
     Setup = 4
 
-class ConsoleInterface(CommandNode):
+class ConsoleInterface(CommandNode, StatusObject):
     __metaclass__ = ABCMeta
 
     @abstractmethod
@@ -213,7 +214,8 @@ class ConsoleInterface(CommandNode):
 
         self.banner = 'Diamond Key Security'
 
-        super(ConsoleInterface, self).__init__(name = '.', top_parent = self, parent = None, num_args = None, usage = None, callback = None)
+        CommandNode.__init__(self, name = '.', top_parent = self, parent = None, num_args = None, usage = None, callback = None)
+        StatusObject.__init__(self)
 
         self.add_child('help', num_args=0, usage=None, callback=self.help)
 
@@ -470,12 +472,16 @@ class ConsoleInterface(CommandNode):
                         
                     self.cty_direct_call(self.prompt)
                 else:
-                    self.script_module = self.script_module.accept_validated_response(validated_response)
+                    next_step = self.script_module.accept_validated_response(validated_response)
 
                     # show the next prompt
                     if (self.console_state.value == ConsoleState.LoggedIn or
                         self.console_state.value == ConsoleState.Setup):
+                        self.script_module = next_step
                         self.cty_direct_call(self.prompt)
+                    else:
+                        # we logged out while a script was running
+                        self.script_module = None
 
             elif(len(input) > 0):
                 if (self.console_state.value == ConsoleState.UsernameRequested):
