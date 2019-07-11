@@ -41,7 +41,8 @@ class SyncExport(ScriptModule):
                                     'with the export data from this device. > ',
                                     ValueType.AnyString, callback=self.exportjson_entered)
                         ],
-                        finished_callback=finished_callback)
+                        finished_callback=finished_callback,
+                        auto_finished_callback=False)
 
     def continuePromptCallback(self, response):
         """Process user response about whether they want to continue"""

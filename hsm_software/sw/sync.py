@@ -279,6 +279,8 @@ class Synchronizer(PFUNIX_HSM):
             max_uuids = 64
             recv_count = 64
 
+            first_uuid = None
+
             # keep looping until we get less than what we asked for
             while (recv_count == max_uuids):
                 recv_count = 0
@@ -286,6 +288,13 @@ class Synchronizer(PFUNIX_HSM):
                                            length = max_uuids):
                     if(console is not None):
                         console("Found:%s"%uuid)
+
+                    if (first_uuid is None):
+                        first_uuid = uuid
+                    elif (first_uuid == uuid):
+                        # if the number of uuids on the device == max_uuids in search,
+                        # the CrypTech device will loop forever
+                        break
 
                     with hsm.pkey_open(uuid) as pkey:
                         new_uuid = uuid
@@ -439,6 +448,7 @@ class Synchronizer(PFUNIX_HSM):
                 prev_uuid = UUID(int = 0)
                 max_uuids = 64
                 recv_count = 64
+                first_uuid = None
 
                 # keep looping until we get less than what we asked for
                 while (recv_count == max_uuids):
@@ -447,6 +457,13 @@ class Synchronizer(PFUNIX_HSM):
                                                flags = HAL_KEY_FLAG_EXPORTABLE,
                                                length = max_uuids,
                                                u = prev_uuid):
+
+                        if (first_uuid is None):
+                            first_uuid = uuid
+                        elif (first_uuid == uuid):
+                            # if the number of uuids on the device == max_uuids in search,
+                            # the CrypTech device will loop forever
+                            break
 
                         if((args.uuid_list is None) or (uuid in args.uuid_list)):
                             # this has been updated to only export keys that are in the list
