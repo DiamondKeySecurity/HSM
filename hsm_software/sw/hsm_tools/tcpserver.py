@@ -157,7 +157,10 @@ class RPCTCPServer(TCPServer):
                     # get the old handle
                     decoded_query = cryptech.muxd.slip_decode(query)
 
-                    reply = self.error_from_request(decoded_query, DKS_HALError.HAL_ERROR_FORBIDDEN)
+                    if (not self.rpc_preprocessor.is_mkm_set):
+                        reply = self.error_from_request(decoded_query, DKS_HALError.HAL_ERROR_MASTERKEY_NOT_SET)
+                    else:
+                        reply = self.error_from_request(decoded_query, DKS_HALError.HAL_ERROR_FORBIDDEN)
                 except:
                     reply = self.error_from_request(decoded_query, DKS_HALError.HAL_ERROR_BAD_ARGUMENTS)
 

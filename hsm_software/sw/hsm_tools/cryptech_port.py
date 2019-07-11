@@ -77,6 +77,15 @@ class DKS_HALError(IntEnum):
     # non-standard order 66. Give some space in case CrypTech adds more error codes
     HAL_ERROR_TAMPER                    = 66
 
+    @classmethod
+    def to_mkm_string(cls, error):
+        if (error == cls.HAL_OK):
+            return "Set"
+        elif (error == cls.HAL_ERROR_MASTERKEY_NOT_SET):
+            return "Not set"
+        else:
+            return "Failed"
+
 class DKS_RPCFunc(IntEnum):
     RPC_FUNC_GET_VERSION                  = 0
     RPC_FUNC_GET_RANDOM                   = 1

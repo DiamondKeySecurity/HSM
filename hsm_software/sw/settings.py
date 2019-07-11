@@ -21,7 +21,7 @@ import threading
 
 from enum import Enum
 
-HSM_SOFTWARE_VERSION = '19.07.p2'
+HSM_SOFTWARE_VERSION = '19.07.p3'
 
 # this is the version of the firmware that's built into the current release
 BUILTIN_FIRMWARE_VERSION = '2019-03-11v1'
@@ -216,9 +216,8 @@ class Settings(object):
 
     def __check_master_key_settings(self):
         """Not thread-safe. Should only be called from __init__"""
-        # if we're starting up and not because of a normal reset, assume the masterkey has been lost
-        if(self.dictionary[HSMSettings.HSM_RESET_NORMALLY] == False):
-            self.dictionary[HSMSettings.MASTERKEY_SET] = False
+        # always assume the master key has been lost, the system will check it later
+        self.dictionary[HSMSettings.MASTERKEY_SET] = False
 
         # we've handled the flag so set it to false
         self.dictionary[HSMSettings.HSM_RESET_NORMALLY] = False

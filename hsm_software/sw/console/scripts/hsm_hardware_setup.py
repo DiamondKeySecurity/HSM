@@ -23,6 +23,7 @@ from masterkey import MasterKeySetScriptModule
 from settings import HSMSettings
 from hsm_tools.cty_connection import CTYError
 from hsm_tools.statusobject import SetStatus
+from hsm_tools.cryptech_port import DKS_HALError
 
 class HSMHardwareSetupScriptModule(ScriptModule):
     def __init__(self, console_object, username, pin):
@@ -90,13 +91,30 @@ class HSMHardwareSetupScriptModule(ScriptModule):
         self.console_object.cty_conn.show_fpga_cores()
 
     def check_masterkey(self):
-        if(not self.settings.get_setting(HSMSettings.MASTERKEY_SET)):
+        self.console_object.cty_direct_call("Checking the status of the Master Key.")
+        masterkey_status = self.console_object.cty_conn.getMasterKeyStatus()
+        masterkey_set = True
+        for cty_index in range(len(masterkey_status)):
+            status = masterkey_status[cty_index]
+            if ('volatile' in status):
+                self.console_object.cty_direct_call("CTY %i: %s"%(cty_index, DKS_HALError.to_mkm_string(status['volatile'])))
+                if (status['volatile'] != DKS_HALError.HAL_OK):
+                    masterkey_set = False
+            else:
+                self.console_object.cty_direct_call("CTY %i: 'volatile' status not found"%(cty_index))
+                masterkey_set = False
+
+        # set the master key state in settings
+        self.settings.set_setting(HSMSettings.MASTERKEY_SET, masterkey_set)
+
+        if(not masterkey_set):
             self.sub_module = MasterKeySetScriptModule(self.console_object.cty_conn,
                                                 self.console_object.cty_direct_call,
                                                 self.console_object.settings,
-                                                message=('Because of a system reset, the master key '
-                                                         'may not be set.\r\nWould you like to set it'
-                                                         ' now? (y/n) '),
+                                                message=('The master key is not in volatile memory.\r\n'
+                                                         'The HSM will not be operation and all incoming\r\n'
+                                                         'operations will fail until it is set.\r\n'
+                                                         'Would you like to set it now? (y/n) '),
                                                 finished_callback=self.init_cache)
         else:
             self.init_cache(None)

@@ -20,6 +20,7 @@ import time
 
 from enum import IntEnum
 from cryptech.upload import ManagementPortSerial, send_file
+from cryptech_port import DKS_HALError
 
 from stoppable_thread import stoppable_thread
 from statusobject import StatusObject, SetStatus
@@ -230,6 +231,38 @@ class CTYConnection(StatusObject):
         # show the result to the user
         return "\r\n\r\nSuccess:%s key:\r\n%s\r\n"%(split_reponse[start-2], masterkey)
 
+    def _parseMKMStatus(self, status):
+        if (status.startswith("Set")):
+            return DKS_HALError.HAL_OK
+        elif (status.startswith("Not set")):
+            return DKS_HALError.HAL_ERROR_MASTERKEY_NOT_SET
+        else:
+            return DKS_HALError.HAL_ERROR_MASTERKEY_FAIL
+
+    def getMasterKeyStatus(self):
+        cmd = "masterkey status\r"
+        result = []
+        with SetStatus(self, "Getting Master Key Status"):
+            for device_index in xrange(len(self.cty_list)):
+                response_from_device = ""
+                with WaitFeedback.Start(self.feedback):
+                    management_port_serial = self.cty_list[device_index].serial
+
+                    response_from_device = self.send_raw(cmd, management_port_serial, 2)
+
+                # parse the response
+                lines = response_from_device.splitlines()
+                status = {}
+                for line in lines:
+                    if (line.startswith("  volatile: ")):
+                        status['volatile'] = self._parseMKMStatus(line[len("  volatile: "):])
+                    elif (line.startswith("     flash: ")):
+                        status['flash'] = self._parseMKMStatus(line[len("     flash: "):])
+
+                result.append(status)
+
+        return result
+        
     def setPassword(self, user, newPIN):
         # make sure we have an alpha that's ready to receive commands
         ready_state = self.check_ready()
