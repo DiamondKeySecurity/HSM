@@ -35,11 +35,12 @@ class script_node(object):
         self.callback = callback
 
 class ScriptModule(object):
-    def __init__(self, node_list, finished_callback = None):
+    def __init__(self, node_list, finished_callback = None, auto_finished_callback = True):
         self.node_list = node_list
         self.current = 0
         self.results = {}
         self.finished_callback = finished_callback
+        self.auto_finished_callback = auto_finished_callback
         self.sub_module = None
 
     def is_done(self):
@@ -140,7 +141,7 @@ class ScriptModule(object):
             rval = callback(validated_response)
 
         if (rval is None or self.is_done()):
-            if(self.finished_callback is not None):
+            if(self.auto_finished_callback and (self.finished_callback is not None)):
                 rval = self.finished_callback(self.results)
             else:
                 rval = None

@@ -35,7 +35,8 @@ class SyncImportSetup(ScriptModule):
                                     'host computer to save the setup json. > ',
                                     ValueType.AnyString, callback=self.setupjson_entered)
                         ],
-                        finished_callback=finished_callback)
+                        finished_callback=finished_callback,
+                        auto_finished_callback=False)
 
     def continuePromptCallback(self, response):
         """Process user response about whether they want to continue"""

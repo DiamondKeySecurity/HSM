@@ -157,7 +157,10 @@ class RPCTCPServer(TCPServer):
                     # get the old handle
                     decoded_query = cryptech.muxd.slip_decode(query)
 
-                    reply = self.error_from_request(decoded_query, DKS_HALError.HAL_ERROR_FORBIDDEN)
+                    if (not self.rpc_preprocessor.is_mkm_set):
+                        reply = self.error_from_request(decoded_query, DKS_HALError.HAL_ERROR_MASTERKEY_NOT_SET)
+                    else:
+                        reply = self.error_from_request(decoded_query, DKS_HALError.HAL_ERROR_FORBIDDEN)
                 except:
                     reply = self.error_from_request(decoded_query, DKS_HALError.HAL_ERROR_BAD_ARGUMENTS)
 
@@ -334,6 +337,8 @@ class CTYTCPServer(TCPServer):
 
         cryptech.muxd.logger.info("CTY connected to %r", stream)
 
+        self.cty_mux.reset()
+
         try:
             self.cty_mux.attached_cty = stream
             while self.cty_mux.attached_cty is stream:
@@ -342,10 +347,10 @@ class CTYTCPServer(TCPServer):
 
         except tornado.iostream.StreamClosedError:
             stream.close()
-            e.set()
 
         finally:
             cryptech.muxd.logger.info("CTY disconnected from %r", stream)
+            e.set()
             if self.cty_mux.attached_cty is stream:
                 self.cty_mux.attached_cty = None
                 self.cty_mux.reset()

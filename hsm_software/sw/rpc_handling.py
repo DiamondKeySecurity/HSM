@@ -255,8 +255,12 @@ class RPCPreprocessor:
             futures.append(rpc.serial.rpc_output_loop())
             futures.append(rpc.serial.logout_all())
 
+    @property
+    def is_mkm_set(self):
+        return self.settings.get_setting(HSMSettings.MASTERKEY_SET) == True
+
     def is_rpc_locked(self):
-        return self.hsm_locked or (not self.cache.is_initialized())
+        return self.hsm_locked or (not self.cache.is_initialized()) or (not self.is_mkm_set)
 
     def unlock_hsm(self):
         self.hsm_locked = False

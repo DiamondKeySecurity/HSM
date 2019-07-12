@@ -19,6 +19,7 @@ import time
 from scripts.masterkey import MasterKeySetScriptModule
 
 from hsm_tools.cty_connection import CTYError
+from hsm_tools.cryptech_port import DKS_HALError
 
 def dks_do_erase(console_object, pin, username):
     if(console_object.cty_conn.clearKeyStore(preservePINs=True) == CTYError.CTY_OK):
@@ -98,6 +99,18 @@ def dks_masterkey_set(console_object, args):
 
     return True
 
+def dks_masterkey_status(console_object, args):
+    status_all = console_object.cty_conn.getMasterKeyStatus()
+
+    for cty_index in xrange(len(status_all)):
+        console_object.cty_direct_call('CTY %i:'%cty_index)
+        if ('volatile' in status_all[cty_index]):
+            console_object.cty_direct_call('   volatile: %s'%DKS_HALError.to_mkm_string(status_all[cty_index]['volatile']))
+        if ('flash' in status_all[cty_index]):
+            console_object.cty_direct_call('      flash: %s'%DKS_HALError.to_mkm_string(status_all[cty_index]['flash']))
+
+    return ""
+
 def add_keystore_commands(console_object):
     console_object.add_child_tree(['keystore', 'erase', 'YesIAmSure'],
                                    num_args=0,
@@ -110,7 +123,14 @@ def add_keystore_commands(console_object):
                                         ' without downgrading the HSM firmware.',
                                   callback=dks_restore)
 
-    console_object.add_child_tree(['masterkey', 'set'],
-                                  num_args=0,
-                                  usage=" - sets the master key.",
-                                  callback=dks_masterkey_set)
+    masterkey = console_object.add_child('masterkey')
+
+    masterkey.add_child('set',
+                        num_args=0,
+                        usage=" - sets the master key.",
+                        callback=dks_masterkey_set)
+
+    masterkey.add_child('status',
+                        num_args=0,
+                        usage=" - gets the status of the master key.",
+                        callback=dks_masterkey_status)

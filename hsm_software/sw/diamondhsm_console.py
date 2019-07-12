@@ -205,11 +205,6 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
         # show login msg
         return login_msg
 
-    def check_master_key_set(self, _):
-        # if the masterkey has not been set, prompt
-        if(not self.settings.get_setting(HSMSettings.MASTERKEY_SET)):
-            self.script_module = MasterKeyResetScriptModule(self)
-
     def on_login_username_entered(self, username):
         """Override to handle the user logging in.
         Returns true if the username is valid"""

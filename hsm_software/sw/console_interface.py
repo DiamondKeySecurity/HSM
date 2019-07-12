@@ -29,6 +29,7 @@ from console.scripts.script import ScriptModule, script_node, ValueType
 from abc import abstractmethod, ABCMeta
 
 from hsm_tools.threadsafevar import ThreadSafeVariable
+from hsm_tools.statusobject import SetStatus, StatusObject
 
 # import Python compatibility layer incase we switch to Python 3 later
 import six
@@ -161,7 +162,7 @@ class ConsoleState(IntEnum):
     # when in setup mode, all commands are disabled
     Setup = 4
 
-class ConsoleInterface(CommandNode):
+class ConsoleInterface(CommandNode, StatusObject):
     __metaclass__ = ABCMeta
 
     @abstractmethod
@@ -213,7 +214,8 @@ class ConsoleInterface(CommandNode):
 
         self.banner = 'Diamond Key Security'
 
-        super(ConsoleInterface, self).__init__(name = '.', top_parent = self, parent = None, num_args = None, usage = None, callback = None)
+        CommandNode.__init__(self, name = '.', top_parent = self, parent = None, num_args = None, usage = None, callback = None)
+        StatusObject.__init__(self)
 
         self.add_child('help', num_args=0, usage=None, callback=self.help)
 
@@ -405,16 +407,12 @@ class ConsoleInterface(CommandNode):
                     pass
 
     def handle_login(self):
-        """Shows the login banner and readies the console to receive it"""
-        banner = ''
         if(not self.banner_shown):
-            banner = self.banner
+            self.cty_direct_call(self.banner)
             self.banner_shown = True
 
         if (self.is_login_available()):
-            banner = "%s\r\n%s"%(banner, self.get_login_prompt())
-
-            self.cty_direct_call(banner)
+            self.cty_direct_call(self.get_login_prompt())
             if (self.current_user is not None):
 
                 # don't show the password
@@ -424,15 +422,10 @@ class ConsoleInterface(CommandNode):
             else:
                 self.console_state.value = ConsoleState.UsernameRequested
         else:
-            banner = banner + self.no_login_msg()
-
-            if (return_banner_only is False):
-                self.cty_direct_call(banner)
-                self.hide_input = False
-                self.console_state.value = ConsoleState.LoggedIn
-                self.cty_direct_call(self.prompt)
-
-        return banner
+            self.cty_direct_call(self.no_login_msg())
+            self.hide_input = False
+            self.console_state.value = ConsoleState.LoggedIn
+            self.cty_direct_call(self.prompt)
 
     def handle_username_entered(self, data):
         username = data.rstrip('\r\n')
@@ -484,12 +477,16 @@ class ConsoleInterface(CommandNode):
                         
                     self.cty_direct_call(self.prompt)
                 else:
-                    self.script_module = self.script_module.accept_validated_response(validated_response)
+                    next_step = self.script_module.accept_validated_response(validated_response)
 
                     # show the next prompt
                     if (self.console_state.value == ConsoleState.LoggedIn or
                         self.console_state.value == ConsoleState.Setup):
+                        self.script_module = next_step
                         self.cty_direct_call(self.prompt)
+                    else:
+                        # we logged out while a script was running
+                        self.script_module = None
 
             elif(len(input) > 0):
                 if (self.console_state.value == ConsoleState.UsernameRequested):
