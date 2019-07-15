@@ -155,45 +155,56 @@ def dks_tamper_fault_check(console_object, args):
     return console_object.cty_conn.send_raw_all(cmd, 5)
 
 def dks_tamper_test(console_object, args):
-      console_object.tamper.on_tamper(None)
+    console_object.tamper.on_tamper(None)
 
-      return "TESTING TAMPER"
+    return "TESTING TAMPER"
 
 def dks_tamper_reset(console_object, args):
-      console_object.tamper.reset_tamper_state()
+    console_object.tamper.reset_tamper_state()
 
-      return "RESETING TAMPER"
+    return "RESETING TAMPER"
+
+def dks_battery_set_enable(console_object, args):
+    return "Battery Enabled"
+
+def dks_battery_set_disable(console_object, args):
+    return "Battery Disabled"
 
 def add_tamper_commands(console_object):
-      tamper_node = console_object.add_child('tamper')
+    tamper_node = console_object.add_child('tamper')
 
-      tamper_node.add_child(name="test", num_args=0,
-                            usage=' - Test tamper functionality by '
-                                  'simulating an event.',
-                            callback=dks_tamper_test)
-      tamper_node.add_child(name="reset", num_args=0,
-                            usage=' - Attempt to reset the tamper flag. This'
-                                  ' will fail during an ongoing tamper event.',
-                            callback=dks_tamper_reset)
+    tamper_node.add_child(name="test", num_args=0,
+                          usage=' - Test tamper functionality by '
+                                'simulating an event.',
+                          callback=dks_tamper_test)
+    tamper_node.add_child(name="reset", num_args=0,
+                          usage=' - Attempt to reset the tamper flag. This'
+                                ' will fail during an ongoing tamper event.',
+                          callback=dks_tamper_reset)
 
-      tamper_node.add_child(name="check", num_args=0,
-                            callback=dks_tamper_check)
+    tamper_node.add_child(name="check", num_args=0,
+                          callback=dks_tamper_check)
 
-      tamper_node.add_child_tree(["fault", "check"], num_args=0,
+    tamper_node.add_child_tree(["fault", "check"], num_args=0,
                             callback=dks_tamper_fault_check)
 
-      # add parent nodes
-      set_node = tamper_node.add_child('set')
-      get_node = tamper_node.add_child('get')
+    # add parent nodes
+    set_node = tamper_node.add_child('set')
+    get_node = tamper_node.add_child('get')
 
-      # add thresholds
-      set_node.add_child('temperature', num_args=2, callback=dks_tamper_threshold_set_temp)
-      set_node.add_child('vibe', num_args=1, callback=dks_tamper_threshold_set_accel)
-      set_node.add_child('light', num_args=1, callback=dks_tamper_threshold_set_light)
-      set_node.add_child('disable', num_args=1, callback=dks_tamper_threshold_set_disable)
-      set_node.add_child('enable', num_args=1, callback=dks_tamper_threshold_set_enable)
-      set_node.add_child('config', num_args=0, callback=dks_tamper_set_config)
+    # add thresholds
+    set_node.add_child('temperature', num_args=2, callback=dks_tamper_threshold_set_temp)
+    set_node.add_child('vibe', num_args=1, callback=dks_tamper_threshold_set_accel)
+    set_node.add_child('light', num_args=1, callback=dks_tamper_threshold_set_light)
+    set_node.add_child('disable', num_args=1, callback=dks_tamper_threshold_set_disable)
+    set_node.add_child('enable', num_args=1, callback=dks_tamper_threshold_set_enable)
+    set_node.add_child('config', num_args=0, callback=dks_tamper_set_config)
 
-      get_node.add_child('temperature', num_args=0, callback=dks_tamper_threshold_get_temp)
-      get_node.add_child('vibe', num_args=0, callback=dks_tamper_threshold_get_accel)
-      get_node.add_child('light', num_args=0, callback=dks_tamper_threshold_get_light)
+    get_node.add_child('temperature', num_args=0, callback=dks_tamper_threshold_get_temp)
+    get_node.add_child('vibe', num_args=0, callback=dks_tamper_threshold_get_accel)
+    get_node.add_child('light', num_args=0, callback=dks_tamper_threshold_get_light)
+
+    # battery
+    battery_set = console_object.add_child_tree(["battery", "set"])
+    battery_set.add_child('enable', num_args=0, callback=dks_battery_set_enable)
+    battery_set.add_child('disable', num_args=0, callback=dks_battery_set_disable)
