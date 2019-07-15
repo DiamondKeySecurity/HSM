@@ -16,7 +16,7 @@
 
 import subprocess
 
-from settings import HSMSettings, WEB_PORT, RPC_IP_PORT, CTY_IP_PORT
+from settings import HSMSettings, WEB_PORT, RPC_IP_PORT, CTY_IP_PORT, SSH_PORT
 
 class Firewall(object):
     IP_TABLE_HEADER = ['#!/bin/bash\n',
@@ -88,6 +88,7 @@ class Firewall(object):
         Firewall.add_ip_rules(rules_list, netiface, RPC_IP_PORT, settings[HSMSettings.DATA_FIREWALL_SETTINGS])
         Firewall.add_ip_rules(rules_list, netiface, CTY_IP_PORT, settings[HSMSettings.MGMT_FIREWALL_SETTINGS])
         Firewall.add_ip_rules(rules_list, netiface, WEB_PORT, settings[HSMSettings.WEB_FIREWALL_SETTINGS])
+        Firewall.add_ip_rules(rules_list, netiface, SSH_PORT, settings[HSMSettings.SSH_FIREWALL_SETTINGS])
 
         # allow all direct connections to CTY
         Firewall.add_ip_rules(rules_list, '%s:1'%netiface, CTY_IP_PORT, None)
@@ -100,12 +101,17 @@ class Firewall(object):
         set_list = [HSMSettings.ZERO_CONFIG_ENABLED,
                     HSMSettings.DATA_FIREWALL_SETTINGS,
                     HSMSettings.MGMT_FIREWALL_SETTINGS,
-                    HSMSettings.WEB_FIREWALL_SETTINGS]
+                    HSMSettings.WEB_FIREWALL_SETTINGS,
+                    HSMSettings.SSH_FIREWALL_SETTINGS]
 
         # extract from settings
         firewall_settings = {}
         for setting in set_list:
             firewall_settings[setting] = settings.get_setting(setting)
+
+        # allow zero conf by default
+        if (firewall_settings[HSMSettings.ZERO_CONFIG_ENABLED] is None):
+            firewall_settings[HSMSettings.ZERO_CONFIG_ENABLED] = True
 
         # generate our rules
         rules_list = Firewall.generate_iptable_settings(firewall_settings, 'eth0')

@@ -21,7 +21,7 @@ import threading
 
 from enum import Enum
 
-HSM_SOFTWARE_VERSION = '19.07.12.field07'
+HSM_SOFTWARE_VERSION = '19.07.15.field08'
 
 # this is the version of the firmware that's built into the current release
 BUILTIN_FIRMWARE_VERSION = '2019-06-26-tamper'
@@ -30,6 +30,7 @@ BUILTIN_TAMPER_VERSION = None
 RPC_IP_PORT = 8080
 CTY_IP_PORT = 8081
 WEB_PORT    = 80
+SSH_PORT    = 2200
 
 class HSMSettings(str, Enum):
     """Enum where members are also (and must be) strs"""
@@ -58,6 +59,7 @@ class HSMSettings(str, Enum):
     DATA_FIREWALL_SETTINGS   = 'DATA_FIREWALL_SETTINGS'
     MGMT_FIREWALL_SETTINGS   = 'MGMT_FIREWALL_SETTINGS'
     WEB_FIREWALL_SETTINGS    = 'WEB_FIREWALL_SETTINGS'
+    SSH_FIREWALL_SETTINGS    = 'SSH_FIREWALL_SETTINGS'
 
     HSM_AUTHORIZATION_SETUP  = 'HSM_AUTHORIZATION_SETUP'
 
