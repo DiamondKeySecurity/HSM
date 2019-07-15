@@ -273,3 +273,6 @@ class Settings(object):
 
         if (HSMSettings.WEB_FIREWALL_SETTINGS not in self.dictionary):
             self.dictionary[HSMSettings.WEB_FIREWALL_SETTINGS] = True
+
+        if (HSMSettings.SSH_FIREWALL_SETTINGS not in self.dictionary):
+            self.dictionary[HSMSettings.SSH_FIREWALL_SETTINGS] = False
