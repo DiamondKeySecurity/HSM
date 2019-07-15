@@ -21,14 +21,16 @@ from settings import CTY_IP_PORT, RPC_IP_PORT
 from zeroconf import ServiceInfo, Zeroconf
 
 class HSMZeroConfSetup(object):
-    def __init__(self, ip_addr, serial):
+    def __init__(self, ip_addr, serial, firmware_version, sd_version):
         self.zeroconf = None
         self.registered = False
 
-        desc = {'serial': serial,
-                'host': 'dks-hsm',
-                'type': 'Diamond HSM Prototype',
-                'IP'  : ip_addr }
+        desc = {'serial'   : serial,
+                'host'     : 'dks-hsm',
+                'type'     : 'Diamond HSM Prototype',
+                'firmware' : firmware_version,
+                'sd'       : sd_version,
+                'IP'       : ip_addr }
 
         self.service_info = ServiceInfo("_dks-hsm-cty._tcp.local.",
                                         "%s._dks-hsm-cty._tcp.local."%serial,

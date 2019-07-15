@@ -77,7 +77,7 @@ from cache import HSMCache
 from rpc_handling import RPCPreprocessor
 
 from ipconfig import NetworkInterfaces
-from settings import Settings, RPC_IP_PORT, CTY_IP_PORT, HSMSettings
+from settings import Settings, RPC_IP_PORT, CTY_IP_PORT, HSMSettings, HSM_SOFTWARE_VERSION
 
 try:
     from ssh_server import SSHServer
@@ -284,7 +284,16 @@ def main():
     my_zero_conf = None
     ip = netiface.get_ip()
     if(ip != None):
-        my_zero_conf = HSMZeroConfSetup(ip, args.serial_number)
+        # give extra info so maintainer can see if an upgrade is needed from findHSM
+        if (ssh_available):
+            sd_version = "0.1"
+        else:
+            sd_version = "0.0"
+
+        my_zero_conf = HSMZeroConfSetup(ip_addr = ip,
+                                        serial = args.serial_number,
+                                        firmware_version = HSM_SOFTWARE_VERSION,
+                                        sd_version = sd_version)
 
     # Prove for the devices --------------------------
     if(led_container is not None):
