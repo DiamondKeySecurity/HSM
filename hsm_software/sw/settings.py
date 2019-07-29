@@ -21,7 +21,7 @@ import threading
 
 from enum import Enum
 
-HSM_SOFTWARE_VERSION = '19.07.29.field10'
+HSM_SOFTWARE_VERSION = '19.07.29.field13'
 
 # this is the version of the firmware that's built into the current release
 BUILTIN_FIRMWARE_VERSION = 'hsm-190729a'
@@ -257,7 +257,7 @@ class Settings(object):
     def __check_security_settings(self):
         """Not thread-safe. Should only be called from __init__"""
         if (HSMSettings.ENABLE_EXPORTABLE_PRIVATE_KEYS not in self.dictionary):
-            self.dictionary[HSMSettings.ENABLE_EXPORTABLE_PRIVATE_KEYS] = False
+            self.dictionary[HSMSettings.ENABLE_EXPORTABLE_PRIVATE_KEYS] = True
 
         if (HSMSettings.ENABLE_KEY_EXPORT not in self.dictionary):
             self.dictionary[HSMSettings.ENABLE_KEY_EXPORT] = False
