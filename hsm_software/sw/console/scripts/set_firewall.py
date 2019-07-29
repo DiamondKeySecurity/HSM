@@ -220,13 +220,17 @@ class FirewallChangeSettingScript(ScriptModule):
 
     def changeToPromptCallback(self, response):
         if (response.lower() == 'a'):
-            return firewall_all_script(self.settings, self.cty_direct_call, self.hsm_setting, self.update_firewall_from_settings)
+            self.sub_module = firewall_all_script(self.settings, self.cty_direct_call, self.hsm_setting, self.update_firewall_from_settings)
+            return self
         elif (response.lower() == 'r'):
-            return firewall_iprange_script(self.settings, self.cty_direct_call, self.hsm_setting, self.update_firewall_from_settings)
+            self.sub_module = firewall_iprange_script(self.settings, self.cty_direct_call, self.hsm_setting, self.update_firewall_from_settings)
+            return self
         elif (response.lower() == 'l'):
-            return firewall_iplist_script(self.settings, self.cty_direct_call, self.hsm_setting, self.update_firewall_from_settings)
+            self.sub_module = firewall_iplist_script(self.settings, self.cty_direct_call, self.hsm_setting, self.update_firewall_from_settings)
+            return self
         elif (response.lower() == 'b'):
-            return firewall_block_script(self.settings, self.cty_direct_call, self.hsm_setting, self.update_firewall_from_settings)
+            self.sub_module = firewall_block_script(self.settings, self.cty_direct_call, self.hsm_setting, self.update_firewall_from_settings)
+            return self
         else:
             self.cty_direct_call("Unexpected response '%s'.\r\nPlease try again."%response)
 
