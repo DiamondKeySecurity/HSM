@@ -250,6 +250,8 @@ def main():
                              "%Y-%m-%d %H:%M:%S"))
 
     global log_rpc_codes_to_stdin
+    global ssh_cty_server
+    global ssh_available
 
     if args.verbose:
         level = logging.DEBUG if args.verbose > 1 else logging.INFO
@@ -389,9 +391,6 @@ def main():
 
     # Listen for incoming TCP/IP connections from remove cryptech.muxd_client
     cty_server = CTYTCPServer(cty_stream, port=CTY_IP_PORT, ssl=ssl_options)
-
-    global ssh_cty_server
-    global ssh_available
 
     if (ssh_available):
         try:

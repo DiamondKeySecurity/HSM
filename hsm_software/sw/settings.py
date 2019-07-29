@@ -21,10 +21,10 @@ import threading
 
 from enum import Enum
 
-HSM_SOFTWARE_VERSION = '19.07.15.field09'
+HSM_SOFTWARE_VERSION = '19.07.29.field10'
 
 # this is the version of the firmware that's built into the current release
-BUILTIN_FIRMWARE_VERSION = '2019-06-26-tamper'
+BUILTIN_FIRMWARE_VERSION = 'hsm-190729a'
 BUILTIN_TAMPER_VERSION = None
 
 RPC_IP_PORT = 8080

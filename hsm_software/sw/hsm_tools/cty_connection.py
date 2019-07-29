@@ -15,6 +15,7 @@
 # along with this program; if not, If not, see <https://www.gnu.org/licenses/>.
 
 import os
+import os.path
 
 import time
 
@@ -26,6 +27,10 @@ from stoppable_thread import stoppable_thread
 from statusobject import StatusObject, SetStatus
 
 from hsm import UploadArgs
+
+HSM_BINARY_FILE        = "hsm-190729a.bin"
+BOOTLOADER_BINARY_FILE = "bootloader.bin"
+FPGA_BITSTREAM_FILE    = "alpha_fmc.bit"
 
 class CTYError(IntEnum):
     CTY_OK = 0,
@@ -317,7 +322,7 @@ class CTYConnection(StatusObject):
         ready_state = self.check_ready()
         if(ready_state is not CTYError.CTY_OK): return ready_state
 
-        name = self.binary_path + "/alpha_fmc.bit"
+        name = os.path.join(self.binary_path, FPGA_BITSTREAM_FILE)
         upload_args = UploadArgs(fpga = True, pin = PIN, username=username)
 
         if (cty_index is None):
@@ -331,7 +336,7 @@ class CTYConnection(StatusObject):
         ready_state = self.check_ready()
         if(ready_state is not CTYError.CTY_OK): return ready_state
 
-        name = self.binary_path + "/bootloader.bin"
+        name = os.path.join(self.binary_path, BOOTLOADER_BINARY_FILE)
         upload_args = UploadArgs(bootloader = True, pin = PIN, username=username)
 
         if (cty_index is None):
@@ -345,7 +350,7 @@ class CTYConnection(StatusObject):
         ready_state = self.check_ready()
         if(ready_state is not CTYError.CTY_OK): return ready_state
 
-        name = self.binary_path + "/hsm.bin"
+        name = os.path.join(self.binary_path, HSM_BINARY_FILE)
         upload_args = UploadArgs(firmware = True, pin = PIN, username=username)
 
         if (cty_index is None):

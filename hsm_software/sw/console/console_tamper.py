@@ -88,7 +88,7 @@ def dks_tamper_threshold_get_light(console_object, args):
 
 def dks_tamper_threshold_set_temp(console_object, args):
     MIN_TEMPERATURE_VALUE = -1
-    MAX_TEMPERATURE_VALUE = 100
+    MAX_TEMPERATURE_VALUE = 255
 
     lo_temp_value = CheckValue(args[0],
                                'Low temperature threshold',
