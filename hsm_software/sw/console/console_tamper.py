@@ -149,7 +149,11 @@ def dks_tamper_set_config(console_object, args):
 
     console_object.tamper_config.save_settings()
 
-    return console_object.cty_conn.send_raw_all(cmd, 5)
+    result = console_object.cty_conn.send_raw_all(cmd, 5)
+
+    console_object.tamper.enable()
+
+    return result
 
 def dks_tamper_check(console_object, args):
     cmd = 'tamper check\r'

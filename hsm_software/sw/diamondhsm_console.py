@@ -79,7 +79,7 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
         self.temp_object = None
         self.tmpfs = TMPFS(self.args.uploads)
 
-        self.tamper_config = TamperConfiguration(os.path.dirname(args.settings))
+        self.tamper_config = TamperConfiguration(os.path.dirname(args.settings), tamper)
         self.tamper_config.load_saved_settings()
 
         super(DiamondHSMConsole, self).__init__('Diamond HSM')

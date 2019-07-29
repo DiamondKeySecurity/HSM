@@ -31,18 +31,22 @@ class TamperDetector(observable, PFUNIX_HSM):
         PFUNIX_HSM.__init__(self, sockname)
 
         self.tamper_event_detected = ThreadSafeVariable(False)
+        self.detection_enabled = ThreadSafeVariable(False)
 
         self.rpc_count = rpc_count
 
         print('tamper rpc')
 
+    def enable(self):
+        self.detection_enabled.value = True
+
     def dowork(self, hsm):
-        pass
-        # for rpc_index in xrange(self.rpc_count):
-        #     hsm.rpc_set_device(rpc_index)
-        #     if (hsm.rpc_check_tamper() == DKS_HALError.HAL_ERROR_TAMPER):
-        #         self.on_tamper()
-        #         return
+        for rpc_index in xrange(self.rpc_count):
+            if (self.detection_enabled.value):
+                hsm.rpc_set_device(rpc_index)
+                if (hsm.rpc_check_tamper() == DKS_HALError.HAL_ERROR_TAMPER):
+                    self.on_tamper()
+                    return
 
     def stop(self):
         PFUNIX_HSM.stop(self)
