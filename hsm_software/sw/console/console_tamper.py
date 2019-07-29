@@ -104,11 +104,18 @@ def dks_tamper_threshold_set_temp(console_object, args):
     if(isinstance(hi_temp_value, int) is False):
         return hi_temp_value
 
-    console_object.tamper_config.update_setting("temperature", "tamper threshold set temperature", [lo_temp_value, hi_temp_value])
+    console_object.tamper_config.update_setting("temphi", "tamper threshold set temphi", [hi_temp_value])
+    console_object.tamper_config.update_setting("templo", "tamper threshold set templo", [lo_temp_value])
 
-    cmd = console_object.tamper_config.get_command_string("temperature", '\r')
+    # send temphi
+    cmd = console_object.tamper_config.get_command_string("temphi", '\r')
 
-    return console_object.cty_conn.send_raw_all(cmd, 5)
+    result = console_object.cty_conn.send_raw_all(cmd, 5)
+
+    # send templo
+    cmd = console_object.tamper_config.get_command_string("templo", '\r')
+
+    return result + "\r\n" + console_object.cty_conn.send_raw_all(cmd, 5)
 
 def dks_tamper_threshold_get_temp(console_object, args):
     cmd = 'tamper temperature value\r'
@@ -165,10 +172,18 @@ def dks_tamper_reset(console_object, args):
     return "RESETING TAMPER"
 
 def dks_battery_set_enable(console_object, args):
-    return "Battery Enabled"
+    console_object.tamper_config.update_setting("battery", "tamper threshold set battery", [1])
+
+    cmd = console_object.tamper_config.get_command_string("battery", '\r')
+
+    return console_object.cty_conn.send_raw_all(cmd, 5)
 
 def dks_battery_set_disable(console_object, args):
-    return "Battery Disabled"
+    console_object.tamper_config.update_setting("battery", "tamper threshold set battery", [0])
+
+    cmd = console_object.tamper_config.get_command_string("battery", '\r')
+
+    return console_object.cty_conn.send_raw_all(cmd, 5)
 
 def add_tamper_commands(console_object):
     tamper_node = console_object.add_child('tamper')

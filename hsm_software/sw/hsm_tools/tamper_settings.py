@@ -41,7 +41,7 @@ class TamperConfiguration(object):
             pass
 
     def push_settings(self, console_connect):
-        command_order = ["disable", "enable", "temperature", "light", "vibe"]
+        command_order = ["disable", "enable", "templo", "temphi", "light", "vibe"]
 
         for command in command_order:
             cmd_string = self.get_command_string(command)
