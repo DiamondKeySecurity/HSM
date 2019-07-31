@@ -33,8 +33,10 @@ def dks_set_firewall_settings(console_object, args):
         setting = HSMSettings.DATA_FIREWALL_SETTINGS
     elif (args[0].lower() == "web"):
         setting = HSMSettings.WEB_FIREWALL_SETTINGS
-    elif (args[0].lower() == "ssh"):
+    elif (args[0].lower() == "ssh" and (console_object.settings.get_setting(HSMSettings.ALLOW_SSH) is True)):
         setting = HSMSettings.SSH_FIREWALL_SETTINGS
+    elif (console_object.settings.get_setting(HSMSettings.ALLOW_SSH)):
+        return "Expected 'mgmt', 'data', 'web', or 'ssh'"
     else:
         return "Expected 'mgmt', 'data', or 'web'"
 

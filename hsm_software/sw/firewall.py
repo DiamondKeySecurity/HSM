@@ -65,10 +65,15 @@ class Firewall(object):
     def add_ip_rules(rules_list, netiface, port, setting):
         if ((setting is None) or (setting is True)):
             Firewall.add_ip_rules_any(rules_list, netiface, port)
+            print ("port: %i set to accept all."%port)           
         elif isinstance(setting, tuple):
             Firewall.add_ip_rules_range(rules_list, netiface, port, setting)
+            print ("port: %i set to range."%port)
         elif isinstance(setting, list):
             Firewall.add_ip_rules_list(rules_list, netiface, port, setting)
+            print ("port: %i set to list."%port)
+        else:
+            print ("port: %i is blocked."%port)
 
     @staticmethod
     def generate_iptable_settings(settings, netiface):
@@ -102,7 +107,8 @@ class Firewall(object):
                     HSMSettings.DATA_FIREWALL_SETTINGS,
                     HSMSettings.MGMT_FIREWALL_SETTINGS,
                     HSMSettings.WEB_FIREWALL_SETTINGS,
-                    HSMSettings.SSH_FIREWALL_SETTINGS]
+                    HSMSettings.SSH_FIREWALL_SETTINGS,
+                    HSMSettings.ALLOW_SSH]
 
         # extract from settings
         firewall_settings = {}
@@ -112,6 +118,12 @@ class Firewall(object):
         # allow zero conf by default
         if (firewall_settings[HSMSettings.ZERO_CONFIG_ENABLED] is None):
             firewall_settings[HSMSettings.ZERO_CONFIG_ENABLED] = True
+
+        # allow SSH
+        allow_ssh = firewall_settings[HSMSettings.ALLOW_SSH]
+        if ((allow_ssh is None) or (allow_ssh is False)):
+            print 'SSH not allowed'
+            firewall_settings[HSMSettings.SSH_FIREWALL_SETTINGS] = False
 
         # generate our rules
         rules_list = Firewall.generate_iptable_settings(firewall_settings, 'eth0')

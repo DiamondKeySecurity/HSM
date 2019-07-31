@@ -392,7 +392,7 @@ def main():
     # Listen for incoming TCP/IP connections from remove cryptech.muxd_client
     cty_server = CTYTCPServer(cty_stream, port=CTY_IP_PORT, ssl=ssl_options)
 
-    if (ssh_available):
+    if ((settings.get_setting(HSMSettings.ALLOW_SSH) is True) and ssh_available):
         try:
             ssh_cty_server = SSHServer(cty_stream, db)
             ssh_cty_server.start()

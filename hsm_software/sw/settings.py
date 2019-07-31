@@ -21,7 +21,7 @@ import threading
 
 from enum import Enum
 
-HSM_SOFTWARE_VERSION = '19.07.30.field15'
+HSM_SOFTWARE_VERSION = '19.07.31.field17'
 
 # this is the version of the firmware that's built into the current release
 BUILTIN_FIRMWARE_VERSION = 'hsm-190729a'
@@ -62,6 +62,8 @@ class HSMSettings(str, Enum):
     SSH_FIREWALL_SETTINGS    = 'SSH_FIREWALL_SETTINGS'
 
     HSM_AUTHORIZATION_SETUP  = 'HSM_AUTHORIZATION_SETUP'
+
+    ALLOW_SSH                = 'ALLOW_SSH'
 
 # Changes to hardware settings to apply after a firmware update
 HARDWARE_MAPPING = {
@@ -276,3 +278,6 @@ class Settings(object):
 
         if (HSMSettings.SSH_FIREWALL_SETTINGS not in self.dictionary):
             self.dictionary[HSMSettings.SSH_FIREWALL_SETTINGS] = False
+
+        if (HSMSettings.ALLOW_SSH not in self.dictionary):
+            self.dictionary[HSMSettings.ALLOW_SSH] = False
