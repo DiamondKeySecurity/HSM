@@ -13,8 +13,19 @@
 # 
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, If not, see <https://www.gnu.org/licenses/>.
+import os
 from distutils.core import setup
+from distutils.extension import Extension
 from Cython.Build import cythonize
 
-setup(name='RPC Handler',
-      ext_modules=cythonize("hsm_software/sw/*.pyx"))
+os.environ["CC"] = "gcc"
+
+extensions = [
+    Extension("cache", ["cache_object.pyx", "c_code/_hsm_cache.cpp"],
+        extra_compile_args= ['-lstdc++', "-std=c++17", '-lpthread'])
+]
+
+setup(
+    name="My hello app",
+    ext_modules=cythonize(extensions),
+)
