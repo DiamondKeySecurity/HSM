@@ -4,3 +4,4 @@ hsm_software/certs/
 *.tmp
 .vscode/
 uploads/
+build/

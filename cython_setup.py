@@ -17,4 +17,4 @@ from distutils.core import setup
 from Cython.Build import cythonize
 
 setup(name='RPC Handler',
-      ext_modules=cythonize("*.pyx"))
+      ext_modules=cythonize("hsm_software/sw/*.pyx"))
