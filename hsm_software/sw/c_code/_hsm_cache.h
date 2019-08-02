@@ -105,12 +105,12 @@ class HSMCache
 		BaseDBTable<master_table_row> master_table;
 		std::vector<std::unique_ptr<BaseDBTable<alpha_table_row>>> device_tables;
 
-		std::string cache_folder;
 		std::atomic_bool cache_initialized;
+		std::string cache_folder;
 
 		bool validate_device_index(int device_index)
 		{
-			return (device_index >= 0 || device_index < device_tables.size());
+			return (device_index >= 0 || device_index < (int)device_tables.size());
 		}
 };
 

@@ -269,7 +269,7 @@ void HSMCache::backup_tables()
 	std::string master_path = cache_folder + "/cache_master.db";
 	master_table.save_table(master_path.c_str());
 
-	for (int device_index = 0; device_index < device_tables.size(); ++device_index)
+	for (int device_index = 0; device_index < (int)device_tables.size(); ++device_index)
 	{
 		char buffer[32];
 		snprintf(buffer, 32, "/cache_alpha_%i.db", device_index);
