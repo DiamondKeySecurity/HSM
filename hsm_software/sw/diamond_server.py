@@ -63,12 +63,12 @@ import tornado.ioloop
 
 # import classes from the original cryptech.muxd
 # cryptech_muxd has been renamed to cryptech/muxd.py
-from hsm_tools.cryptech import muxd
+from cryptech import muxd
 
 from zero_conf import HSMZeroConfSetup
 
-from hsm_tools.probing import ProbeMultiIOStream
-from hsm_tools.tcpserver import RPCTCPServer, CTYTCPServer, \
+from cryptech.probing import ProbeMultiIOStream
+from tcpserver import RPCTCPServer, CTYTCPServer, \
                                 SecondaryPFUnixListener
 
 from hsm_mgmt.diamondhsm_console import DiamondHSMConsole

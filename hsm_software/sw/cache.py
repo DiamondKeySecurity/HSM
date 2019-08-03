@@ -18,7 +18,7 @@
 import os
 import threading
 
-from hsm_tools.cryptech.cryptech.libhal import HALDigestAlgorithm, HALKeyType, HALCurve
+from cryptech.libhal import HALDigestAlgorithm, HALKeyType, HALCurve
 
 from hsm_cache_db.alpha import CacheTableAlpha, AlphaCacheRow
 from hsm_cache_db.master import CacheTableMaster, MasterKeyListRow

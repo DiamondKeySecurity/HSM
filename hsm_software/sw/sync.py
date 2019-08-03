@@ -35,14 +35,14 @@ from hsm_cache_db.alpha import AlphaCacheRow, CacheTableAlpha
 
 # import classes from the original cryptech.muxd
 # cryptech_muxd has been renamed to cryptech/muxd.py
-from hsm_tools.cryptech.muxd import logger
+from cryptech.muxd import logger
 
-from hsm_tools.cryptech.backup import b64, b64join, SoftKEKEK
-from hsm_tools.cryptech.cryptech.libhal import *
-from hsm_tools.hsm import PFUNIX_HSM
+from cryptech.backup import b64, b64join, SoftKEKEK
+from cryptech.libhal import *
+from cryptech.hsm import PFUNIX_HSM
 from hsm_tools.pkcs11_attr import CKA
 
-from hsm_tools.cryptech_port import DKS_HALUser, DKS_RPCFunc, DKS_HALError, DKS_HALKeyType
+from cryptech.cryptech_port import DKS_HALUser, DKS_RPCFunc, DKS_HALError, DKS_HALKeyType
 
 def rejoinb64(input):
     if(isinstance(input, int)):

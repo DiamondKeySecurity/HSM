@@ -19,7 +19,7 @@ import os
 
 import time
 
-from hsm_tools.cty_connection import CTYError
+from cryptech.cty_connection import CTYError
 
 from scripts.updateRestart import UpdateRestartScriptModule
 

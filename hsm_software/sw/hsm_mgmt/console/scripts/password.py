@@ -17,7 +17,7 @@
 import time
 
 from script import ScriptModule, script_node, ValueType
-from hsm_tools.cryptech_port import DKS_HALUser
+from cryptech.cryptech_port import DKS_HALUser
 
 class PasswordScriptModule(ScriptModule):
     def __init__(self, cty_direct_call, set_hide_input, cty_connection, user, must_set = False, finished_callback = None):

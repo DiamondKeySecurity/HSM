@@ -66,12 +66,12 @@ import tornado.gen
 # cryptech_muxd has been renamed to cryptech/muxd.py
 import cryptech.muxd
 
-from rpc_action import RPCAction
+from hsm_tools.rpc_action import RPCAction
 
-from cryptech_port import DKS_HALError
-from cryptech.cryptech.libhal import ContextManagedUnpacker, xdrlib
+from cryptech.cryptech_port import DKS_HALError
+from cryptech.libhal import ContextManagedUnpacker, xdrlib
 
-from hsm import CrypTechDeviceState
+from cryptech.hsm import CrypTechDeviceState
 
 def rpc_code_get(msg):
     "Extract rpc code field from a Cryptech RPC message."

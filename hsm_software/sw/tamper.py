@@ -15,13 +15,13 @@
 # along with this program; if not, If not, see <https://www.gnu.org/licenses/>.
 
 
-import hsm_tools.cryptech.muxd
+import cryptech.muxd
 
 from hsm_tools.threadsafevar import ThreadSafeVariable
 from hsm_tools.observerable import observable
 from hsm_tools.stoppable_thread import stoppable_thread
-from hsm_tools.hsm import PFUNIX_HSM
-from hsm_tools.cryptech_port import DKS_HALError
+from cryptech.hsm import PFUNIX_HSM
+from cryptech.cryptech_port import DKS_HALError
 
 import time
 

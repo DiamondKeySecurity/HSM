@@ -22,7 +22,7 @@ import uuid
 
 from cache import CacheTable
 
-from hsm_tools.cryptech.muxd import logger
+from cryptech.muxd import logger
 
 class MasterKeyListRow(object):
     """Represents a row in the cache's master key list"""

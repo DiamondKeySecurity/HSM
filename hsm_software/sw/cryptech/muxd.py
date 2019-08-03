@@ -58,7 +58,7 @@ import tornado.queues
 import tornado.locks
 import tornado.gen
 
-from cryptech.libhal import HAL_OK, RPC_FUNC_GET_VERSION, RPC_FUNC_LOGOUT, RPC_FUNC_LOGOUT_ALL
+from libhal import HAL_OK, RPC_FUNC_GET_VERSION, RPC_FUNC_LOGOUT, RPC_FUNC_LOGOUT_ALL
 
 
 logger = logging.getLogger("cryptech_muxd")

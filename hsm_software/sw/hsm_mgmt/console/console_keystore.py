@@ -18,8 +18,8 @@ import time
 
 from scripts.masterkey import MasterKeySetScriptModule
 
-from hsm_tools.cty_connection import CTYError
-from hsm_tools.cryptech_port import DKS_HALError
+from cryptech.cty_connection import CTYError
+from cryptech.cryptech_port import DKS_HALError
 
 def dks_do_erase(console_object, pin, username):
     if(console_object.cty_conn.clearKeyStore(preservePINs=True) == CTYError.CTY_OK):

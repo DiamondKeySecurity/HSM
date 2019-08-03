@@ -26,7 +26,7 @@ import xdrlib
 
 
 from enum import IntEnum
-from cryptech.cryptech.libhal import *
+from libhal import *
 
 class DKS_HALError(IntEnum):
     HAL_OK                              = 0

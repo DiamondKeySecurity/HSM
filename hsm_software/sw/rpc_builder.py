@@ -21,7 +21,7 @@ import enum
 
 # import classes from the original cryptech.muxd
 # cryptech_muxd has been renamed to cryptech/muxd.py
-import hsm_tools.cryptech.muxd
+import cryptech.muxd
 
 
 class KeyMatchResult:

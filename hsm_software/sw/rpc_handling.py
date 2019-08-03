@@ -22,16 +22,16 @@ from uuid import UUID
 
 # import classes from the original cryptech.muxd
 # cryptech_muxd has been renamed to cryptech/muxd.py
-from hsm_tools.cryptech.muxd import logger
+from cryptech.muxd import logger
 
-from hsm_tools.hsm import CrypTechDeviceState
+from cryptech.hsm import CrypTechDeviceState
 
 from settings import HSMSettings
 
-from hsm_tools.cryptech.cryptech.libhal import ContextManagedUnpacker, xdrlib
-from hsm_tools.rpc_action import RPCAction
-from hsm_tools.cryptech_port import DKS_RPCFunc, DKS_HALKeyType,\
+from cryptech.libhal import ContextManagedUnpacker, xdrlib
+from cryptech.cryptech_port import DKS_RPCFunc, DKS_HALKeyType,\
                                     DKS_HALKeyFlag, DKS_HALError
+from hsm_tools.rpc_action import RPCAction
 from hsm_tools.threadsafevar import ThreadSafeVariable
 
 from rpc_builder import KeyMatchDetails, RPCpkey_open, RPCKeygen_result

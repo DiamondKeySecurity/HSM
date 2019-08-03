@@ -21,8 +21,8 @@ from script import ScriptModule, script_node, ValueType
 from password import PasswordScriptModule
 
 from settings import HSMSettings
-from hsm_tools.cryptech_port import DKS_HALUser
-from hsm_tools.cty_connection import CTYError
+from cryptech.cryptech_port import DKS_HALUser
+from cryptech.cty_connection import CTYError
 from hsm_tools.statusobject import SetStatus
 
 class HSMAuthSetupScriptModule(ScriptModule):

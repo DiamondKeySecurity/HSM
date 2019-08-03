@@ -27,7 +27,7 @@ from Queue import Queue
 
 from settings import HSMSettings
 
-from hsm_tools.cty_connection import CTYConnection, CTYError
+from cryptech.cty_connection import CTYConnection, CTYError
 
 from sync import SyncCommandEnum, SyncCommand
 

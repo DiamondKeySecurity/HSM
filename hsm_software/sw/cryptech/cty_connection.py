@@ -20,11 +20,11 @@ import os.path
 import time
 
 from enum import IntEnum
-from cryptech.upload import ManagementPortSerial, send_file
+from upload import ManagementPortSerial, send_file
 from cryptech_port import DKS_HALError
 
-from stoppable_thread import stoppable_thread
-from statusobject import StatusObject, SetStatus
+from hsm_tools.stoppable_thread import stoppable_thread
+from hsm_tools.statusobject import StatusObject, SetStatus
 
 from hsm import UploadArgs
 

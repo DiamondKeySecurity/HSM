@@ -39,13 +39,13 @@ import tornado.gen
 import logging
 import serial.tools.list_ports_posix
 
-import cryptech.muxd
+import muxd
 
-from cryptech.upload import ManagementPortSerial
+from upload import ManagementPortSerial
 
 from hsm import HSMPortInfo, CtyArg
 
-class ProbeMultiIOStream(cryptech.muxd.ProbeIOStream):
+class ProbeMultiIOStream(muxd.ProbeIOStream):
     """
     Tornado IOStream for probing a serial port.
     """
@@ -61,7 +61,7 @@ class ProbeMultiIOStream(cryptech.muxd.ProbeIOStream):
                    for port, desc, hwid in serial.tools.list_ports_posix.comports()
                    if "VID:PID=0403:6014" in hwid)
 
-        cryptech.muxd.logger.info("Probing candidate devices %s", " ".join(devs))
+        muxd.logger.info("Probing candidate devices %s", " ".join(devs))
 
         results = yield dict((dev, ProbeMultiIOStream(dev).run_probe()) for dev in devs)
 
@@ -69,16 +69,16 @@ class ProbeMultiIOStream(cryptech.muxd.ProbeIOStream):
         rpc_index = 0
         for dev, result in results.iteritems():
             if result == "cty":
-                cryptech.muxd.logger.info("Found %s as CTY device", dev)
+                muxd.logger.info("Found %s as CTY device", dev)
                 # send data directly to the alpha using SerialIOStream
                 cty_serial = ManagementPortSerial(CtyArg(dev, args.debug_cty))
                 cty_list.append(HSMPortInfo("CTY"+str(cty_index), dev, cty_serial))
                 cty_index += 1
 
             if result == "rpc":
-                cryptech.muxd.logger.info("Found %s as RPC device", dev)
+                muxd.logger.info("Found %s as RPC device", dev)
                 # send data directly to the alpha using SerialIOStream
-                rpc_stream = cryptech.muxd.RPCIOStream(device = dev)                
+                rpc_stream = muxd.RPCIOStream(device = dev)                
                 rpc_list.append(HSMPortInfo("RPC"+str(rpc_index), dev, rpc_stream))
                 rpc_index += 1
 
@@ -108,6 +108,6 @@ if __name__ == "__main__":
     except (SystemExit, KeyboardInterrupt):
         pass
     except:
-        cryptech.muxd.logger.exception("Unhandled exception")
+        muxd.logger.exception("Unhandled exception")
     else:
-        cryptech.muxd.logger.debug("Main loop exited")
+        muxd.logger.debug("Main loop exited")

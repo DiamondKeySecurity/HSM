@@ -17,7 +17,7 @@
 
 from settings import HSMSettings
 
-from hsm_tools.cryptech_port import DKS_HALUser
+from cryptech.cryptech_port import DKS_HALUser
 
 from scripts.masterkey import MasterKeySetScriptModule
 from scripts.ip_dhcp import DHCPScriptModule

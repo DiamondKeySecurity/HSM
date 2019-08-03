@@ -51,7 +51,7 @@ import atexit
 import getpass
 import argparse
 
-from cryptech.libhal import *
+from libhal import *
 
 def main():
 

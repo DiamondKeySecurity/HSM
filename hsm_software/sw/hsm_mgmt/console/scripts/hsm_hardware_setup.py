@@ -22,9 +22,9 @@ from masterkey import MasterKeySetScriptModule
 from tamper_settings import TamperSettingsScriptModule
 
 from settings import HSMSettings
-from hsm_tools.cty_connection import CTYError
+from cryptech.cty_connection import CTYError
+from cryptech.cryptech_port import DKS_HALError
 from hsm_tools.statusobject import SetStatus
-from hsm_tools.cryptech_port import DKS_HALError
 
 class HSMHardwareSetupScriptModule(ScriptModule):
     def __init__(self, console_object, username, pin):

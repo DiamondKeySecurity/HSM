@@ -29,7 +29,7 @@ from enum import Enum
 
 from cryptech_port import DKS_HSM
 
-import cryptech.muxd
+import muxd
 
 class UploadArgs(object):
     """Used to match interface in CrypTech code"""
