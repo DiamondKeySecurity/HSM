@@ -73,8 +73,8 @@ from tcpserver import RPCTCPServer, CTYTCPServer, \
 
 from hsm_mgmt.diamondhsm_console import DiamondHSMConsole
 
-from cache import HSMCache
-from rpc_handling import RPCPreprocessor
+from hsm_data.cache import HSMCache
+from hsm_data.rpc_handling import RPCPreprocessor
 
 from ipconfig import NetworkInterfaces
 from settings import Settings, RPC_IP_PORT, CTY_IP_PORT, HSMSettings, HSM_SOFTWARE_VERSION
@@ -87,11 +87,11 @@ except Exception:
 
 from safe_shutdown import SafeShutdown
 
-from sync import Synchronizer
+from hsm_data.sync import Synchronizer
 
 from security import HSMSecurity
 
-from tamper import TamperDetector
+from hsm_data.tamper import TamperDetector
 
 import accounts.db
 

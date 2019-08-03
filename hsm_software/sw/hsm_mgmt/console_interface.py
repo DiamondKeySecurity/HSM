@@ -22,8 +22,6 @@ import shutil
 from enum import IntEnum, Enum
 from Queue import Queue
 
-from sync import SyncCommandEnum, SyncCommand
-
 from console.scripts.script import ScriptModule, script_node, ValueType
 
 from abc import abstractmethod, ABCMeta

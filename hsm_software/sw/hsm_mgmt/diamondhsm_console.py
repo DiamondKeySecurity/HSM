@@ -19,7 +19,7 @@ import os
 import console_interface
 
 import time
-import sync
+import hsm_data.sync
 
 import tornado.iostream
 
@@ -29,7 +29,7 @@ from settings import HSMSettings
 
 from cryptech.cty_connection import CTYConnection, CTYError
 
-from sync import SyncCommandEnum, SyncCommand
+from hsm_data.sync import SyncCommandEnum, SyncCommand
 
 from console.scripts.hsm_hardware_setup import HSMHardwareSetupScriptModule
 from console.scripts.hsm_auth_setup import HSMAuthSetupScriptModule
@@ -46,7 +46,7 @@ from console.console_update import add_update_commands
 
 from console.tmpfs import TMPFS, TMPFSDoesNotExist, TMPFSNotAuthorized
 
-from hsm_cache_db.alpha import CacheTableAlpha
+from hsm_data.hsm_cache_db.alpha import CacheTableAlpha
 
 from hsm_tools.threadsafevar import ThreadSafeVariable
 
