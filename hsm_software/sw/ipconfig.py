@@ -21,7 +21,7 @@ import netifaces
 
 from settings import Settings, HSMSettings
 
-from firewall import Firewall
+from hsm_mgmt.firewall import Firewall
 
 class IPConfig(object):
     """Program to start HSM software or update it"""

@@ -71,7 +71,7 @@ from hsm_tools.probing import ProbeMultiIOStream
 from hsm_tools.tcpserver import RPCTCPServer, CTYTCPServer, \
                                 SecondaryPFUnixListener
 
-from diamondhsm_console import DiamondHSMConsole
+from hsm_mgmt.diamondhsm_console import DiamondHSMConsole
 
 from cache import HSMCache
 from rpc_handling import RPCPreprocessor

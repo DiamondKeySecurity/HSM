@@ -21,9 +21,9 @@ import time
 
 from hsm_tools.cty_connection import CTYError
 
-from console.scripts.updateRestart import UpdateRestartScriptModule
+from scripts.updateRestart import UpdateRestartScriptModule
 
-from console.file_transfer import MGMTCodes, FileTransfer
+from file_transfer import MGMTCodes, FileTransfer
 
 def dks_do_update(console_object, command, pin, username, on_update_finished = None):
     if (username.lower() != 'wheel' and username.lower() != 'so'):

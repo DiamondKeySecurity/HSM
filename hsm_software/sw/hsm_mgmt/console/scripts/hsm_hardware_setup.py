@@ -19,7 +19,7 @@ import time
 from script import ScriptModule, script_node, ValueType
 
 from masterkey import MasterKeySetScriptModule
-from console.scripts.tamper_settings import TamperSettingsScriptModule
+from tamper_settings import TamperSettingsScriptModule
 
 from settings import HSMSettings
 from hsm_tools.cty_connection import CTYError

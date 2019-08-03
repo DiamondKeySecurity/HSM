@@ -28,7 +28,7 @@ from scripts.sync_export import SyncExport
 from scripts.sync_import import SyncImport
 from scripts.sync_import_setup import SyncImportSetup
 
-from console.file_transfer import MGMTCodes, FileTransfer
+from file_transfer import MGMTCodes, FileTransfer
 
 # the file name to use when receiving from a remote host
 REMOTE_SETUP_JSON = "remote-setup.json"
