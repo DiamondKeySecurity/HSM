@@ -16,13 +16,8 @@
 
 from hsm_cache cimport HSMCache
 
-cdef class cache_object:
-    cdef HSMCache *lp_cache_object
+from cache_object import cache_object
 
-    """ Root cache object that uses dictionaries to store key information"""
-    def ___cinit___(self, int rpc_count, char *cache_folder):
-        self.lp_cache_object = new HSMCache(rpc_count, cache_folder)
-
-    def __dealloc___(self):
-        print "deleting"
-        del self.lp_cache_object
+class cache_viewer:
+    def __init__(self, int rpc_count, char *cache_folder):
+        internal_object = cache_object(rpc_count, cache_folder)

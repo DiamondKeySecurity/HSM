@@ -21,7 +21,7 @@ from Cython.Build import cythonize
 os.environ["CC"] = "gcc"
 
 extensions = [
-    Extension("cache", ["cache_object.pyx", "c_code/_hsm_cache.cpp"],
+    Extension("cache", ["cache_object.pyx", "cache_viewer.pyx","c_code/_hsm_cache.cpp"],
         extra_compile_args= ['-lstdc++', "-std=c++17", '-lpthread'])
 ]
 
