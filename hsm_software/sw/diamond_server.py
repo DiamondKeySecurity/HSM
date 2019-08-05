@@ -70,12 +70,9 @@ from zero_conf import HSMZeroConfSetup
 from cryptech.probing import ProbeMultiIOStream
 from hsm_mgmt.cty_tcp_server import CTYTCPServer
 
-from hsm_data.rpc_tcp_server import RPCTCPServer, SecondaryPFUnixListener
-
 from hsm_mgmt.diamondhsm_console import DiamondHSMConsole
 
-from hsm_data.cache import HSMCache
-from hsm_data.rpc_handling import RPCPreprocessor
+from hsm_data.rpc_path_object import rpc_path_object
 
 from ipconfig import NetworkInterfaces
 from settings import Settings, RPC_IP_PORT, CTY_IP_PORT, HSMSettings, HSM_SOFTWARE_VERSION
@@ -88,17 +85,12 @@ except Exception:
 
 from safe_shutdown import SafeShutdown
 
-from hsm_data.sync import Synchronizer
-
 from security import HSMSecurity
-
-from hsm_data.tamper import TamperDetector
 
 import accounts.db
 
-synchronizer = None
+rpc_path = None
 safe_shutdown = None
-tamper = None
 ssh_cty_server = None
 
 
@@ -315,10 +307,6 @@ def main():
     ssl_options = {"certfile": args.certfile,
                    "keyfile": args.keyfile}
 
-    rpc_preprocessor = None
-
-    cache = None
-
     # Get ready to start servers ----------------------------------------
     if(led_container is not None):
         led_container.led_start_tcp_servers()
@@ -330,51 +318,30 @@ def main():
     # db with domain information
     db = accounts.db.DBContext(dbpath=args.cache_save)
 
-    # start the cache
-    cache = HSMCache(len(rpc_list), cache_folder=args.cache_save)
-    safe_shutdown.addOnShutdown(cache.backup)
-
-    # start the load balancer
-    rpc_preprocessor = RPCPreprocessor(rpc_list, cache, settings, netiface)
-    # Listen for incoming TCP/IP connections from remove cryptech.muxd_client
-    rpc_server = RPCTCPServer(rpc_preprocessor, RPC_IP_PORT, ssl_options)
-    # set the futures for all of our devices
-    rpc_preprocessor.append_futures(futures)
-
-    # create a secondary listener to handle PF_UNIX request from subprocesses
-    rpc_secondary_listener = SecondaryPFUnixListener(rpc_server,
-                                                     args.rpc_socket,
-                                                     args.rpc_socket_mode)
-
-    # Tamper -----------------------------------------
-    # pull global tamper variable
-    global tamper
+    # create a path for all RPC request
+    global rpc_path
+    rpc_path = rpc_path_object(len(rpc_list), cache_folder=args.cache_save)
+    rpc_path.create_rpc_objects(rpc_list, settings, netiface, futures, ssl_options, RPC_IP_PORT)
+    rpc_path.create_internal_listener(args.rpc_socket, args.rpc_socket_mode)
 
     # only start synchronizer if we have connected RPC and CTYs
     if(len(cty_list) > 0 and len(rpc_list) > 0):
         # Synchronizer -----------------------------------
         # connect to the secondary socket for mirroring
-        global synchronizer
-        synchronizer = Synchronizer(args.rpc_socket, cache)
-
-        # start the mirrorer
-        synchronizer.append_future(futures)
+        rpc_path.create_synchronizer(args.rpc_socket, futures)
 
         # Tamper -----------------------------------------
         # initialize the tamper system
         if(settings.get_setting(HSMSettings.DATAPORT_TAMPER)):
-            tamper = TamperDetector(args.rpc_socket, len(rpc_list))
-
-            safe_shutdown.addOnShutdown(tamper.stop)
+            tamper_listener_list = []
 
             if(led_container is not None):
-                tamper.add_observer(led_container.on_tamper_notify)
+                tamper_listener_list.append(led_container.on_tamper_notify)
 
-            if (rpc_preprocessor is not None):
-                tamper.add_observer(rpc_preprocessor.on_tamper_event)
+            rpc_path.create_rpc_tamper(len(rpc_list), args.rpc_socket, futures, tamper_listener_list)
 
-            # start the listener
-            tamper.append_future(futures)
+    # make sure the rpc path can shutdown properly
+    safe_shutdown.addOnShutdown(rpc_path.stop)
 
     # start the console
     # holy, large number of parameters Batman!!!
@@ -453,10 +420,6 @@ if __name__ == "__main__":
     except (SystemExit, KeyboardInterrupt):
         if(ssh_cty_server is not None):
             ssh_cty_server.stop()
-        if(synchronizer is not None):
-            synchronizer.stop()
-        if(tamper is not None):
-            tamper.stop()
         if (safe_shutdown is not None):
             safe_shutdown.prepareForShutdown()
     except Exception:
