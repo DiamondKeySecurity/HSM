@@ -44,6 +44,8 @@ from hsm_tools.pkcs11_attr import CKA
 
 from cryptech.cryptech_port import DKS_HALUser, DKS_RPCFunc, DKS_HALError, DKS_HALKeyType
 
+from rpc_interface_sync import SyncCommand, SyncCommandEnum
+
 def rejoinb64(input):
     if(isinstance(input, int)):
         return base64.b64encode(bytes([input]))
@@ -71,25 +73,6 @@ def makeDictValuesB64(input):
         return input
     else:
         return b64(input)
-
-class SyncCommandEnum(IntEnum):
-    OneWayBackup       = 0
-    TwoWayBackup       = 1
-    Initialize         = 2
-    BuildCache         = 3
-    RemoteBackup       = 4
-    RemoteRestore      = 5
-    SetupRemoteRestore = 6
-
-class SyncCommand(object):
-    """Class to define a command for the mirrorer"""
-    def __init__(self, name, src, dest, callback, param = None, console = None):
-        self.name = name
-        self.src = src
-        self.dest = dest
-        self.callback = callback
-        self.param = param
-        self.console = console
 
 class Synchronizer(PFUNIX_HSM):
     """Class for providing mirroring services to an HSM"""

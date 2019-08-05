@@ -347,15 +347,15 @@ def main():
     # holy, large number of parameters Batman!!!
     cty_stream = DiamondHSMConsole(args = args,
                                    cty_list = cty_list,
-                                   rpc_preprocessor = rpc_preprocessor,
-                                   synchronizer = synchronizer,
-                                   cache_viewer = cache,
+                                   rpc_preprocessor = rpc_path.get_interface_handling(),
+                                   synchronizer = rpc_path.get_interface_sync(),
+                                   cache_viewer = rpc_path.get_interface_cache(),
                                    netiface = netiface,
                                    settings = settings,
                                    safe_shutdown = safe_shutdown,
                                    led = led_container,
                                    zero_conf_object = my_zero_conf,
-                                   tamper = tamper)
+                                   tamper = rpc_path.get_interface_tamper())
 
     # Listen for incoming TCP/IP connections from remove cryptech.muxd_client
     cty_server = CTYTCPServer(cty_stream, port=CTY_IP_PORT, ssl=ssl_options)

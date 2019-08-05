@@ -20,6 +20,11 @@ from rpc_tcp_server import RPCTCPServer, SecondaryPFUnixListener
 from sync import Synchronizer
 from tamper import TamperDetector
 
+from rpc_interface_cache import rpc_interface_cache
+from rpc_interface_handling import rpc_interface_handling
+from rpc_interface_sync import rpc_interface_sync
+from rpc_interface_tamper import rpc_interface_tamper
+
 class rpc_path_object(object):
     def __init__(self, num_rpc_devices, cache_folder):
         # start the cache
@@ -63,6 +68,22 @@ class rpc_path_object(object):
 
         # start the listener
         self.tamper.append_future(futures)
+
+    def get_interface_cache(self):
+        if (self.cache is None): return None
+        return rpc_interface_cache(self.cache)
+
+    def get_interface_handling(self):
+        if (self.rpc_preprocessor is None): return None
+        return rpc_interface_handling(self.rpc_preprocessor)
+
+    def get_interface_sync(self):
+        if (self.synchronizer is None): return None
+        return rpc_interface_sync(self.synchronizer)
+
+    def get_interface_tamper(self):
+        if (self.tamper is None): return None
+        return rpc_interface_tamper(self.tamper)
 
     def stop(self):
         if(self.tamper != None):

@@ -1,4 +1,4 @@
-e#!/usr/bin/env python
+#!/usr/bin/env python
 # Copyright (c) 2019  Diamond Key Security, NFP
 # 
 # This program is free software; you can redistribute it and/or
@@ -17,8 +17,8 @@ e#!/usr/bin/env python
 
 from cache import HSMCache
 
-class cacher_viewer(object):
-    """ "Pure" Python interface to the cache_ibject"""
+class rpc_interface_cache(object):
+    """ "Pure" Python interface to the cache object"""
     def __init__(self, cache_object):
         self.cache_object = cache_object
 

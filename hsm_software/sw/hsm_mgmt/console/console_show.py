@@ -43,7 +43,7 @@ def dks_show_firewall_settings(console_object, args):
         return '----'
 
 def dks_show_cache(console_object, args):
-    results = console_object.cache.getVerboseMapping()
+    results = console_object.cache_viewer.getVerboseMapping()
 
     for line in results:
         console_object.cty_direct_call(line)
@@ -70,8 +70,8 @@ def dks_show_devices(console_object, args):
 
     rpc_result = console_object.check_has_rpc()
     if (rpc_result is True):
-        for d in console_object.rpc_preprocessor.rpc_list:
-            message += "\r\n > " + d.name
+        for name in console_object.rpc_preprocessor.get_names():
+            message += "\r\n > " + name
     else:
         message += rpc_result
 
