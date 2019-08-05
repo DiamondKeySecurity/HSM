@@ -68,8 +68,9 @@ from cryptech import muxd
 from zero_conf import HSMZeroConfSetup
 
 from cryptech.probing import ProbeMultiIOStream
-from tcpserver import RPCTCPServer, CTYTCPServer, \
-                                SecondaryPFUnixListener
+from hsm_mgmt.cty_tcp_server import CTYTCPServer
+
+from hsm_data.rpc_tcp_server import RPCTCPServer, SecondaryPFUnixListener
 
 from hsm_mgmt.diamondhsm_console import DiamondHSMConsole
 
@@ -381,7 +382,7 @@ def main():
                                    cty_list = cty_list,
                                    rpc_preprocessor = rpc_preprocessor,
                                    synchronizer = synchronizer,
-                                   cache = cache,
+                                   cache_viewer = cache,
                                    netiface = netiface,
                                    settings = settings,
                                    safe_shutdown = safe_shutdown,

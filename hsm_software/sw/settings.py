@@ -18,7 +18,7 @@
 import atexit
 import json
 import threading
-from hsm_tools.cty_connection import HSM_BINARY_FILE
+from cryptech.cty_connection import HSM_BINARY_FILE
 
 from enum import Enum
 

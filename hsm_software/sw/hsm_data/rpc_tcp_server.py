@@ -73,26 +73,11 @@ from cryptech.libhal import ContextManagedUnpacker, xdrlib
 
 from cryptech.hsm import CrypTechDeviceState
 
+from cryptech.tcpserver import TCPServer
+
 def rpc_code_get(msg):
     "Extract rpc code field from a Cryptech RPC message."
     return struct.unpack(">L", msg[0:4])[0]
-
-class TCPServer(tornado.tcpserver.TCPServer):
-    """
-    Variant on tornado.tcpserver.TCPServer
-    """
-
-    def __init__(self, port, ssl):
-        super(TCPServer, self).__init__(ssl_options=ssl)
-        self.listen(port)
-        atexit.register(self.atexit_unlink)
-        cryptech.muxd.logger.info("TCP Server Started")
-
-    def atexit_unlink(self):
-        try:
-            self.stop()
-        except:
-            pass
 
 class RPCTCPServer(TCPServer):
     """
@@ -304,56 +289,6 @@ class RPCTCPServer(TCPServer):
             cls.client_handle += 1
             cls.client_handle &= 0xFFFFFFFF
             return cls.client_handle
-
-def response_thread(e, cty_mux):
-    """Simple thread that gets new responses from CTY"""
-    while not e.isSet():
-        cty_mux.handle_cty_output()
-        time.sleep(0.01)
-
-class CTYTCPServer(TCPServer):
-    """
-    Serve Cryptech console over a TCP socket.
-    """
-
-    def __init__(self, cty_mux, port, ssl):
-        self.cty_mux = cty_mux
-        super(CTYTCPServer, self).__init__(port, ssl)
-
-    @tornado.gen.coroutine
-    def handle_stream(self, stream, address):
-        "Handle one network connection."
-
-        e = threading.Event()
-        t1 = threading.Thread(name='cty_reponse',
-                            target=response_thread,
-                            args=(e,self.cty_mux))
-        t1.start()
-
-        if self.cty_mux.attached_cty is not None:
-            yield stream.write("[Console already in use, sorry]\n")
-            stream.close()
-            return
-
-        cryptech.muxd.logger.info("CTY connected to %r", stream)
-
-        self.cty_mux.reset()
-
-        try:
-            self.cty_mux.attached_cty = stream
-            while self.cty_mux.attached_cty is stream:
-                yield self.cty_mux.write((yield stream.read_bytes(1024, partial = True)))
-
-
-        except tornado.iostream.StreamClosedError:
-            stream.close()
-
-        finally:
-            cryptech.muxd.logger.info("CTY disconnected from %r", stream)
-            e.set()
-            if self.cty_mux.attached_cty is stream:
-                self.cty_mux.attached_cty = None
-                self.cty_mux.reset()
 
 class SecondaryPFUnixListener(cryptech.muxd.PFUnixServer):
     """ Variant on the PFUnixServer in cryptech_muxd

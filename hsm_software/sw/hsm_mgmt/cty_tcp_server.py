@@ -42,24 +42,15 @@
 # LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-import os
-import sys
 import time
-import struct
 import atexit
-import weakref
 import logging
 import logging.handlers
 import threading
 
 import serial
 
-import tornado.tcpserver
 import tornado.iostream
-import tornado.netutil
-import tornado.ioloop
-import tornado.queues
-import tornado.locks
 import tornado.gen
 
 # import classes from the original cryptech.muxd
