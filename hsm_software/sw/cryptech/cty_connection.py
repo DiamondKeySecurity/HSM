@@ -28,7 +28,7 @@ from hsm_tools.statusobject import StatusObject, SetStatus
 
 from hsm import UploadArgs
 
-HSM_BINARY_FILE        = "hsm-190729a.bin"
+HSM_BINARY_FILE        = "hsm-190805a.bin"
 BOOTLOADER_BINARY_FILE = "bootloader.bin"
 FPGA_BITSTREAM_FILE    = "alpha_fmc.bit"
 
