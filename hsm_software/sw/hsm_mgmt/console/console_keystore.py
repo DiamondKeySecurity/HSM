@@ -24,7 +24,7 @@ from cryptech.cryptech_port import DKS_HALError
 def dks_do_erase(console_object, pin, username):
     if(console_object.cty_conn.clearKeyStore(preservePINs=True) == CTYError.CTY_OK):
         # clear the cache
-        console_object.cache.clear()
+        console_object.cache_viewer.clear()
 
         console_object.cty_direct_call('keystore cleared.')
     else:
@@ -47,7 +47,7 @@ def dks_keystore_erase(console_object, args):
 def dks_do_restore(console_object, pin, username):
     if(console_object.cty_conn.clearKeyStore(preservePINs=False) == CTYError.CTY_OK):
         # clear the cache
-        console_object.cache.clear()
+        console_object.cache_viewer.clear()
 
         console_object.cty_direct_call('keystore cleared.')
 

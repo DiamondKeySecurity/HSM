@@ -128,11 +128,10 @@ def dks_show_fpga_cores(console_object, args):
 
 def dks_show_key_count(console_object, args):
     result = ["\r\nCached Key Count: --------"]
-    cache = console_object.cache
+    cache_viewer = console_object.cache_viewer
 
-    for alpha_index in range(cache.rpc_count):
-        alpha_table = cache.get_alphaTable(alpha_index)
-        result.append("--CrypTech device:%i count == %i"%(alpha_index, len(alpha_table)))
+    for alpha_index in range(cache_viewer.get_device_count()):
+        result.append("--CrypTech device:%i count == %i"%(alpha_index, cache_viewer.get_key_count(alpha_index)))
 
     for line in result:
         console_object.cty_direct_call(line)

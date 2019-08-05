@@ -36,7 +36,6 @@ from console.scripts.hsm_auth_setup import HSMAuthSetupScriptModule
 
 from console.console_debug import add_debug_commands
 from console.console_keystore import add_keystore_commands
-from console.console_list import add_list_commands
 from console.console_set import add_set_commands
 from console.console_show import add_show_commands
 from console.console_shutdown import add_shutdown_commands
@@ -46,8 +45,6 @@ from console.console_update import add_update_commands
 
 from console.tmpfs import TMPFS, TMPFSDoesNotExist, TMPFSNotAuthorized
 
-from hsm_data.hsm_cache_db.alpha import CacheTableAlpha
-
 from hsm_tools.threadsafevar import ThreadSafeVariable
 
 from hsm_tools.tamper_settings import TamperConfiguration
@@ -56,14 +53,14 @@ from firewall import Firewall
 
 class DiamondHSMConsole(console_interface.ConsoleInterface):
     def __init__(self, args, cty_list, rpc_preprocessor, synchronizer,
-                 cache, netiface, settings, safe_shutdown, led,
+                 cache_viewer, netiface, settings, safe_shutdown, led,
                  zero_conf_object, tamper):
         self.args = args
         self.cty_conn = CTYConnection(cty_list, args.binaries,
                                       self.quick_write)
         self.rpc_preprocessor = rpc_preprocessor
         self.synchronizer = synchronizer
-        self.cache = cache
+        self.cache_viewer = cache_viewer
         self.settings = settings
         self.response_queue = Queue()
         self.hide_input = False
@@ -95,7 +92,6 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
                self.settings.hardware_tamper_match() or args.debug):
                 if (args.debug): add_debug_commands(self)
                 add_keystore_commands(self)
-                add_list_commands(self)
                 add_set_commands(self)
                 add_sync_commands(self)
                 add_tamper_commands(self)
@@ -193,7 +189,7 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
 
         # make sure the system has been checked.
         # use cache initialization as the flag
-        if ((self.synchronizer is not None) and (self.cache is not None)):
+        if (self.synchronizer is not None):
             if(not self.synchronizer.cache_initialized()):
                 self.cty_direct_call(initial_login_msg)
 

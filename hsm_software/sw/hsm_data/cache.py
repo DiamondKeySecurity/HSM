@@ -55,6 +55,13 @@ class HSMCache(CacheDB):
         with self.lock:
             return self.__cache_initialized__
 
+    def get_device_count(self):
+        return self.rpc_count
+
+    def get_key_count(self, device_index):
+        alpha_table = self.get_alphaTable(device_index)
+        return len(alpha_table)
+
     def get_alpha_table_object(self, index):
         assert index >= 0 and index < self.rpc_count
 
