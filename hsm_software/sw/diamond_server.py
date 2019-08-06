@@ -93,19 +93,11 @@ rpc_path = None
 safe_shutdown = None
 ssh_cty_server = None
 
-
 def start_leds(use_leds):
     if (use_leds is True):
         from led import LEDContainer
 
         leds = LEDContainer()
-
-        leds.system_led.set_yellow()
-        leds.system_led.on()
-
-        leds.tamper_led.set_yellow()
-        leds.tamper_led.on()
-
         return leds
     else:
         return None
@@ -224,7 +216,9 @@ def main():
 
 
     # LEDs -------------------------------------------
-    led_container = start_leds(settings.get_setting(HSMSettings.GPIO_LEDS))
+    led_container = start_leds(True)# settings.get_setting(HSMSettings.GPIO_LEDS))
+    if (led_container is not None):
+        safe_shutdown.addOnShutdown(led_container.led_off)
 
     # Make sure the certs exist ----------------------
     HSMSecurity().create_certs_if_not_exist(private_key_name=args.keyfile,

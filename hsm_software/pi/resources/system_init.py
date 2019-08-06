@@ -13,7 +13,7 @@
 # 
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, If not, see <https://www.gnu.org/licenses/>.
-#VERSION 2019-02-26-01
+#VERSION 2019-08-06-01
 
 import os
 import shutil
@@ -27,6 +27,7 @@ class HSM(object):
         self.settings_dir = writable_dir
         self.uploads_files_dir = '%s/uploads/files'%writable_dir
         self.network_setup = "%s/ipconfig.py"%self.software_dir
+        self.watchdog_led_path = '/usr/bin/watchdog.py'
 
     def run_network_script(self):
         args = ['--netiface eth0',
@@ -54,7 +55,15 @@ class HSM(object):
         print "Now running: %s"%script_path
         subprocess.call(['/usr/bin/python', script_path])
 
+    def run_script_background(self, script_path):
+        print "Now running: %s"%script_path
+        os.system('/usr/bin/python %s &'%script_path)
+
     def start_main_program(self):
+        # start the watchdog
+        if(os.path.exists(self.watchdog_led_path)):
+            self.run_script_background(self.watchdog_led_path)
+
         # program to run only once
         run_once = "%s/initialize.py"%self.uploads_files_dir
         if(os.path.exists(run_once)):
