@@ -14,16 +14,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, If not, see <https://www.gnu.org/licenses/>.
 
-
-import os
-import threading
-
-from cryptech.libhal import HALDigestAlgorithm, HALKeyType, HALCurve
-
-from hsm_cache_db.alpha import CacheTableAlpha, AlphaCacheRow
-from hsm_cache_db.master import CacheTableMaster, MasterKeyListRow
-from hsm_cache_db.cache import CacheDB
-
 class HSMCache(CacheDB):
     """ Root cache object that uses dictionaries to store key information"""
     def __init__(self, rpc_count, cache_folder):

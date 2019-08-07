@@ -14,17 +14,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, If not, see <https://www.gnu.org/licenses/>.
 
-
-import cryptech.muxd
-
-from hsm_tools.threadsafevar import ThreadSafeVariable
-from hsm_tools.observerable import observable
-from hsm_tools.stoppable_thread import stoppable_thread
-from cryptech.hsm import PFUNIX_HSM
-from cryptech.cryptech_port import DKS_HALError
-
-import time
-
 class TamperDetector(observable, PFUNIX_HSM):
     def __init__(self, sockname, rpc_count):
         observable.__init__(self)

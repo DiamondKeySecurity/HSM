@@ -14,16 +14,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, If not, see <https://www.gnu.org/licenses/>.
 
-import xdrlib
-from uuid import UUID
-
-import enum
-
-# import classes from the original cryptech.muxd
-# cryptech_muxd has been renamed to cryptech/muxd.py
-import cryptech.muxd
-
-
 class KeyMatchResult:
     def __init__(self):
         self.code = 0

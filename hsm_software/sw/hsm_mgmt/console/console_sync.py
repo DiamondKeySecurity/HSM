@@ -17,7 +17,7 @@
 
 import json
 
-from hsm_data.sync import SyncCommandEnum, SyncCommand
+from hsm_data.rpc_path import SyncCommandEnum, SyncCommand
 
 from settings import HSMSettings
 

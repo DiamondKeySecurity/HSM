@@ -14,8 +14,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, If not, see <https://www.gnu.org/licenses/>.
 
-from enum import IntEnum
-
 class SyncCommandEnum(IntEnum):
     OneWayBackup       = 0
     TwoWayBackup       = 1

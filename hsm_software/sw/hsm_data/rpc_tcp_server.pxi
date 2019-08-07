@@ -42,39 +42,6 @@
 # LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-import os
-import sys
-import time
-import struct
-import atexit
-import weakref
-import logging
-import logging.handlers
-import threading
-
-import serial
-
-import tornado.tcpserver
-import tornado.iostream
-import tornado.netutil
-import tornado.ioloop
-import tornado.queues
-import tornado.locks
-import tornado.gen
-
-# import classes from the original cryptech.muxd
-# cryptech_muxd has been renamed to cryptech/muxd.py
-import cryptech.muxd
-
-from hsm_tools.rpc_action import RPCAction
-
-from cryptech.cryptech_port import DKS_HALError
-from cryptech.libhal import ContextManagedUnpacker, xdrlib
-
-from cryptech.hsm import CrypTechDeviceState
-
-from cryptech.tcpserver import TCPServer
-
 def rpc_code_get(msg):
     "Extract rpc code field from a Cryptech RPC message."
     return struct.unpack(">L", msg[0:4])[0]

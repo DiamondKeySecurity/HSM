@@ -14,9 +14,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, If not, see <https://www.gnu.org/licenses/>.
 
-
-from cache import HSMCache
-
 class rpc_interface_tamper(object):
     """ "Pure" Python interface to the tamper object"""
     def __init__(self, tamper):

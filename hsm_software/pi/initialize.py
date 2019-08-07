@@ -26,7 +26,7 @@ import subprocess
 firewall_version = '2019-02-26-01'
 hsm_startup_version = '2019-08-06-03'
 system_init_version = '2019-08-06-01'
-watchdog_led_version = '2019-08-06-01'
+watchdog_led_version = '2019-08-07-01'
 
 # set all the paths we might need
 firewall_path = '/usr/bin/dkey-pi.firewall.sh'

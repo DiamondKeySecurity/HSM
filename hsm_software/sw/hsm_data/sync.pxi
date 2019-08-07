@@ -14,38 +14,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, If not, see <https://www.gnu.org/licenses/>.
 
-
-import sys
-import time
-import threading
-import socket
-import json
-
-import base64
-
-from Queue import Queue
-from enum import IntEnum
-
-import tornado.gen
-
-from cache import HSMCache
-
-from hsm_cache_db.master import MasterKeyListRow, CacheTableMaster
-from hsm_cache_db.alpha import AlphaCacheRow, CacheTableAlpha
-
-# import classes from the original cryptech.muxd
-# cryptech_muxd has been renamed to cryptech/muxd.py
-from cryptech.muxd import logger
-
-from cryptech.backup import b64, b64join, SoftKEKEK
-from cryptech.libhal import *
-from cryptech.hsm import PFUNIX_HSM
-from hsm_tools.pkcs11_attr import CKA
-
-from cryptech.cryptech_port import DKS_HALUser, DKS_RPCFunc, DKS_HALError, DKS_HALKeyType
-
-from rpc_interface_sync import SyncCommand, SyncCommandEnum
-
 def rejoinb64(input):
     if(isinstance(input, int)):
         return base64.b64encode(bytes([input]))

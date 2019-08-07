@@ -14,31 +14,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, If not, see <https://www.gnu.org/licenses/>.
 
-import struct
-
-import threading
-
-from uuid import UUID
-
-# import classes from the original cryptech.muxd
-# cryptech_muxd has been renamed to cryptech/muxd.py
-from cryptech.muxd import logger
-
-from cryptech.hsm import CrypTechDeviceState
-
-from settings import HSMSettings
-
-from cryptech.libhal import ContextManagedUnpacker, xdrlib
-from cryptech.cryptech_port import DKS_RPCFunc, DKS_HALKeyType,\
-                                    DKS_HALKeyFlag, DKS_HALError
-from hsm_tools.rpc_action import RPCAction
-from hsm_tools.threadsafevar import ThreadSafeVariable
-
-from rpc_builder import KeyMatchDetails, RPCpkey_open, RPCKeygen_result
-
-from load_distribution import LoadDistribution
-
-
 def rpc_get_int(msg, location):
     "Get an int from a location in an RPC message"
     return struct.unpack(">L", msg[location:location+4])[0]

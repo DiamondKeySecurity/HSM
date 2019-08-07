@@ -14,9 +14,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, If not, see <https://www.gnu.org/licenses/>.
 
-
-from cache import HSMCache
-
 class rpc_interface_cache(object):
     """ "Pure" Python interface to the cache object"""
     def __init__(self, cache_object):

@@ -72,7 +72,7 @@ from hsm_mgmt.cty_tcp_server import CTYTCPServer
 
 from hsm_mgmt.diamondhsm_console import DiamondHSMConsole
 
-from hsm_data.rpc_path_object import rpc_path_object
+from hsm_data.rpc_path import rpc_path_object
 
 from ipconfig import NetworkInterfaces
 from settings import Settings, RPC_IP_PORT, CTY_IP_PORT, HSMSettings, HSM_SOFTWARE_VERSION

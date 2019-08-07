@@ -13,7 +13,7 @@
 # 
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, If not, see <https://www.gnu.org/licenses/>.
-#VERSION 2019-08-06-01
+#VERSION 2019-08-07-01
 import os
 import atexit
 import socket
