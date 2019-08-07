@@ -400,6 +400,7 @@ class WatchDogPlusLED:
         GPIO.setmode(GPIO.BCM)
         self.active = ThreadSafeVariable(False)
         self.led_containter = LEDContainer()
+        self.led_containter.led_power_on()
 
     def start(self):
         self.active.value = True
