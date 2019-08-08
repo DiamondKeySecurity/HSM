@@ -71,6 +71,7 @@ from cryptech.cryptech_port import DKS_HALUser, DKS_RPCFunc, DKS_HALError, DKS_H
 cimport c_uuids
 cimport hsm_cache
 cimport table_rows
+cimport load_distribution
 
 include "rpc_tcp_server.pxi"
 
