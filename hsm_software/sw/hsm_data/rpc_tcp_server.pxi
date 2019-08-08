@@ -108,6 +108,7 @@ class RPCTCPServer(TCPServer):
             # get the RPC message so we can reply no
             while True:
                 try:
+                    decoded_query = None
                     cryptech.muxd.logger.debug("Forbidden RPC socket read, handle 0")
                     query = yield stream.read_until(cryptech.muxd.SLIP_END)
                     if len(query) < 9:
@@ -121,7 +122,10 @@ class RPCTCPServer(TCPServer):
                     else:
                         reply = self.error_from_request(decoded_query, DKS_HALError.HAL_ERROR_FORBIDDEN)
                 except:
-                    reply = self.error_from_request(decoded_query, DKS_HALError.HAL_ERROR_BAD_ARGUMENTS)
+                    if (decoded_query is not None):
+                        reply = self.error_from_request(decoded_query, DKS_HALError.HAL_ERROR_BAD_ARGUMENTS)
+                    else:
+                        return
 
                 #encode
                 reply_encoded = slip_encode(reply)

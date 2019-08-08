@@ -126,7 +126,7 @@ class CTYConnection(StatusObject):
             for device_index in xrange(0, len(self.cty_list)):
                 response_from_device = ""
                 with WaitFeedback.Start(self.feedback):
-                    management_port_serial = self.cty_list[device_index].serial
+                    management_port_serial = self.cty_list[device_index]
 
                     response_from_device = self.send_raw(cmd, management_port_serial, delay)
 
@@ -143,7 +143,7 @@ class CTYConnection(StatusObject):
         with SetStatus(self, "Logging in"):
             with WaitFeedback.Start(self.feedback):
                 for hsm_cty in self.cty_list:
-                    management_port_serial = hsm_cty.serial
+                    management_port_serial = hsm_cty
                     management_port_serial.args.username = username
                     management_port_serial.args.pin = pin
 
@@ -166,8 +166,7 @@ class CTYConnection(StatusObject):
 
         with SetStatus(self, "Logging out"):
             with WaitFeedback.Start(self.feedback):
-                for hsm_cty in self.cty_list:
-                    management_port_serial = hsm_cty.serial
+                for management_port_serial in self.cty_list:
                     management_port_serial.write("\r")
                     prompt = management_port_serial.read()
 
@@ -199,7 +198,7 @@ class CTYConnection(StatusObject):
             for i in xrange(0, len(self.cty_list)):
                 with WaitFeedback.Start(self.feedback):
                     # set the master key on one alpha and get the result
-                    management_port_serial = self.cty_list[i].serial
+                    management_port_serial = self.cty_list[i]
 
                     time.sleep(20)
 
@@ -251,7 +250,7 @@ class CTYConnection(StatusObject):
             for device_index in xrange(len(self.cty_list)):
                 response_from_device = ""
                 with WaitFeedback.Start(self.feedback):
-                    management_port_serial = self.cty_list[device_index].serial
+                    management_port_serial = self.cty_list[device_index]
 
                     response_from_device = self.send_raw(cmd, management_port_serial, 2)
 
@@ -276,9 +275,8 @@ class CTYConnection(StatusObject):
         cmd = "\rkeystore set pin %s %s\r"%(user, newPIN)
 
         with SetStatus(self, "Setting Password"):
-            for hsm_cty in self.cty_list:
+            for management_port_serial in self.cty_list:
                 with WaitFeedback.Start(self.feedback):
-                    management_port_serial = hsm_cty.serial
                     management_port_serial.write(cmd)
 
                     time.sleep(8)
@@ -306,8 +304,7 @@ class CTYConnection(StatusObject):
 
         with SetStatus(self, "Clearing Keystore"):
             with WaitFeedback.Start(self.feedback):
-                for hsm_cty in self.cty_list:
-                    management_port_serial = hsm_cty.serial
+                for management_port_serial in self.cty_list:
                     management_port_serial.write(cmd)
                     prompt = management_port_serial.read()
 
@@ -386,7 +383,7 @@ class CTYConnection(StatusObject):
 
         hsm_cty = self.cty_list[cty_index]
 
-        cty_output = self.send_raw(cmd, hsm_cty.serial, 3)
+        cty_output = self.send_raw(cmd, hsm_cty, 3)
         print cty_output
 
         # check for the ALPHA core
@@ -442,7 +439,7 @@ class CTYConnection(StatusObject):
         for hsm_cty in self.cty_list:
             result.append('CTY%i -----------------------------------'%device)
 
-            cty_output = self.send_command(cmd, hsm_cty.serial)
+            cty_output = self.send_command(cmd, hsm_cty)
             for line in cty_output.split('\r\n'):
                 result.append(line.strip())
 
@@ -480,7 +477,7 @@ class CTYConnection(StatusObject):
                     self.feedback("Binary Opened  \r\n")
                     size = os.fstat(src.fileno()).st_size
 
-                    dst = hsm_cty.serial
+                    dst = hsm_cty
                     args = dst.args
                     args.fpga = upload_args.fpga
                     args.firmware = upload_args.firmware
@@ -509,8 +506,7 @@ class CTYConnection(StatusObject):
         cmd = "\rreboot\r"
 
         with WaitFeedback.Start(self.feedback):
-            for hsm_cty in self.cty_list:
-                management_port_serial = hsm_cty.serial
+            for management_port_serial in self.cty_list:
                 management_port_serial.write(cmd)
                 
                 # get response

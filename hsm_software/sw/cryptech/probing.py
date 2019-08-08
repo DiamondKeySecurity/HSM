@@ -71,8 +71,10 @@ class ProbeMultiIOStream(muxd.ProbeIOStream):
             if result == "cty":
                 muxd.logger.info("Found %s as CTY device", dev)
                 # send data directly to the alpha using SerialIOStream
-                cty_serial = ManagementPortSerial(CtyArg(dev, args.debug_cty))
-                cty_list.append(HSMPortInfo("CTY"+str(cty_index), dev, cty_serial))
+                cty_serial = ManagementPortSerial(CtyArg(name="CTY"+str(cty_index),
+                                                         device=dev,
+                                                         debug=args.debug_cty))
+                cty_list.append(cty_serial)
                 cty_index += 1
 
             if result == "rpc":

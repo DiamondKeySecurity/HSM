@@ -45,8 +45,9 @@ class UploadArgs(object):
 
 class CtyArg(UploadArgs):
     """Used to match interface in CrypTech code"""
-    def __init__(self, device, debug):
+    def __init__(self, name, device, debug):
         super(CtyArg, self).__init__()
+        self.name = name
         self.device = device
         self.debug = debug
 

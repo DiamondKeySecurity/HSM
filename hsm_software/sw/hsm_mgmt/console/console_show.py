@@ -64,7 +64,7 @@ def dks_show_devices(console_object, args):
     cty_result = console_object.check_has_cty()
     if (cty_result is True):
         for d in console_object.cty_conn.cty_list:
-            message += "\r\n > " + d.name
+            message += "\r\n > " + d.args.name
     else:
         message += cty_result
 
