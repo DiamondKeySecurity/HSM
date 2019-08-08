@@ -42,6 +42,9 @@
 # LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+cdef inc_atomic_int.inc_atomic_int rpc_client_next_handle
+
 cdef bytes slip_encode(bytes buffer):
     "Encode a buffer using SLIP encapsulation."
     return SLIP_END + buffer.replace(SLIP_ESC, SLIP_ESC + SLIP_ESC_ESC).replace(SLIP_END, SLIP_ESC + SLIP_ESC_END) + SLIP_END
@@ -160,7 +163,14 @@ class RPCTCPServer(TCPServer):
     @tornado.gen.coroutine
     def __handle_stream(self, stream, address, from_ethernet):
         "Handle one network connection."
-        handle = self.next_client_handle()
+        cdef int handle = rpc_client_next_handle.inc(1)
+        cdef int old_handle
+        cdef bytes decoded_query
+        cdef bytes query
+        cdef bytes request
+        cdef bytes encoded_request
+        cdef object queue
+
         queue  = tornado.queues.Queue()
         cryptech.muxd.logger.info("RPC connected %r, handle 0x%x", stream, handle)
 
@@ -247,19 +257,6 @@ class RPCTCPServer(TCPServer):
                     yield serial.rpc_input(query, handle)
                     
                 return
-
-    # client handle is within the HSM security boundary and
-    # is not accessible by any outside operations, therefore
-    # we don't have to add any randomization to it
-    client_handle = 0
-    handle_lock = threading.Lock()
-
-    @classmethod
-    def next_client_handle(cls):
-        with (cls.handle_lock):
-            cls.client_handle += 1
-            cls.client_handle &= 0xFFFFFFFF
-            return cls.client_handle
 
 class SecondaryPFUnixListener(cryptech.muxd.PFUnixServer):
     """ Variant on the PFUnixServer in cryptech_muxd

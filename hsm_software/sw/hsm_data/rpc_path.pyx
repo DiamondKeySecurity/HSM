@@ -71,6 +71,7 @@ cimport c_uuids
 cimport hsm_cache
 cimport table_rows
 cimport conv
+cimport inc_atomic_int
 
 include "rpc_action.pxi"
 
