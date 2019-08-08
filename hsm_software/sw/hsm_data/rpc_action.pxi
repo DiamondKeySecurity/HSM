@@ -14,9 +14,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, If not, see <https://www.gnu.org/licenses/>.
 
-
-import enum
-
 class RPCAction(object):
     """After an RPC has been preprocessed by the load balancer, this class is the
     result of that operation and tells RPCTCPServer what action to perform"""

@@ -42,9 +42,13 @@
 # LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-def rpc_code_get(msg):
-    "Extract rpc code field from a Cryptech RPC message."
-    return struct.unpack(">L", msg[0:4])[0]
+cdef bytes slip_encode(bytes buffer):
+    "Encode a buffer using SLIP encapsulation."
+    return SLIP_END + buffer.replace(SLIP_ESC, SLIP_ESC + SLIP_ESC_ESC).replace(SLIP_END, SLIP_ESC + SLIP_ESC_END) + SLIP_END
+
+cdef bytes slip_decode(bytes buffer):
+    "Decode a SLIP-encapsulated buffer."
+    return buffer.strip(SLIP_END).replace(SLIP_ESC + SLIP_ESC_END, SLIP_END).replace(SLIP_ESC + SLIP_ESC_ESC, SLIP_ESC)
 
 class RPCTCPServer(TCPServer):
     """
@@ -73,7 +77,7 @@ class RPCTCPServer(TCPServer):
         return response.get_buffer()
 
     def verify_result(self, result):
-        decoded_request = cryptech.muxd.slip_decode(result)
+        decoded_request = slip_decode(result)
 
         # handle the message normally
         unpacker = ContextManagedUnpacker(decoded_request)
@@ -107,7 +111,7 @@ class RPCTCPServer(TCPServer):
                         continue
 
                     # get the old handle
-                    decoded_query = cryptech.muxd.slip_decode(query)
+                    decoded_query = slip_decode(query)
 
                     if (not self.rpc_preprocessor.is_mkm_set):
                         reply = self.error_from_request(decoded_query, DKS_HALError.HAL_ERROR_MASTERKEY_NOT_SET)
@@ -117,7 +121,7 @@ class RPCTCPServer(TCPServer):
                     reply = self.error_from_request(decoded_query, DKS_HALError.HAL_ERROR_BAD_ARGUMENTS)
 
                 #encode
-                reply_encoded = cryptech.muxd.slip_encode(reply)
+                reply_encoded = slip_encode(reply)
 
                 try:
                     yield stream.write(cryptech.muxd.SLIP_END + reply_encoded)
@@ -170,7 +174,7 @@ class RPCTCPServer(TCPServer):
                     continue
 
                 # get the old handle
-                decoded_query = cryptech.muxd.slip_decode(query)
+                decoded_query = slip_decode(query)
                 old_handle = cryptech.muxd.client_handle_get(decoded_query)
 
                 # set the handle to be the handle of this stream handler
@@ -187,7 +191,7 @@ class RPCTCPServer(TCPServer):
                        (action.result is None) and
                        (action.rpc_list is not None)):
                     # slip encode a request to send to the HSM
-                    encoded_request = cryptech.muxd.slip_encode(request)
+                    encoded_request = slip_encode(request)
 
                     # because we may send to multiple alphas, we need to save every reply
                     reply_list = []
@@ -210,7 +214,7 @@ class RPCTCPServer(TCPServer):
                         self.verify_result(reply)
 
                         # save the replies for the callback
-                        reply_list.append(cryptech.muxd.slip_decode(reply))
+                        reply_list.append(slip_decode(reply))
 
                     if(action.callback is not None):
                         # use the action callback to respond to data from multiple alphas
@@ -225,7 +229,7 @@ class RPCTCPServer(TCPServer):
                     reply = self.error_from_request(request, DKS_HALError.HAL_ERROR_FORBIDDEN)
 
                 #set old handle in reply
-                reply_old_handle_encoded = cryptech.muxd.slip_encode(cryptech.muxd.client_handle_set(reply, old_handle))
+                reply_old_handle_encoded = slip_encode(cryptech.muxd.client_handle_set(reply, old_handle))
 
                 yield stream.write(cryptech.muxd.SLIP_END + reply_old_handle_encoded)
 
@@ -235,7 +239,7 @@ class RPCTCPServer(TCPServer):
                 self.rpc_preprocessor.delete_session(handle)
 
                 # log out
-                query = cryptech.muxd.slip_encode(cryptech.muxd.client_handle_set(cryptech.muxd.logout_msg, handle))
+                query = slip_encode(cryptech.muxd.client_handle_set(cryptech.muxd.logout_msg, handle))
 
                 rpc_serials = self.rpc_preprocessor.make_all_rpc_list()
                 for rpc in rpc_serials:

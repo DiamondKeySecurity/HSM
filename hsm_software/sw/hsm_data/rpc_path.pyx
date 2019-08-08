@@ -1,4 +1,4 @@
-# distutils: sources = hsm_data/c_code/_hsm_cache.cpp
+# distutils: sources = hsm_data/c_code/_hsm_cache.cpp hsm_data/c_code/_conv.cpp
 # Copyright (c) 2019  Diamond Key Security, NFP
 # 
 # This program is free software; you can redistribute it and/or
@@ -60,7 +60,6 @@ from hsm_cache_db.cache import CacheDB
 
 from settings import HSMSettings
 
-from hsm_tools.rpc_action import RPCAction
 from hsm_tools.threadsafevar import ThreadSafeVariable
 from hsm_tools.pkcs11_attr import CKA
 from hsm_tools.observerable import observable
@@ -71,6 +70,9 @@ from cryptech.cryptech_port import DKS_HALUser, DKS_RPCFunc, DKS_HALError, DKS_H
 cimport c_uuids
 cimport hsm_cache
 cimport table_rows
+cimport conv
+
+include "rpc_action.pxi"
 
 include "rpc_tcp_server.pxi"
 

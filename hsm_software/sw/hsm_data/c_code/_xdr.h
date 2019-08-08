@@ -1,0 +1,1 @@
+#define HAL_RPC_MAX_PKT_SIZE    16384

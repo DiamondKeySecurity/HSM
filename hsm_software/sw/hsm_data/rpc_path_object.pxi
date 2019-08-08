@@ -25,6 +25,8 @@ class rpc_path_object(object):
         self.synchronizer = None
         self.tamper = None
 
+        conv.setIsSysBigEndian(1 if sys.byteorder == "big" else 0)
+
     def create_rpc_objects(self, rpc_list, settings, netiface, futures, ssl_options, RPC_IP_PORT):
         # start the load balancer
         self.rpc_preprocessor = RPCPreprocessor(rpc_list, self.cache, settings, netiface)
