@@ -17,7 +17,12 @@
 
 def CheckValue(value, name, lo_value, hi_value):
     try:
-        result = int(value)
+        if (value.startswith("0x") or value.startswith("0X")):
+            result = int(value, 16)
+        elif (value.startswith("0o") or value.startswith("0O")):
+            result = int(value, 8)
+        else:
+            result = int(value)
     except ValueError:
         return 'Error: %s entered is not a number'%name
 
@@ -31,7 +36,7 @@ def CheckValue(value, name, lo_value, hi_value):
 
 def dks_tamper_threshold_set_disable(console_object, args):
     MIN_VALUE = 0
-    MAX_VALUE = 255
+    MAX_VALUE = 0xFF
 
     mask_value = CheckValue(args[0],
                             'disable mask',
@@ -48,7 +53,7 @@ def dks_tamper_threshold_set_disable(console_object, args):
 
 def dks_tamper_threshold_set_enable(console_object, args):
     MIN_VALUE = 0
-    MAX_VALUE = 255
+    MAX_VALUE = 0xFF
 
     mask_value = CheckValue(args[0],
                             'enable mask',
@@ -65,8 +70,8 @@ def dks_tamper_threshold_set_enable(console_object, args):
 
 
 def dks_tamper_threshold_set_light(console_object, args):
-    MIN_LIGHT_VALUE = -1
-    MAX_LIGHT_VALUE = 100
+    MIN_LIGHT_VALUE = 0
+    MAX_LIGHT_VALUE = 0xFFFF
 
     light_value = CheckValue(args[0],
                              'Light threshold',
@@ -87,8 +92,8 @@ def dks_tamper_threshold_get_light(console_object, args):
     return console_object.cty_conn.send_raw_all(cmd, 5)
 
 def dks_tamper_threshold_set_temp(console_object, args):
-    MIN_TEMPERATURE_VALUE = -1
-    MAX_TEMPERATURE_VALUE = 255
+    MIN_TEMPERATURE_VALUE = 0
+    MAX_TEMPERATURE_VALUE = 0xFF
 
     lo_temp_value = CheckValue(args[0],
                                'Low temperature threshold',
@@ -123,8 +128,8 @@ def dks_tamper_threshold_get_temp(console_object, args):
     return console_object.cty_conn.send_raw_all(cmd, 5)
 
 def dks_tamper_threshold_set_accel(console_object, args):
-    MIN_ACCEL_VALUE = -1
-    MAX_ACCEL_VALUE = 100
+    MIN_ACCEL_VALUE = 0
+    MAX_ACCEL_VALUE = 0xFFFF
 
     accel_value = CheckValue(args[0],
                              'Accelerometer threshold',
