@@ -16,6 +16,17 @@
 #ifndef CRYPTECH_DEVICE_SCHEDULER_H
 #define CRYPTECH_DEVICE_SCHEDULER_H
 
+#include "libhal/rpc_packet.h"
+#include "libhal/rpc_stream.h"
 
+class cyptech_device_scheduler
+{
+    public:
+        cyptech_device_scheduler(const char *dev);
+        ~cyptech_device_scheduler();
+
+    private:
+
+}
 
 #endif

@@ -64,6 +64,7 @@ namespace libhal
 {
 
 // In Diamond Key's libhal, these functions only create the packet to be sent.
+// The caller is reponsible for deleting the resulting packet even on failure
 
 /*
  * RPC calls.
@@ -79,35 +80,48 @@ namespace libhal
  * of the client-side MUX daemon.
  */
 
-hal_error_t get_version(rpc_packet *packet, const hal_client_handle_t client_handle)
+hal_error_t get_version(rpc_packet **packet, const hal_client_handle_t client)
+// In Diamond Key's libhal, these functions only create the packet to be sent.
+// The caller is reponsible for deleting the resulting packet even on failure
 {
-  uint8_t outbuf[nargs(2)], *optr = outbuf, *olimit = outbuf + sizeof(outbuf);
-  hal_client_handle_t dummy_client = {0};
+    rpc_packet *opacket = new rpc_packet(nargs(2));
+    *packet = opacket;
 
-  check(hal_xdr_encode_int(&optr, olimit, RPC_FUNC_GET_VERSION));
-  check(hal_xdr_encode_int(&optr, olimit, dummy_client.handle));
+    check(opacket->encode_int(RPC_FUNC_GET_VERSION));
+    check(opacket->encode_int(client.handle));
+
+    return HAL_OK;
 }
 
-static hal_error_t get_random(rpc_packet *packet, const hal_client_handle_t client_handle, const size_t length)
+static hal_error_t get_random(rpc_packet **packet, const hal_client_handle_t client, const size_t length)
+// In Diamond Key's libhal, these functions only create the packet to be sent.
+// The caller is reponsible for deleting the resulting packet even on failure
 {
-  uint8_t outbuf[nargs(3)], *optr = outbuf, *olimit = outbuf + sizeof(outbuf);
-  hal_client_handle_t dummy_client = {0};
+    rpc_packet *opacket = new rpc_packet(nargs(3));
+    *packet = opacket;
 
-  check(hal_xdr_encode_int(&optr, olimit, RPC_FUNC_GET_RANDOM));
-  check(hal_xdr_encode_int(&optr, olimit, dummy_client.handle));
-  check(hal_xdr_encode_int(&optr, olimit, (uint32_t)length));
+    check(opacket->encode_int(RPC_FUNC_GET_RANDOM));
+    check(opacket->encode_int(client.handle));
+    check(opacket->encode_int((uint32_t)length));
+
+    return HAL_OK;
 }
 
-static hal_error_t set_pin(rpc_packet *packet, const hal_client_handle_t client_handle,
+static hal_error_t set_pin(rpc_packet **packet, const hal_client_handle_t client,
                            const hal_user_t user,
                            const char * const pin, const size_t pin_len)
+// In Diamond Key's libhal, these functions only create the packet to be sent.
+// The caller is reponsible for deleting the resulting packet even on failure
 {
-  uint8_t outbuf[nargs(4) + pad(pin_len)], *optr = outbuf, *olimit = outbuf + sizeof(outbuf);
+    rpc_packet *opacket = new rpc_packet(nargs(4) + pad(pin_len));
+    *packet = opacket;
 
-  check(hal_xdr_encode_int(&optr, olimit, RPC_FUNC_SET_PIN));
-  check(hal_xdr_encode_int(&optr, olimit, client.handle));
-  check(hal_xdr_encode_int(&optr, olimit, user));
-  check(hal_xdr_encode_variable_opaque(&optr, olimit, (const uint8_t *)pin, pin_len));
+    check(opacket->encode_int(RPC_FUNC_SET_PIN));
+    check(opacket->encode_int(client.handle));
+    check(opacket->encode_int(user));
+    check(opacket->encode_variable_opaque((const uint8_t *)pin, pin_len));
+
+    return HAL_OK;
 }
 
 /*
@@ -124,369 +138,420 @@ static hal_error_t set_pin(rpc_packet *packet, const hal_client_handle_t client_
  * to revisit this if the is_logged_in() call turns into a bottleneck.
  */
 
-static hal_error_t login(rpc_packet *packet, const hal_client_handle_t client_handle,
+static hal_error_t login(rpc_packet **packet, const hal_client_handle_t client,
                          const hal_user_t user,
                          const char * const pin, const size_t pin_len)
+// In Diamond Key's libhal, these functions only create the packet to be sent.
+// The caller is reponsible for deleting the resulting packet even on failure
 {
-  uint8_t outbuf[nargs(4) + pad(pin_len)], *optr = outbuf, *olimit = outbuf + sizeof(outbuf);
+    rpc_packet *opacket = new rpc_packet(nargs(4) + pad(pin_len));
+    *packet = opacket;
 
-  check(hal_xdr_encode_int(&optr, olimit, RPC_FUNC_LOGIN));
-  check(hal_xdr_encode_int(&optr, olimit, client.handle));
-  check(hal_xdr_encode_int(&optr, olimit, user));
-  check(hal_xdr_encode_variable_opaque(&optr, olimit, (const uint8_t *)pin, pin_len));
+    check(opacket->encode_int(RPC_FUNC_LOGIN));
+    check(opacket->encode_int(client.handle));
+    check(opacket->encode_int(user));
+    check(opacket->encode_variable_opaque((const uint8_t *)pin, pin_len));
+
+    return HAL_OK;
 }
 
-static hal_error_t logout(rpc_packet *packet, const hal_client_handle_t client_handle)
+static hal_error_t logout(rpc_packet **packet, const hal_client_handle_t client)
+// In Diamond Key's libhal, these functions only create the packet to be sent.
+// The caller is reponsible for deleting the resulting packet even on failure
 {
-  uint8_t outbuf[nargs(2)], *optr = outbuf, *olimit = outbuf + sizeof(outbuf);
+    rpc_packet *opacket = new rpc_packet(nargs(2));
+    *packet = opacket;
 
-  check(hal_xdr_encode_int(&optr, olimit, RPC_FUNC_LOGOUT));
-  check(hal_xdr_encode_int(&optr, olimit, client.handle));
+    check(opacket->encode_int(RPC_FUNC_LOGOUT));
+    check(opacket->encode_int(client.handle));
+
+    return HAL_OK;
 }
 
-static hal_error_t logout_all(void)
+static hal_error_t logout_all(rpc_packet **packet, const hal_client_handle_t client)
+// In Diamond Key's libhal, these functions only create the packet to be sent.
+// The caller is reponsible for deleting the resulting packet even on failure
 {
-  uint8_t outbuf[nargs(2)], *optr = outbuf, *olimit = outbuf + sizeof(outbuf);
+    rpc_packet *opacket = new rpc_packet(nargs(2));
+    *packet = opacket;
 
-  check(hal_xdr_encode_int(&optr, olimit, RPC_FUNC_LOGOUT_ALL));
-  check(hal_xdr_encode_int(&optr, olimit, dummy_client.handle));
+    check(opacket->encode_int(RPC_FUNC_LOGOUT_ALL));
+    check(opacket->encode_int(client.handle));
+
+    return HAL_OK;
 }
 
 // RPC Functions added by Diamond Key Security for the Diamond-HSM
-static hal_error_t check_tamper(rpc_packet *packet, const hal_client_handle_t client_handle)
+static hal_error_t check_tamper(rpc_packet **packet, const hal_client_handle_t client)
+// In Diamond Key's libhal, these functions only create the packet to be sent.
+// The caller is reponsible for deleting the resulting packet even on failure
 {
-  uint8_t outbuf[nargs(2)], *optr = outbuf, *olimit = outbuf + sizeof(outbuf);
+    rpc_packet *opacket = new rpc_packet(nargs(2));
+    *packet = opacket;
 
-  check(hal_xdr_encode_int(&optr, olimit, RPC_FUNC_CHECK_TAMPER));
-  check(hal_xdr_encode_int(&optr, olimit, dummy_client.handle));
+    check(opacket->encode_int(RPC_FUNC_CHECK_TAMPER));
+    check(opacket->encode_int(client.handle));
+
+    return HAL_OK;
 }
 
-static hal_error_t is_logged_in(rpc_packet *packet, const hal_client_handle_t client_handle,
+static hal_error_t is_logged_in(rpc_packet **packet, const hal_client_handle_t client,
                                 const hal_user_t user)
+// In Diamond Key's libhal, these functions only create the packet to be sent.
+// The caller is reponsible for deleting the resulting packet even on failure
 {
-  uint8_t outbuf[nargs(3)], *optr = outbuf, *olimit = outbuf + sizeof(outbuf);
+    rpc_packet *opacket = new rpc_packet(nargs(3));
+    *packet = opacket;
 
-  check(hal_xdr_encode_int(&optr, olimit, RPC_FUNC_IS_LOGGED_IN));
-  check(hal_xdr_encode_int(&optr, olimit, client.handle));
-  check(hal_xdr_encode_int(&optr, olimit, user));
+    check(opacket->encode_int(RPC_FUNC_IS_LOGGED_IN));
+    check(opacket->encode_int(client.handle));
+    check(opacket->encode_int(user));
+
+    return HAL_OK;
 }
 
-static hal_error_t hash_get_digest_len(rpc_packet *packet, const hal_client_handle_t client_handle,
+static hal_error_t hash_get_digest_len(rpc_packet **packet, const hal_client_handle_t client,
                                        const hal_digest_algorithm_t alg)
+// In Diamond Key's libhal, these functions only create the packet to be sent.
+// The caller is reponsible for deleting the resulting packet even on failure
 {
-  uint8_t outbuf[nargs(3)], *optr = outbuf, *olimit = outbuf + sizeof(outbuf);
+    rpc_packet *opacket = new rpc_packet(nargs(3));
+    *packet = opacket;
 
-  check(hal_xdr_encode_int(&optr, olimit, RPC_FUNC_HASH_GET_DIGEST_LEN));
-  check(hal_xdr_encode_int(&optr, olimit, dummy_client.handle));
-  check(hal_xdr_encode_int(&optr, olimit, alg));
+    check(opacket->encode_int(RPC_FUNC_HASH_GET_DIGEST_LEN));
+    check(opacket->encode_int(client.handle));
+    check(opacket->encode_int(alg));
+
+    return HAL_OK;
 }
 
-static hal_error_t hash_get_digest_algorithm_id(rpc_packet *packet, const hal_client_handle_t client_handle,
+static hal_error_t hash_get_digest_algorithm_id(rpc_packet **packet, const hal_client_handle_t client,
                                                 const hal_digest_algorithm_t alg, const size_t len_max)
+// In Diamond Key's libhal, these functions only create the packet to be sent.
+// The caller is reponsible for deleting the resulting packet even on failure
 {
-  uint8_t outbuf[nargs(4)], *optr = outbuf, *olimit = outbuf + sizeof(outbuf);
+    rpc_packet *opacket = new rpc_packet(nargs(4));
+    *packet = opacket;
 
-  check(hal_xdr_encode_int(&optr, olimit, RPC_FUNC_HASH_GET_DIGEST_ALGORITHM_ID));
-  check(hal_xdr_encode_int(&optr, olimit, dummy_client.handle));
-  check(hal_xdr_encode_int(&optr, olimit, alg));
-  check(hal_xdr_encode_int(&optr, olimit, len_max));
+    check(opacket->encode_int(RPC_FUNC_HASH_GET_DIGEST_ALGORITHM_ID));
+    check(opacket->encode_int(client.handle));
+    check(opacket->encode_int(alg));
+    check(opacket->encode_int(len_max));
+
+    return HAL_OK;
 }
 
-static hal_error_t hash_get_algorithm(rpc_packet *packet, const hal_client_handle_t client_handle,
+static hal_error_t hash_get_algorithm(rpc_packet **packet, const hal_client_handle_t client,
                                       const hal_hash_handle_t hash)
+// In Diamond Key's libhal, these functions only create the packet to be sent.
+// The caller is reponsible for deleting the resulting packet even on failure
 {
-  uint8_t outbuf[nargs(3)], *optr = outbuf, *olimit = outbuf + sizeof(outbuf);
+    rpc_packet *opacket = new rpc_packet(nargs(3));
+    *packet = opacket;
 
-  check(hal_xdr_encode_int(&optr, olimit, RPC_FUNC_HASH_GET_ALGORITHM));
-  check(hal_xdr_encode_int(&optr, olimit, dummy_client.handle));
-  check(hal_xdr_encode_int(&optr, olimit, hash.handle));
+    check(opacket->encode_int(RPC_FUNC_HASH_GET_ALGORITHM));
+    check(opacket->encode_int(client.handle));
+    check(opacket->encode_int(hash.handle));
+
+    return HAL_OK;
 }
 
-static hal_error_t hash_initialize(rpc_packet *packet, const hal_client_handle_t client_handle,
+static hal_error_t hash_initialize(rpc_packet **packet, const hal_client_handle_t client,
                                    const hal_session_handle_t session,
                                    hal_hash_handle_t *hash,
                                    const hal_digest_algorithm_t alg,
                                    const uint8_t * const key, const size_t key_len)
+// In Diamond Key's libhal, these functions only create the packet to be sent.
+// The caller is reponsible for deleting the resulting packet even on failure
 {
-  uint8_t outbuf[nargs(5) + pad(key_len)], *optr = outbuf, *olimit = outbuf + sizeof(outbuf);
-  uint8_t inbuf[nargs(4)];
-  const uint8_t *iptr = inbuf, *ilimit = inbuf + sizeof(inbuf);
-  hal_error_t rpc_ret;
+    rpc_packet *opacket = new rpc_packet(nargs(5) + pad(key_len));
+    *packet = opacket;
 
-  check(hal_xdr_encode_int(&optr, olimit, RPC_FUNC_HASH_INITIALIZE));
-  check(hal_xdr_encode_int(&optr, olimit, client.handle));
-  check(hal_xdr_encode_int(&optr, olimit, session.handle));
-  check(hal_xdr_encode_int(&optr, olimit, alg));
-  check(hal_xdr_encode_variable_opaque(&optr, olimit, key, key_len));
-  check(hal_rpc_send(outbuf, optr - outbuf));
+    check(opacket->encode_int(RPC_FUNC_HASH_INITIALIZE));
+    check(opacket->encode_int(client.handle));
+    check(opacket->encode_int(session.handle));
+    check(opacket->encode_int(alg));
+    check(opacket->encode_variable_opaque(key, key_len));
+
+    return HAL_OK;
 }
 
-static hal_error_t hash_update(rpc_packet *packet, const hal_client_handle_t client_handle,
+static hal_error_t hash_update(rpc_packet **packet, const hal_client_handle_t client,
                                const hal_hash_handle_t hash,
                                const uint8_t * data, const size_t length)
+// In Diamond Key's libhal, these functions only create the packet to be sent.
+// The caller is reponsible for deleting the resulting packet even on failure
 {
-  uint8_t outbuf[nargs(4) + pad(length)], *optr = outbuf, *olimit = outbuf + sizeof(outbuf);
-  uint8_t inbuf[nargs(3)];
-  const uint8_t *iptr = inbuf, *ilimit = inbuf + sizeof(inbuf);
-  hal_client_handle_t dummy_client = {0};
-  hal_error_t rpc_ret;
+    rpc_packet *opacket = new rpc_packet(nargs(4) + pad(length));
+    *packet = opacket;
 
-  check(hal_xdr_encode_int(&optr, olimit, RPC_FUNC_HASH_UPDATE));
-  check(hal_xdr_encode_int(&optr, olimit, dummy_client.handle));
-  check(hal_xdr_encode_int(&optr, olimit, hash.handle));
-  check(hal_xdr_encode_variable_opaque(&optr, olimit, data, length));
+    check(opacket->encode_int(RPC_FUNC_HASH_UPDATE));
+    check(opacket->encode_int(client.handle));
+    check(opacket->encode_int(hash.handle));
+    check(opacket->encode_variable_opaque(data, length));
+
+    return HAL_OK;
 }
 
-static hal_error_t hash_finalize(rpc_packet *packet, const hal_client_handle_t client_handle,
+static hal_error_t hash_finalize(rpc_packet **packet, const hal_client_handle_t client,
                                  const hal_hash_handle_t hash, const size_t length)
+// In Diamond Key's libhal, these functions only create the packet to be sent.
+// The caller is reponsible for deleting the resulting packet even on failure
 {
-  uint8_t outbuf[nargs(4)], *optr = outbuf, *olimit = outbuf + sizeof(outbuf);
-  uint8_t inbuf[nargs(4) + pad(length)];
-  const uint8_t *iptr = inbuf, *ilimit = inbuf + sizeof(inbuf);
-  size_t digest_len;
-  hal_client_handle_t dummy_client = {0};
-  hal_error_t rpc_ret;
+    rpc_packet *opacket = new rpc_packet(nargs(4));
+    *packet = opacket;
 
-  check(hal_xdr_encode_int(&optr, olimit, RPC_FUNC_HASH_FINALIZE));
-  check(hal_xdr_encode_int(&optr, olimit, dummy_client.handle));
-  check(hal_xdr_encode_int(&optr, olimit, hash.handle));
-  check(hal_xdr_encode_int(&optr, olimit, length));
+    check(opacket->encode_int(RPC_FUNC_HASH_FINALIZE));
+    check(opacket->encode_int(client.handle));
+    check(opacket->encode_int(hash.handle));
+    check(opacket->encode_int(length));
+
+    return HAL_OK;
 }
 
-static hal_error_t pkey_remote_load(rpc_packet *packet, const hal_client_handle_t client_handle,
+static hal_error_t pkey_remote_load(rpc_packet **packet, const hal_client_handle_t client,
                                     const hal_session_handle_t session,
                                     const uint8_t * const der, const size_t der_len,
                                     const hal_key_flags_t flags)
+// In Diamond Key's libhal, these functions only create the packet to be sent.
+// The caller is reponsible for deleting the resulting packet even on failure
 {
-  uint8_t outbuf[nargs(5) + pad(der_len)], *optr = outbuf, *olimit = outbuf + sizeof(outbuf);
-  uint8_t inbuf[nargs(5) + pad(sizeof(name->uuid))];
-  const uint8_t *iptr = inbuf, *ilimit = inbuf + sizeof(inbuf);
-  size_t name_len;
-  hal_error_t rpc_ret;
+    rpc_packet *opacket = new rpc_packet(nargs(5) + pad(der_len));
+    *packet = opacket;
 
-  check(hal_xdr_encode_int(&optr, olimit, RPC_FUNC_PKEY_LOAD));
-  check(hal_xdr_encode_int(&optr, olimit, client.handle));
-  check(hal_xdr_encode_int(&optr, olimit, session.handle));
-  check(hal_xdr_encode_variable_opaque(&optr, olimit, der, der_len));
-  check(hal_xdr_encode_int(&optr, olimit, flags));
+    check(opacket->encode_int(RPC_FUNC_PKEY_LOAD));
+    check(opacket->encode_int(client.handle));
+    check(opacket->encode_int(session.handle));
+    check(opacket->encode_variable_opaque(der, der_len));
+    check(opacket->encode_int(flags));
+
+    return HAL_OK;
 }
 
-static hal_error_t pkey_remote_open(rpc_packet *packet, const hal_client_handle_t client_handle,
+static hal_error_t pkey_remote_open(rpc_packet **packet, const hal_client_handle_t client,
                                     const hal_session_handle_t session,
                                     const hal_uuid_t * const name)
+// In Diamond Key's libhal, these functions only create the packet to be sent.
+// The caller is reponsible for deleting the resulting packet even on failure
 {
-  uint8_t outbuf[nargs(4) + pad(sizeof(name->uuid))], *optr = outbuf, *olimit = outbuf + sizeof(outbuf);
-  uint8_t inbuf[nargs(4)];
-  const uint8_t *iptr = inbuf, *ilimit = inbuf + sizeof(inbuf);
-  hal_error_t rpc_ret;
+    rpc_packet *opacket = new rpc_packet(nargs(4) + pad(sizeof(name->uuid)));
+    *packet = opacket;
 
-  check(hal_xdr_encode_int(&optr, olimit, RPC_FUNC_PKEY_OPEN));
-  check(hal_xdr_encode_int(&optr, olimit, client.handle));
-  check(hal_xdr_encode_int(&optr, olimit, session.handle));
-  check(hal_xdr_encode_variable_opaque(&optr, olimit, name->uuid, sizeof(name->uuid)));
+    check(opacket->encode_int(RPC_FUNC_PKEY_OPEN));
+    check(opacket->encode_int(client.handle));
+    check(opacket->encode_int(session.handle));
+    check(opacket->encode_variable_opaque(name->uuid, sizeof(name->uuid)));
+
+    return HAL_OK;
 }
 
-static hal_error_t pkey_remote_generate_rsa(rpc_packet *packet, const hal_client_handle_t client_handle,
+static hal_error_t pkey_remote_generate_rsa(rpc_packet **packet, const hal_client_handle_t client,
                                             const hal_session_handle_t session,
                                             const unsigned key_len,
                                             const uint8_t * const exp, const size_t exp_len,
                                             const hal_key_flags_t flags)
+// In Diamond Key's libhal, these functions only create the packet to be sent.
+// The caller is reponsible for deleting the resulting packet even on failure
 {
-  uint8_t outbuf[nargs(6) + pad(exp_len)], *optr = outbuf, *olimit = outbuf + sizeof(outbuf);
-  uint8_t inbuf[nargs(5) + pad(sizeof(name->uuid))];
-  const uint8_t *iptr = inbuf, *ilimit = inbuf + sizeof(inbuf);
-  size_t name_len;
-  hal_error_t rpc_ret;
+    rpc_packet *opacket = new rpc_packet(nargs(6) + pad(exp_len));
+    *packet = opacket;
 
-  check(hal_xdr_encode_int(&optr, olimit, RPC_FUNC_PKEY_GENERATE_RSA));
-  check(hal_xdr_encode_int(&optr, olimit, client.handle));
-  check(hal_xdr_encode_int(&optr, olimit, session.handle));
-  check(hal_xdr_encode_int(&optr, olimit, key_len));
-  check(hal_xdr_encode_variable_opaque(&optr, olimit, exp, exp_len));
-  check(hal_xdr_encode_int(&optr, olimit, flags));
+    check(opacket->encode_int(RPC_FUNC_PKEY_GENERATE_RSA));
+    check(opacket->encode_int(client.handle));
+    check(opacket->encode_int(session.handle));
+    check(opacket->encode_int(key_len));
+    check(opacket->encode_variable_opaque(exp, exp_len));
+    check(opacket->encode_int(flags));
+
+    return HAL_OK;
 }
 
-static hal_error_t pkey_remote_generate_ec(rpc_packet *packet, const hal_client_handle_t client_handle,
+static hal_error_t pkey_remote_generate_ec(rpc_packet **packet, const hal_client_handle_t client,
                                            const hal_session_handle_t session,
                                            const hal_curve_name_t curve,
                                            const hal_key_flags_t flags)
+// In Diamond Key's libhal, these functions only create the packet to be sent.
+// The caller is reponsible for deleting the resulting packet even on failure
 {
-  uint8_t outbuf[nargs(5)], *optr = outbuf, *olimit = outbuf + sizeof(outbuf);
-  uint8_t inbuf[nargs(5) + pad(sizeof(name->uuid))];
-  const uint8_t *iptr = inbuf, *ilimit = inbuf + sizeof(inbuf);
-  size_t name_len;
-  hal_error_t rpc_ret;
+    rpc_packet *opacket = new rpc_packet(nargs(5));
+    *packet = opacket;
 
-  check(hal_xdr_encode_int(&optr, olimit, RPC_FUNC_PKEY_GENERATE_EC));
-  check(hal_xdr_encode_int(&optr, olimit, client.handle));
-  check(hal_xdr_encode_int(&optr, olimit, session.handle));
-  check(hal_xdr_encode_int(&optr, olimit, curve));
-  check(hal_xdr_encode_int(&optr, olimit, flags));
+    check(opacket->encode_int(RPC_FUNC_PKEY_GENERATE_EC));
+    check(opacket->encode_int(client.handle));
+    check(opacket->encode_int(session.handle));
+    check(opacket->encode_int(curve));
+    check(opacket->encode_int(flags));
+
+    return HAL_OK;
 }
 
-static hal_error_t pkey_remote_generate_hashsig(rpc_packet *packet, const hal_client_handle_t client_handle,
+static hal_error_t pkey_remote_generate_hashsig(rpc_packet **packet, const hal_client_handle_t client,
                                                 const hal_session_handle_t session,
                                                 const size_t hss_levels,
                                                 const hal_lms_algorithm_t lms_type,
                                                 const hal_lmots_algorithm_t lmots_type,
                                                 const hal_key_flags_t flags)
+// In Diamond Key's libhal, these functions only create the packet to be sent.
+// The caller is reponsible for deleting the resulting packet even on failure
 {
-  uint8_t outbuf[nargs(7)], *optr = outbuf, *olimit = outbuf + sizeof(outbuf);
-  uint8_t inbuf[nargs(5) + pad(sizeof(name->uuid))];
-  const uint8_t *iptr = inbuf, *ilimit = inbuf + sizeof(inbuf);
-  size_t name_len;
-  hal_error_t rpc_ret;
+    rpc_packet *opacket = new rpc_packet(nargs(7));
+    *packet = opacket;
 
-  check(hal_xdr_encode_int(&optr, olimit, RPC_FUNC_PKEY_GENERATE_HASHSIG));
-  check(hal_xdr_encode_int(&optr, olimit, client.handle));
-  check(hal_xdr_encode_int(&optr, olimit, session.handle));
-  check(hal_xdr_encode_int(&optr, olimit, (uint32_t)hss_levels));
-  check(hal_xdr_encode_int(&optr, olimit, (uint32_t)lms_type));
-  check(hal_xdr_encode_int(&optr, olimit, (uint32_t)lmots_type));
-  check(hal_xdr_encode_int(&optr, olimit, flags));
+    check(opacket->encode_int(RPC_FUNC_PKEY_GENERATE_HASHSIG));
+    check(opacket->encode_int(client.handle));
+    check(opacket->encode_int(session.handle));
+    check(opacket->encode_int((uint32_t)hss_levels));
+    check(opacket->encode_int((uint32_t)lms_type));
+    check(opacket->encode_int((uint32_t)lmots_type));
+    check(opacket->encode_int(flags));
+
+    return HAL_OK;
 }
 
-static hal_error_t pkey_remote_close(rpc_packet *packet, const hal_client_handle_t client_handle, const hal_pkey_handle_t pkey)
+static hal_error_t pkey_remote_close(rpc_packet **packet, const hal_client_handle_t client, const hal_pkey_handle_t pkey)
+// In Diamond Key's libhal, these functions only create the packet to be sent.
+// The caller is reponsible for deleting the resulting packet even on failure
 {
-  uint8_t outbuf[nargs(3)], *optr = outbuf, *olimit = outbuf + sizeof(outbuf);
-  uint8_t inbuf[nargs(3)];
-  const uint8_t *iptr = inbuf, *ilimit = inbuf + sizeof(inbuf);
-  hal_client_handle_t dummy_client = {0};
-  hal_error_t rpc_ret;
+    rpc_packet *opacket = new rpc_packet(nargs(3));
+    *packet = opacket;
 
-  check(hal_xdr_encode_int(&optr, olimit, RPC_FUNC_PKEY_CLOSE));
-  check(hal_xdr_encode_int(&optr, olimit, dummy_client.handle));
-  check(hal_xdr_encode_int(&optr, olimit, pkey.handle));
+    check(opacket->encode_int(RPC_FUNC_PKEY_CLOSE));
+    check(opacket->encode_int(client.handle));
+    check(opacket->encode_int(pkey.handle));
+
+    return HAL_OK;
 }
 
-static hal_error_t pkey_remote_delete(rpc_packet *packet, const hal_client_handle_t client_handle, const hal_pkey_handle_t pkey)
+static hal_error_t pkey_remote_delete(rpc_packet **packet, const hal_client_handle_t client, const hal_pkey_handle_t pkey)
+// In Diamond Key's libhal, these functions only create the packet to be sent.
+// The caller is reponsible for deleting the resulting packet even on failure
 {
-  uint8_t outbuf[nargs(3)], *optr = outbuf, *olimit = outbuf + sizeof(outbuf);
-  uint8_t inbuf[nargs(3)];
-  const uint8_t *iptr = inbuf, *ilimit = inbuf + sizeof(inbuf);
-  hal_client_handle_t dummy_client = {0};
-  hal_error_t rpc_ret;
+    rpc_packet *opacket = new rpc_packet(nargs(3));
+    *packet = opacket;
 
-  check(hal_xdr_encode_int(&optr, olimit, RPC_FUNC_PKEY_DELETE));
-  check(hal_xdr_encode_int(&optr, olimit, dummy_client.handle));
-  check(hal_xdr_encode_int(&optr, olimit, pkey.handle));
+    check(opacket->encode_int(RPC_FUNC_PKEY_DELETE));
+    check(opacket->encode_int(client.handle));
+    check(opacket->encode_int(pkey.handle));
+
+    return HAL_OK;
 }
 
-static hal_error_t pkey_remote_get_key_type(rpc_packet *packet, const hal_client_handle_t client_handle,
+static hal_error_t pkey_remote_get_key_type(rpc_packet **packet, const hal_client_handle_t client,
                                             const hal_pkey_handle_t pkey)
+// In Diamond Key's libhal, these functions only create the packet to be sent.
+// The caller is reponsible for deleting the resulting packet even on failure
 {
-  uint8_t outbuf[nargs(3)], *optr = outbuf, *olimit = outbuf + sizeof(outbuf);
-  uint8_t inbuf[nargs(4)];
-  const uint8_t *iptr = inbuf, *ilimit = inbuf + sizeof(inbuf);
-  uint32_t type32;
-  hal_client_handle_t dummy_client = {0};
-  hal_error_t rpc_ret;
+    rpc_packet *opacket = new rpc_packet(nargs(3));
+    *packet = opacket;
 
-  check(hal_xdr_encode_int(&optr, olimit, RPC_FUNC_PKEY_GET_KEY_TYPE));
-  check(hal_xdr_encode_int(&optr, olimit, dummy_client.handle));
-  check(hal_xdr_encode_int(&optr, olimit, pkey.handle));
+    check(opacket->encode_int(RPC_FUNC_PKEY_GET_KEY_TYPE));
+    check(opacket->encode_int(client.handle));
+    check(opacket->encode_int(pkey.handle));
+
+    return HAL_OK;
 }
 
-static hal_error_t pkey_remote_get_key_curve(rpc_packet *packet, const hal_client_handle_t client_handle,
+static hal_error_t pkey_remote_get_key_curve(rpc_packet **packet, const hal_client_handle_t client,
                                              const hal_pkey_handle_t pkey)
+// In Diamond Key's libhal, these functions only create the packet to be sent.
+// The caller is reponsible for deleting the resulting packet even on failure
 {
-  uint8_t outbuf[nargs(3)], *optr = outbuf, *olimit = outbuf + sizeof(outbuf);
-  uint8_t inbuf[nargs(4)];
-  const uint8_t *iptr = inbuf, *ilimit = inbuf + sizeof(inbuf);
-  uint32_t curve32;
-  hal_client_handle_t dummy_client = {0};
-  hal_error_t rpc_ret;
+    rpc_packet *opacket = new rpc_packet(nargs(3));
+    *packet = opacket;
 
-  check(hal_xdr_encode_int(&optr, olimit, RPC_FUNC_PKEY_GET_KEY_CURVE));
-  check(hal_xdr_encode_int(&optr, olimit, dummy_client.handle));
-  check(hal_xdr_encode_int(&optr, olimit, pkey.handle));
+    check(opacket->encode_int(RPC_FUNC_PKEY_GET_KEY_CURVE));
+    check(opacket->encode_int(client.handle));
+    check(opacket->encode_int(pkey.handle));
+
+    return HAL_OK;
 }
 
-static hal_error_t pkey_remote_get_key_flags(rpc_packet *packet, const hal_client_handle_t client_handle,
+static hal_error_t pkey_remote_get_key_flags(rpc_packet **packet, const hal_client_handle_t client,
                                              const hal_pkey_handle_t pkey)
+// In Diamond Key's libhal, these functions only create the packet to be sent.
+// The caller is reponsible for deleting the resulting packet even on failure
 {
-  uint8_t outbuf[nargs(3)], *optr = outbuf, *olimit = outbuf + sizeof(outbuf);
-  uint8_t inbuf[nargs(4)];
-  const uint8_t *iptr = inbuf, *ilimit = inbuf + sizeof(inbuf);
-  uint32_t flags32;
-  hal_client_handle_t dummy_client = {0};
-  hal_error_t rpc_ret;
+    rpc_packet *opacket = new rpc_packet(nargs(3));
+    *packet = opacket;
 
-  check(hal_xdr_encode_int(&optr, olimit, RPC_FUNC_PKEY_GET_KEY_FLAGS));
-  check(hal_xdr_encode_int(&optr, olimit, dummy_client.handle));
-  check(hal_xdr_encode_int(&optr, olimit, pkey.handle));
+    check(opacket->encode_int(RPC_FUNC_PKEY_GET_KEY_FLAGS));
+    check(opacket->encode_int(client.handle));
+    check(opacket->encode_int(pkey.handle));
+
+    return HAL_OK;
 }
 
-static size_t pkey_remote_get_public_key_len(rpc_packet *packet, const hal_client_handle_t client_handle,
+static size_t pkey_remote_get_public_key_len(rpc_packet **packet, const hal_client_handle_t client,
                                              const hal_pkey_handle_t pkey)
+// In Diamond Key's libhal, these functions only create the packet to be sent.
+// The caller is reponsible for deleting the resulting packet even on failure
 {
-  uint8_t outbuf[nargs(3)], *optr = outbuf, *olimit = outbuf + sizeof(outbuf);
-  uint8_t inbuf[nargs(4)];
-  const uint8_t *iptr = inbuf, *ilimit = inbuf + sizeof(inbuf);
-  uint32_t len32;
-  hal_client_handle_t dummy_client = {0};
-  hal_error_t rpc_ret;
+    rpc_packet *opacket = new rpc_packet(nargs(3));
+    *packet = opacket;
 
-  check(hal_xdr_encode_int(&optr, olimit, RPC_FUNC_PKEY_GET_PUBLIC_KEY_LEN));
-  check(hal_xdr_encode_int(&optr, olimit, dummy_client.handle));
-  check(hal_xdr_encode_int(&optr, olimit, pkey.handle));
+    check(opacket->encode_int(RPC_FUNC_PKEY_GET_PUBLIC_KEY_LEN));
+    check(opacket->encode_int(client.handle));
+    check(opacket->encode_int(pkey.handle));
 }
 
-static hal_error_t pkey_remote_get_public_key(rpc_packet *packet, const hal_client_handle_t client_handle,
+static hal_error_t pkey_remote_get_public_key(rpc_packet **packet, const hal_client_handle_t client,
                                               const hal_pkey_handle_t pkey, const size_t der_max)
+// In Diamond Key's libhal, these functions only create the packet to be sent.
+// The caller is reponsible for deleting the resulting packet even on failure
 {
-  uint8_t outbuf[nargs(4)], *optr = outbuf, *olimit = outbuf + sizeof(outbuf);
-  uint8_t inbuf[nargs(4) + pad(der_max)];
-  const uint8_t *iptr = inbuf, *ilimit = inbuf + sizeof(inbuf);
-  hal_client_handle_t dummy_client = {0};
-  hal_error_t rpc_ret;
+    rpc_packet *opacket = new rpc_packet(nargs(4));
+    *packet = opacket;
 
-  check(hal_xdr_encode_int(&optr, olimit, RPC_FUNC_PKEY_GET_PUBLIC_KEY));
-  check(hal_xdr_encode_int(&optr, olimit, dummy_client.handle));
-  check(hal_xdr_encode_int(&optr, olimit, pkey.handle));
-  check(hal_xdr_encode_int(&optr, olimit, der_max));
+    check(opacket->encode_int(RPC_FUNC_PKEY_GET_PUBLIC_KEY));
+    check(opacket->encode_int(client.handle));
+    check(opacket->encode_int(pkey.handle));
+    check(opacket->encode_int(der_max));
+
+    return HAL_OK;
 }
 
-static hal_error_t pkey_remote_sign(rpc_packet *packet, const hal_client_handle_t client_handle,
+static hal_error_t pkey_remote_sign(rpc_packet **packet, const hal_client_handle_t client,
                                     const hal_pkey_handle_t pkey,
                                     const hal_hash_handle_t hash,
                                     const uint8_t * const input, const size_t input_len, const size_t signature_max)
+// In Diamond Key's libhal, these functions only create the packet to be sent.
+// The caller is reponsible for deleting the resulting packet even on failure
 {
-  uint8_t outbuf[nargs(6) + pad(input_len)], *optr = outbuf, *olimit = outbuf + sizeof(outbuf);
-  uint8_t inbuf[nargs(4) + pad(signature_max)];
-  const uint8_t *iptr = inbuf, *ilimit = inbuf + sizeof(inbuf);
-  hal_client_handle_t dummy_client = {0};
-  hal_error_t rpc_ret;
+    rpc_packet *opacket = new rpc_packet(nargs(6) + pad(input_len));
+    *packet = opacket;
 
-  check(hal_xdr_encode_int(&optr, olimit, RPC_FUNC_PKEY_SIGN));
-  check(hal_xdr_encode_int(&optr, olimit, dummy_client.handle));
-  check(hal_xdr_encode_int(&optr, olimit, pkey.handle));
-  check(hal_xdr_encode_int(&optr, olimit, hash.handle));
-  check(hal_xdr_encode_variable_opaque(&optr, olimit, input, input_len));
-  check(hal_xdr_encode_int(&optr, olimit, signature_max));
+    check(opacket->encode_int(RPC_FUNC_PKEY_SIGN));
+    check(opacket->encode_int(client.handle));
+    check(opacket->encode_int(pkey.handle));
+    check(opacket->encode_int(hash.handle));
+    check(opacket->encode_variable_opaque(input, input_len));
+    check(opacket->encode_int(signature_max));
+
+    return HAL_OK;
 }
 
-static hal_error_t pkey_remote_verify(rpc_packet *packet, const hal_client_handle_t client_handle,
+static hal_error_t pkey_remote_verify(rpc_packet **packet, const hal_client_handle_t client,
                                       const hal_pkey_handle_t pkey,
                                       const hal_hash_handle_t hash,
                                       const uint8_t * const input, const size_t input_len,
                                       const uint8_t * const signature, const size_t signature_len)
+// In Diamond Key's libhal, these functions only create the packet to be sent.
+// The caller is reponsible for deleting the resulting packet even on failure
 {
-  uint8_t outbuf[nargs(6) + pad(input_len) + pad(signature_len)], *optr = outbuf, *olimit = outbuf + sizeof(outbuf);
-  uint8_t inbuf[nargs(3)];
-  const uint8_t *iptr = inbuf, *ilimit = inbuf + sizeof(inbuf);
-  hal_client_handle_t dummy_client = {0};
-  hal_error_t rpc_ret;
+    rpc_packet *opacket = new rpc_packet(nargs(6) + pad(input_len) + pad(signature_len));
+    *packet = opacket;
 
-  check(hal_xdr_encode_int(&optr, olimit, RPC_FUNC_PKEY_VERIFY));
-  check(hal_xdr_encode_int(&optr, olimit, dummy_client.handle));
-  check(hal_xdr_encode_int(&optr, olimit, pkey.handle));
-  check(hal_xdr_encode_int(&optr, olimit, hash.handle));
-  check(hal_xdr_encode_variable_opaque(&optr, olimit, input, input_len));
-  check(hal_xdr_encode_variable_opaque(&optr, olimit, signature, signature_len));
+    check(opacket->encode_int(RPC_FUNC_PKEY_VERIFY));
+    check(opacket->encode_int(client.handle));
+    check(opacket->encode_int(pkey.handle));
+    check(opacket->encode_int(hash.handle));
+    check(opacket->encode_variable_opaque(input, input_len));
+    check(opacket->encode_variable_opaque(signature, signature_len));
+
+    return HAL_OK;
 }
 
-static hal_error_t pkey_remote_match(rpc_packet *packet, const hal_client_handle_t client_handle,
+static hal_error_t pkey_remote_match(rpc_packet **packet, const hal_client_handle_t client,
                                      const hal_session_handle_t session,
                                      const hal_key_type_t type,
                                      const hal_curve_name_t curve,
@@ -497,129 +562,136 @@ static hal_error_t pkey_remote_match(rpc_packet *packet, const hal_client_handle
                                      const unsigned *state,
                                      const unsigned result_max,
                                      const hal_uuid_t * const previous_uuid)
+// In Diamond Key's libhal, these functions only create the packet to be sent.
+// The caller is reponsible for deleting the resulting packet even on failure
 {
-  size_t attributes_buffer_len = 0;
-  if (attributes != NULL)
-    for (int i = 0; i < attributes_len; i++)
-      attributes_buffer_len += pad(attributes[i].length);
+    size_t attributes_buffer_len = 0;
+    if (attributes != NULL)
+        for (int i = 0; i < attributes_len; i++)
+            attributes_buffer_len += pad(attributes[i].length);
 
-  uint8_t outbuf[nargs(11 + attributes_len * 2) + attributes_buffer_len + pad(sizeof(hal_uuid_t))];
-  uint8_t *optr = outbuf, *olimit = outbuf + sizeof(outbuf);
-  uint8_t inbuf[nargs(5 + result_max) + pad(result_max * sizeof(hal_uuid_t))];
-  const uint8_t *iptr = inbuf, *ilimit = inbuf + sizeof(inbuf);
-  hal_error_t rpc_ret;
+    rpc_packet *opacket = new rpc_packet(nargs(11 + attributes_len * 2) + 
+                                         attributes_buffer_len + pad(sizeof(hal_uuid_t)));
+    *packet = opacket;
 
-  check(hal_xdr_encode_int(&optr, olimit, RPC_FUNC_PKEY_MATCH));
-  check(hal_xdr_encode_int(&optr, olimit, client.handle));
-  check(hal_xdr_encode_int(&optr, olimit, session.handle));
-  check(hal_xdr_encode_int(&optr, olimit, type));
-  check(hal_xdr_encode_int(&optr, olimit, curve));
-  check(hal_xdr_encode_int(&optr, olimit, mask));
-  check(hal_xdr_encode_int(&optr, olimit, flags));
-  check(hal_xdr_encode_int(&optr, olimit, attributes_len));
-  if (attributes != NULL) {
-    for (int i = 0; i < attributes_len; i++) {
-      check(hal_xdr_encode_int(&optr, olimit, attributes[i].type));
-      check(hal_xdr_encode_variable_opaque(&optr, olimit, attributes[i].value, attributes[i].length));
+    check(opacket->encode_int(RPC_FUNC_PKEY_MATCH));
+    check(opacket->encode_int(client.handle));
+    check(opacket->encode_int(session.handle));
+    check(opacket->encode_int(type));
+    check(opacket->encode_int(curve));
+    check(opacket->encode_int(mask));
+    check(opacket->encode_int(flags));
+    check(opacket->encode_int(attributes_len));
+    if (attributes != NULL) {
+        for (int i = 0; i < attributes_len; i++) {
+            check(opacket->encode_int(attributes[i].type));
+            check(opacket->encode_variable_opaque((const uint8_t *)attributes[i].value, attributes[i].length));
+        }
     }
-  }
-  check(hal_xdr_encode_int(&optr, olimit, *state));
-  check(hal_xdr_encode_int(&optr, olimit, result_max));
-  check(hal_xdr_encode_variable_opaque(&optr, olimit, previous_uuid->uuid, sizeof(previous_uuid->uuid)));
+    check(opacket->encode_int(*state));
+    check(opacket->encode_int(result_max));
+    check(opacket->encode_variable_opaque(previous_uuid->uuid, sizeof(previous_uuid->uuid)));
+
+    return HAL_OK;
 }
 
-static hal_error_t pkey_remote_set_attributes(rpc_packet *packet, const hal_client_handle_t client_handle,
+static hal_error_t pkey_remote_set_attributes(rpc_packet **packet, const hal_client_handle_t client,
                                               const hal_pkey_handle_t pkey,
                                               const hal_pkey_attribute_t *attributes,
                                               const unsigned attributes_len)
+// In Diamond Key's libhal, these functions only create the packet to be sent.
+// The caller is reponsible for deleting the resulting packet even on failure
 {
-  size_t outbuf_len = nargs(4 + 2 * attributes_len);
-  for (int i = 0; i < attributes_len; i++)
-    outbuf_len += pad(attributes[i].length);
+    size_t outbuf_len = nargs(4 + 2 * attributes_len);
+    for (int i = 0; i < attributes_len; i++)
+        outbuf_len += pad(attributes[i].length);
 
-  uint8_t outbuf[outbuf_len], *optr = outbuf, *olimit = outbuf + sizeof(outbuf);
-  uint8_t inbuf[nargs(3)];
-  const uint8_t *iptr = inbuf, *ilimit = inbuf + sizeof(inbuf);
-  hal_client_handle_t dummy_client = {0};
-  hal_error_t rpc_ret;
+    rpc_packet *opacket = new rpc_packet(outbuf_len);
+    *packet = opacket;
 
-  check(hal_xdr_encode_int(&optr, olimit, RPC_FUNC_PKEY_SET_ATTRIBUTES));
-  check(hal_xdr_encode_int(&optr, olimit, dummy_client.handle));
-  check(hal_xdr_encode_int(&optr, olimit, pkey.handle));
-  check(hal_xdr_encode_int(&optr, olimit, attributes_len));
-  for (int i = 0; i < attributes_len; i++) {
-    check(hal_xdr_encode_int(&optr, olimit, attributes[i].type));
-    if (attributes[i].length == HAL_PKEY_ATTRIBUTE_NIL)
-      check(hal_xdr_encode_int(&optr, olimit, HAL_PKEY_ATTRIBUTE_NIL));
-    else
-      check(hal_xdr_encode_variable_opaque(&optr, olimit, attributes[i].value, attributes[i].length));
-  }
+    check(opacket->encode_int(RPC_FUNC_PKEY_SET_ATTRIBUTES));
+    check(opacket->encode_int(client.handle));
+    check(opacket->encode_int(pkey.handle));
+    check(opacket->encode_int(attributes_len));
+    for (int i = 0; i < attributes_len; i++) {
+        check(opacket->encode_int(attributes[i].type));
+        if (attributes[i].length == HAL_PKEY_ATTRIBUTE_NIL)
+            check(opacket->encode_int(HAL_PKEY_ATTRIBUTE_NIL));
+        else
+            check(opacket->encode_variable_opaque((const uint8_t *)attributes[i].value,
+                                                  attributes[i].length));
+    }
+
+    return HAL_OK;
 }
 
-static hal_error_t pkey_remote_get_attributes(rpc_packet *packet, const hal_client_handle_t client_handle,
+static hal_error_t pkey_remote_get_attributes(rpc_packet **packet, const hal_client_handle_t client,
                                               const hal_pkey_handle_t pkey,
                                               const hal_pkey_attribute_t *attributes,
                                               const unsigned attributes_len,
                                               const uint8_t *attributes_buffer,
                                               const size_t attributes_buffer_len)
+// In Diamond Key's libhal, these functions only create the packet to be sent.
+// The caller is reponsible for deleting the resulting packet even on failure
 {
-  /* inbuf[] here includes one extra word per attribute for padding */
-  uint8_t outbuf[nargs(5 + attributes_len)], *optr = outbuf, *olimit = outbuf + sizeof(outbuf);
-  uint8_t inbuf[nargs(4 + 3 * attributes_len) + attributes_buffer_len];
-  const uint8_t *iptr = inbuf, *ilimit = inbuf + sizeof(inbuf);
-  hal_client_handle_t dummy_client = {0};
-  hal_error_t rpc_ret;
+    /* inbuf[] here includes one extra word per attribute for padding */
+    rpc_packet *opacket = new rpc_packet(nargs(5 + attributes_len));
+    *packet = opacket;
 
-  check(hal_xdr_encode_int(&optr, olimit, RPC_FUNC_PKEY_GET_ATTRIBUTES));
-  check(hal_xdr_encode_int(&optr, olimit, dummy_client.handle));
-  check(hal_xdr_encode_int(&optr, olimit, pkey.handle));
-  check(hal_xdr_encode_int(&optr, olimit, attributes_len));
-  for (int i = 0; i < attributes_len; i++)
-    check(hal_xdr_encode_int(&optr, olimit, attributes[i].type));
-  check(hal_xdr_encode_int(&optr, olimit, attributes_buffer_len));
+    check(opacket->encode_int(RPC_FUNC_PKEY_GET_ATTRIBUTES));
+    check(opacket->encode_int(client.handle));
+    check(opacket->encode_int(pkey.handle));
+    check(opacket->encode_int(attributes_len));
+    for (int i = 0; i < attributes_len; i++)
+        check(opacket->encode_int(attributes[i].type));
+
+    check(opacket->encode_int(attributes_buffer_len));
+
+    return HAL_OK;
 }
 
-static hal_error_t pkey_remote_export(rpc_packet *packet, const hal_client_handle_t client_handle,
+static hal_error_t pkey_remote_export(rpc_packet **packet, const hal_client_handle_t client,
                                       const hal_pkey_handle_t pkey,
                                       const hal_pkey_handle_t kekek,
                                       const size_t pkcs8_max,
                                       const size_t kek_max)
+// In Diamond Key's libhal, these functions only create the packet to be sent.
+// The caller is reponsible for deleting the resulting packet even on failure
 {
-  uint8_t outbuf[nargs(6)], *optr = outbuf, *olimit = outbuf + sizeof(outbuf);
-  uint8_t inbuf[nargs(5) + pad(pkcs8_max) + pad(kek_max)];
-  const uint8_t *iptr = inbuf, *ilimit = inbuf + sizeof(inbuf);
-  hal_client_handle_t dummy_client = {0};
-  hal_error_t rpc_ret;
+    rpc_packet *opacket = new rpc_packet(nargs(6));
+    *packet = opacket;
 
-  check(hal_xdr_encode_int(&optr, olimit, RPC_FUNC_PKEY_EXPORT));
-  check(hal_xdr_encode_int(&optr, olimit, dummy_client.handle));
-  check(hal_xdr_encode_int(&optr, olimit, pkey.handle));
-  check(hal_xdr_encode_int(&optr, olimit, kekek.handle));
-  check(hal_xdr_encode_int(&optr, olimit, pkcs8_max));
-  check(hal_xdr_encode_int(&optr, olimit, kek_max));
+    check(opacket->encode_int(RPC_FUNC_PKEY_EXPORT));
+    check(opacket->encode_int(client.handle));
+    check(opacket->encode_int(pkey.handle));
+    check(opacket->encode_int(kekek.handle));
+    check(opacket->encode_int(pkcs8_max));
+    check(opacket->encode_int(kek_max));
+
+    return HAL_OK;
 }
 
-static hal_error_t pkey_remote_import(rpc_packet *packet, const hal_client_handle_t client_handle,
-                                      const hal_client_handle_t client,
+static hal_error_t pkey_remote_import(rpc_packet **packet, const hal_client_handle_t client,
                                       const hal_session_handle_t session,
                                       const hal_pkey_handle_t kekek,
                                       const uint8_t * const pkcs8, const size_t pkcs8_len,
                                       const uint8_t * const kek,   const size_t kek_len,
                                       const hal_key_flags_t flags)
+// In Diamond Key's libhal, these functions only create the packet to be sent.
+// The caller is reponsible for deleting the resulting packet even on failure
 {
-  uint8_t outbuf[nargs(7) + pad(pkcs8_len) + pad(kek_len)], *optr = outbuf, *olimit = outbuf + sizeof(outbuf);
-  uint8_t inbuf[nargs(5) + pad(sizeof(name->uuid))];
-  const uint8_t *iptr = inbuf, *ilimit = inbuf + sizeof(inbuf);
-  size_t name_len;
-  hal_error_t rpc_ret;
+    rpc_packet *opacket = new rpc_packet(nargs(7) + pad(pkcs8_len) + pad(kek_len));
+    *packet = opacket;
 
-  check(hal_xdr_encode_int(&optr, olimit, RPC_FUNC_PKEY_IMPORT));
-  check(hal_xdr_encode_int(&optr, olimit, client.handle));
-  check(hal_xdr_encode_int(&optr, olimit, session.handle));
-  check(hal_xdr_encode_int(&optr, olimit, kekek.handle));
-  check(hal_xdr_encode_variable_opaque(&optr, olimit, pkcs8, pkcs8_len));
-  check(hal_xdr_encode_variable_opaque(&optr, olimit, kek, kek_len));
-  check(hal_xdr_encode_int(&optr, olimit, flags));
+    check(opacket->encode_int(RPC_FUNC_PKEY_IMPORT));
+    check(opacket->encode_int(client.handle));
+    check(opacket->encode_int(session.handle));
+    check(opacket->encode_int(kekek.handle));
+    check(opacket->encode_variable_opaque(pkcs8, pkcs8_len));
+    check(opacket->encode_variable_opaque(kek, kek_len));
+    check(opacket->encode_int(flags));
+
+    return HAL_OK;
 }
 
 }
