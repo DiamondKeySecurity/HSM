@@ -13,12 +13,4 @@
 // You should have received a copy of the GNU General Public License
 // along with this program; if not, If not, see <https://www.gnu.org/licenses/>.
 
-// PURE C++ XDR Implementation
-
-#define HAL_RPC_MAX_PKT_SIZE    16384
-
-class xdr_packer
-{
-    public:
-        
-};
+#include "_cryptech_device_scheduler.h"

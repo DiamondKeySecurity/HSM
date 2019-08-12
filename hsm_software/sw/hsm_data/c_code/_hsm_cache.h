@@ -22,7 +22,7 @@
 #include "_base_db_table.h"
 #include "_table_rows.h"
 
-namespace advanced_cache
+namespace diamond_hsm
 {
 
 class HSMCache

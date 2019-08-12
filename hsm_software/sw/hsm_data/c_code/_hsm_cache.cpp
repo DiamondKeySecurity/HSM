@@ -24,7 +24,7 @@
 #define makedir(dir) (mkdir(dir,0777) == 0)
 #endif
 
-namespace advanced_cache
+namespace diamond_hsm
 {
 
 HSMCache::HSMCache(int rpc_count, const char *_cache_folder)

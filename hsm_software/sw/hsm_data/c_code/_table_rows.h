@@ -19,7 +19,7 @@
 #include <map>
 #include "_uuid.hpp"
 
-namespace advanced_cache
+namespace diamond_hsm
 {
 
 // Represents a row in the cache for a specific alpha

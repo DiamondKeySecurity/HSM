@@ -1,0 +1,132 @@
+// Copyright(c) 2019  Diamond Key Security, NFP
+//
+// This program is free software; you can redistribute it and/or
+// modify it under the terms of the GNU General Public License
+// as published by the Free Software Foundation; version 2
+// of the License only.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program; if not, If not, see <https://www.gnu.org/licenses/>.
+
+#ifndef RPC_PACKET_H
+#define RPC_PACKET_H
+
+#include <stdint.h>
+#include <sys/types.h>
+#include <memory>
+#include <memory.h>
+#include <iostream>
+
+extern "C"
+{
+#include "hal.h"
+#include "xdr_internal.h"
+}
+
+class rpc_packet
+{
+    public:
+        rpc_packet(uint32_t len)
+        :_size(len)
+        {
+            _buf = new uint8_t[_size];
+            _bptr = _buf;
+            _blimit = _bptr + _size;
+        }
+
+        rpc_packet(rpc_packet &&other)
+        {
+            std::cout << "rpc packet move" << std::endl;
+
+            _size = other._size;
+            _buf = other._buf;
+            _bptr =  other._bptr;
+            _blimit = other._blimit;
+
+            other._buf = NULL;
+            other._bptr = NULL;
+            other._blimit = NULL;
+            other._size = 0;
+        }
+
+        rpc_packet(const rpc_packet &other)
+        {
+            std::cout << "rpc packet copy" << std::endl;
+
+            _size = other._size;
+            _buf = new uint8_t[_size];
+            _bptr = _buf;
+            _blimit = _bptr + _size;
+
+            memcpy(_buf, other._buf, _size);
+        }
+
+        ~rpc_packet()
+        {
+            delete [] _buf;
+        }
+
+        uint8_t *buffer() const
+        {
+            return _buf;
+        }
+        uint32_t size() const
+        {
+            return _size;
+        }
+
+        hal_error_t encode_int(uint32_t value)
+        {
+            return hal_xdr_encode_int(&_bptr, _blimit, value);
+        }
+
+        hal_error_t decode_int(uint32_t *value)
+        {
+            return hal_xdr_decode_int((const uint8_t **)&_bptr, _blimit, value);
+        }
+
+        hal_error_t decode_int_peak(uint32_t *value)
+        {
+            return hal_xdr_decode_int_peek((const uint8_t **)&_bptr, _blimit, value);
+        }
+
+        hal_error_t decode_int_peak_at(uint32_t *value, size_t pos)
+        {
+            const uint8_t *ptr = &_buf[pos];
+            return hal_xdr_decode_int_peek(&ptr, _blimit, value);
+        }
+
+        hal_error_t encode_fixed_opaque(const uint8_t * const value, const size_t len)
+        {
+            return hal_xdr_encode_fixed_opaque(&_bptr, _blimit, value, len);
+        }
+
+        hal_error_t decode_fixed_opaque(uint8_t * const value, const size_t len)
+        {
+            return hal_xdr_decode_fixed_opaque((const uint8_t **)&_bptr, _blimit, value, len);
+        }
+
+        hal_error_t encode_variable_opaque(const uint8_t * const value, const size_t len)
+        {
+            return hal_xdr_encode_variable_opaque(&_bptr, _blimit, value, len);
+        }
+
+        hal_error_t decode_variable_opaque(uint8_t * const value, size_t * const len, const size_t len_max)
+        {
+            return hal_xdr_decode_variable_opaque((const uint8_t **)&_bptr, _blimit, value, len, len_max);
+        }
+
+    private:
+        uint8_t *_buf;
+        uint8_t *_bptr;
+        uint8_t *_blimit;
+        uint32_t _size;
+
+};
+
+#endif

@@ -5,3 +5,6 @@ build/
 .fuse*
 !c_code/*.cpp
 !c_code/*.c
+!c_code/libhal/*.cpp
+!c_code/libhal/*.c
+c_code/libhal_lite/*.a
