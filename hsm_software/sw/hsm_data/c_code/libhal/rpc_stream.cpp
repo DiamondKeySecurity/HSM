@@ -27,6 +27,9 @@
 #include "rpc_packet.h"
 #include "rpc_stream.h"
 
+namespace libhal
+{
+
 void rpc_serial_stream::ReadThread()
 {
     std::cout << "In read thread" << std::endl;
@@ -330,4 +333,5 @@ hal_error_t rpc_serial_stream::hal_slip_recv(uint8_t * const buf, size_t * const
     }
 }
 
+}
 // end   -> from Cyptech/libhal/slip.c and Cyptech/libhal/slip_internal.h ----

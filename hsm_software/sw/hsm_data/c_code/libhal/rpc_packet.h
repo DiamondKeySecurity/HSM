@@ -28,6 +28,9 @@ extern "C"
 #include "xdr_internal.h"
 }
 
+namespace libhal
+{
+
 class rpc_packet
 {
     public:
@@ -129,4 +132,5 @@ class rpc_packet
 
 };
 
+}
 #endif

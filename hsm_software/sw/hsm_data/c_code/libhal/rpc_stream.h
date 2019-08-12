@@ -33,6 +33,9 @@ extern "C"
 #include "xdr_internal.h"
 }
 
+namespace libhal
+{
+
 class rpc_serial_stream
 {
     public:
@@ -80,4 +83,5 @@ class rpc_serial_stream
         std::atomic_bool thread_running;
 };
 
+}
 #endif
