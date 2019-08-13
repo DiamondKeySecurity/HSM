@@ -22,7 +22,7 @@ from hsm_tools.cty_connection import HSM_BINARY_FILE
 
 from enum import Enum
 
-HSM_SOFTWARE_VERSION = '19.08.12.field21'
+HSM_SOFTWARE_VERSION = '19.08.13.field22'
 
 # this is the version of the firmware that's built into the current release
 BUILTIN_FIRMWARE_VERSION = HSM_BINARY_FILE

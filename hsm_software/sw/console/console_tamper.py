@@ -166,7 +166,7 @@ def dks_tamper_check(console_object, args):
     return console_object.cty_conn.send_raw_all(cmd, 5)
 
 def dks_tamper_fault_check(console_object, args):
-    cmd = 'tamper check fault\r'
+    cmd = 'tamper faults\r'
 
     return console_object.cty_conn.send_raw_all(cmd, 5)
 
@@ -209,7 +209,7 @@ def add_tamper_commands(console_object):
     tamper_node.add_child(name="check", num_args=0,
                           callback=dks_tamper_check)
 
-    tamper_node.add_child_tree(["fault", "check"], num_args=0,
+    tamper_node.add_child(name="faults", num_args=0,
                             callback=dks_tamper_fault_check)
 
     # add parent nodes
