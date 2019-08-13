@@ -175,6 +175,7 @@ class RPCTCPServer(TCPServer):
         cdef bytes encoded_request
         cdef object queue
         cdef safe_queue.SafeQueue[libhal.rpc_packet] rpc_result_queue
+        cdef libhal.rpc_packet ipacket
 
         queue  = tornado.queues.Queue()
         cryptech.muxd.logger.info("RPC connected %r, handle 0x%x", stream, handle)
@@ -186,6 +187,9 @@ class RPCTCPServer(TCPServer):
                 cryptech.muxd.logger.debug("RPC socket read, handle 0x%x", handle)
                 query = yield stream.read_until(cryptech.muxd.SLIP_END)
                 if len(query) < 9:
+                    continue
+
+                if (0 == utils.CreatePacketFromSlipEncodedBuffer(ipacket, query)):
                     continue
 
                 # get the old handle

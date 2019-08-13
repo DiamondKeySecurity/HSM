@@ -73,11 +73,13 @@ class rpc_packet
 
         ~rpc_packet()
         {
-            delete [] _buf;
+            destroy();
         }
 
         void create(size_t len)
         {
+            destroy();
+            
             _size = len;
             _buf = new uint8_t[_size];
             _bptr = _buf;
@@ -135,6 +137,16 @@ class rpc_packet
         }
 
     private:
+        void destroy()
+        {
+            delete [] _buf;
+
+            _buf = NULL;
+            _bptr = NULL;
+            _blimit = NULL;
+            _size = 0;
+        }
+
         uint8_t *_buf;
         uint8_t *_bptr;
         uint8_t *_blimit;
