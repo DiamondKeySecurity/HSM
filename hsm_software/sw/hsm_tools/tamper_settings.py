@@ -26,6 +26,7 @@ class TamperConfiguration(object):
 
     def update_setting(self, name, command, values):
         self.settings[name] = (command, values)
+        self.save_settings()
 
     def save_settings(self):
         try:
