@@ -76,6 +76,13 @@ public:
     return val;
   }
 
+  // instead of returning the element for an std::move, do the move
+  // and return via reference argument
+  void dequeue(T &result)
+  {
+    result = std::move(dequeue());
+  }
+
 private:
   std::queue<T> q;
   mutable std::mutex m;

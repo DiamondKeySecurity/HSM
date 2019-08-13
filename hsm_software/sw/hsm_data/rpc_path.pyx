@@ -71,6 +71,8 @@ cimport hsm_cache
 cimport table_rows
 cimport conv
 cimport inc_atomic_int
+cimport safe_queue
+cimport libhal
 
 include "rpc_action.pxi"
 

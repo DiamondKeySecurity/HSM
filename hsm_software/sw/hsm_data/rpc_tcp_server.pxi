@@ -174,6 +174,7 @@ class RPCTCPServer(TCPServer):
         cdef bytes request
         cdef bytes encoded_request
         cdef object queue
+        cdef safe_queue.SafeQueue[libhal.rpc_packet] rpc_result_queue
 
         queue  = tornado.queues.Queue()
         cryptech.muxd.logger.info("RPC connected %r, handle 0x%x", stream, handle)

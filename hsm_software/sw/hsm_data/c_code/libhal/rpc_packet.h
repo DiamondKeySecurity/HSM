@@ -34,12 +34,14 @@ namespace libhal
 class rpc_packet
 {
     public:
-        rpc_packet(uint32_t len)
-        :_size(len)
+        rpc_packet()
+        :_buf(NULL), _bptr(NULL), _blimit(NULL), _size(0)
         {
-            _buf = new uint8_t[_size];
-            _bptr = _buf;
-            _blimit = _bptr + _size;
+        }
+
+        rpc_packet(uint32_t len)
+        {
+            create(len);
         }
 
         rpc_packet(rpc_packet &&other)
@@ -72,6 +74,14 @@ class rpc_packet
         ~rpc_packet()
         {
             delete [] _buf;
+        }
+
+        void create(size_t len)
+        {
+            _size = len;
+            _buf = new uint8_t[_size];
+            _bptr = _buf;
+            _blimit = _bptr + _size;
         }
 
         uint8_t *buffer() const
