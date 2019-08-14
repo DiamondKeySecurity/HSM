@@ -26,8 +26,7 @@ def find_hsm_data_sources(path='.'):
     source_files = []
     for root, _, filenames in os.walk(path):
         for fname in filenames:
-            if ((fname.endswith('.cpp') or fname.endswith('.c')) and
-                'c_code' in fname):
+            if ((fname.endswith('.cpp') or fname.endswith('.c')) and 'c_code' in root):
                 source_files.append(os.path.join(root, fname))
 
     return source_files

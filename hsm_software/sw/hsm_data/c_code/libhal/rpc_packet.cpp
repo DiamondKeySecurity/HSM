@@ -12,9 +12,8 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with this program; if not, If not, see <https://www.gnu.org/licenses/>.
-#include "utils.h"
-#include "libhal/hal_internal.h"
-#include "libhal/rpc_packet.h"
+#include "hal_internal.h"
+#include "rpc_packet.h"
 
 #include <iostream>
 
@@ -23,10 +22,10 @@
 #define SLIP_ESC_END         0334    /* ESC ESC_END means END data byte */
 #define SLIP_ESC_ESC         0335    /* ESC ESC_ESC means ESC data byte */
 
-namespace diamond_hsm
+namespace libhal
 {
 
-int CreatePacketFromSlipEncodedBuffer(libhal::rpc_packet &packet, const char *encoded_buffer)
+int rpc_packet::createFromSlipEncoded(const char *encoded_buffer)
 {
     uint8_t decoded_buffer[HAL_RPC_MAX_PKT_SIZE];
 
@@ -54,8 +53,17 @@ int CreatePacketFromSlipEncodedBuffer(libhal::rpc_packet &packet, const char *en
             return 0;
     }
 
-    packet.create(len);
-    memcpy(packet.buffer(), decoded_buffer, len);
+    create(len);
+
+    memcpy(_buf, decoded_buffer, len);
+
+    uint32_t code;
+    uint32_t client;
+
+    decode_int_peak_at(&code, 0);
+    decode_int_peak_at(&client, 4);
+
+    std::cout << "RPC Packet: Code == " << code << "; Client == " << client << "; Length == " << len << std::endl;
 
     return 1;
 }

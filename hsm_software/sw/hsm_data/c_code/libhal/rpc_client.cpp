@@ -566,7 +566,7 @@ hal_error_t pkey_remote_match(rpc_packet **packet, const hal_client_handle_t cli
 {
     size_t attributes_buffer_len = 0;
     if (attributes != NULL)
-        for (int i = 0; i < attributes_len; i++)
+        for (size_t i = 0; i < attributes_len; i++)
             attributes_buffer_len += pad(attributes[i].length);
 
     rpc_packet *opacket = new rpc_packet(nargs(11 + attributes_len * 2) + 
@@ -582,7 +582,7 @@ hal_error_t pkey_remote_match(rpc_packet **packet, const hal_client_handle_t cli
     check(opacket->encode_int(flags));
     check(opacket->encode_int(attributes_len));
     if (attributes != NULL) {
-        for (int i = 0; i < attributes_len; i++) {
+        for (size_t i = 0; i < attributes_len; i++) {
             check(opacket->encode_int(attributes[i].type));
             check(opacket->encode_variable_opaque((const uint8_t *)attributes[i].value, attributes[i].length));
         }
@@ -602,7 +602,7 @@ hal_error_t pkey_remote_set_attributes(rpc_packet **packet, const hal_client_han
 // The caller is reponsible for deleting the resulting packet even on failure
 {
     size_t outbuf_len = nargs(4 + 2 * attributes_len);
-    for (int i = 0; i < attributes_len; i++)
+    for (size_t i = 0; i < attributes_len; i++)
         outbuf_len += pad(attributes[i].length);
 
     rpc_packet *opacket = new rpc_packet(outbuf_len);
@@ -612,7 +612,7 @@ hal_error_t pkey_remote_set_attributes(rpc_packet **packet, const hal_client_han
     check(opacket->encode_int(client.handle));
     check(opacket->encode_int(pkey.handle));
     check(opacket->encode_int(attributes_len));
-    for (int i = 0; i < attributes_len; i++) {
+    for (size_t i = 0; i < attributes_len; i++) {
         check(opacket->encode_int(attributes[i].type));
         if (attributes[i].length == HAL_PKEY_ATTRIBUTE_NIL)
             check(opacket->encode_int(HAL_PKEY_ATTRIBUTE_NIL));
@@ -641,7 +641,7 @@ hal_error_t pkey_remote_get_attributes(rpc_packet **packet, const hal_client_han
     check(opacket->encode_int(client.handle));
     check(opacket->encode_int(pkey.handle));
     check(opacket->encode_int(attributes_len));
-    for (int i = 0; i < attributes_len; i++)
+    for (size_t i = 0; i < attributes_len; i++)
         check(opacket->encode_int(attributes[i].type));
 
     check(opacket->encode_int(attributes_buffer_len));

@@ -665,6 +665,9 @@ typedef enum {
     RPC_FUNC_PKEY_EXPORT,
     RPC_FUNC_PKEY_IMPORT,
     RPC_FUNC_PKEY_GENERATE_HASHSIG,
+
+    // RPC Functions added by Diamond Key Security for the Diamond-HSM
+    RPC_FUNC_CHECK_TAMPER = 66
 } rpc_func_num_t;
 
 // #define RPC_VERSION 0x01010100          /* 1.1.1.0 */

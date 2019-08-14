@@ -86,6 +86,8 @@ class rpc_packet
             _blimit = _bptr + _size;
         }
 
+        int createFromSlipEncoded(const char *encoded_buffer);
+
         uint8_t *buffer() const
         {
             return _buf;

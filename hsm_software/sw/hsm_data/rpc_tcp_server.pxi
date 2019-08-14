@@ -189,7 +189,7 @@ class RPCTCPServer(TCPServer):
                 if len(query) < 9:
                     continue
 
-                if (0 == utils.CreatePacketFromSlipEncodedBuffer(ipacket, query)):
+                if (0 == ipacket.createFromSlipEncoded(query)):
                     continue
 
                 # get the old handle
