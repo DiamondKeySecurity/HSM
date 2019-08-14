@@ -16,3 +16,4 @@ cdef extern from "c_code/libhal/rpc_packet.h" namespace "libhal":
     cdef cppclass rpc_packet:
         rpc_packet()
         int createFromSlipEncoded(const char *encoded_buffer)
+        int encodeToSlip(char *encoded_result, const int max_len)

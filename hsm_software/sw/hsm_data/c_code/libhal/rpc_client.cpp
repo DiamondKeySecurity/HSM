@@ -480,7 +480,7 @@ hal_error_t pkey_remote_get_key_flags(rpc_packet **packet, const hal_client_hand
     return HAL_OK;
 }
 
-size_t pkey_remote_get_public_key_len(rpc_packet **packet, const hal_client_handle_t client,
+hal_error_t pkey_remote_get_public_key_len(rpc_packet **packet, const hal_client_handle_t client,
                                       const hal_pkey_handle_t pkey)
 // In Diamond Key's libhal, these functions only create the packet to be sent.
 // The caller is reponsible for deleting the resulting packet even on failure
@@ -491,6 +491,8 @@ size_t pkey_remote_get_public_key_len(rpc_packet **packet, const hal_client_hand
     check(opacket->encode_int(RPC_FUNC_PKEY_GET_PUBLIC_KEY_LEN));
     check(opacket->encode_int(client.handle));
     check(opacket->encode_int(pkey.handle));
+
+    return HAL_OK;
 }
 
 hal_error_t pkey_remote_get_public_key(rpc_packet **packet, const hal_client_handle_t client,

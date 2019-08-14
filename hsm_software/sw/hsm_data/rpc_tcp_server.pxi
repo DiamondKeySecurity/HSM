@@ -60,6 +60,7 @@ class RPCTCPServer(TCPServer):
 
     def __init__(self, rpc_preprocessor, port, ssl):
         self.rpc_preprocessor = rpc_preprocessor
+        rpc_client_next_handle.inc(1000)
         super(RPCTCPServer, self).__init__(port, ssl)
 
     def error_from_request(self, unencoded_request, hal_error):
@@ -174,8 +175,19 @@ class RPCTCPServer(TCPServer):
         cdef bytes request
         cdef bytes encoded_request
         cdef object queue
+
+        # queue to receive packet
         cdef safe_queue.SafeQueue[libhal.rpc_packet] rpc_result_queue
+
+        # packet that we received from the user
         cdef libhal.rpc_packet ipacket
+
+        # packet to send back to the user
+        cdef libhal.rpc_packet opacket
+
+        # used to convert resulting C packet
+        cdef char reply_buffer_encoded[16384]
+        cdef int reply_buffer_encoded_len = 0
 
         queue  = tornado.queues.Queue()
         cryptech.muxd.logger.info("RPC connected %r, handle 0x%x", stream, handle)
@@ -250,7 +262,16 @@ class RPCTCPServer(TCPServer):
                 #set old handle in reply
                 reply_old_handle_encoded = slip_encode(cryptech.muxd.client_handle_set(reply, old_handle))
 
-                yield stream.write(cryptech.muxd.SLIP_END + reply_old_handle_encoded)
+                # get the resulting output packet
+                opacket.createFromSlipEncoded(reply_old_handle_encoded)
+
+                # convert the packet to be sent by tornado
+                reply_buffer_encoded_len = opacket.encodeToSlip(reply_buffer_encoded, 16384)
+                out_reply = reply_buffer_encoded[:reply_buffer_encoded_len]
+
+                yield stream.write(cryptech.muxd.SLIP_END + out_reply)
+
+                #yield stream.write(cryptech.muxd.SLIP_END + reply_old_handle_encoded)
 
             except tornado.iostream.StreamClosedError:
                 cryptech.muxd.logger.info("RPC closing %r, handle 0x%x", stream, handle)

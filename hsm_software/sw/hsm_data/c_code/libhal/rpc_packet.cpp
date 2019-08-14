@@ -33,14 +33,20 @@ int rpc_packet::createFromSlipEncoded(const char *encoded_buffer)
     const uint8_t *pebuf = (const uint8_t *)encoded_buffer;
     size_t len = 0;
 
+    // skip initial SLIP_ENDs if present
+    while (*pebuf == SLIP_END) ++pebuf;
+
+    // decode
     while (*pebuf != SLIP_END)
     {
         if(*pebuf == SLIP_ESC)
         {
-            if(*(++pebuf) == SLIP_ESC_END)
+            ++pebuf;
+            if(*pebuf == SLIP_ESC_END)
                 *(pdbuf++) = SLIP_END;
             else
                 *(pdbuf++) = SLIP_ESC;
+            ++pebuf;
         }
         else
         {
@@ -64,8 +70,41 @@ int rpc_packet::createFromSlipEncoded(const char *encoded_buffer)
     decode_int_peak_at(&client, 4);
 
     std::cout << "RPC Packet: Code == " << code << "; Client == " << client << "; Length == " << len << std::endl;
-
+    
     return 1;
+}
+
+int rpc_packet::encodeToSlip(char *encoded_result, const int max_len) const
+{
+    int olen = 0;
+
+    if (_size > (uint32_t)max_len) return 0; // impossible to fit
+
+    for (uint32_t i = 0; i < _size; ++i)
+    {
+        if (_buf[i] == SLIP_END)
+        {
+            encoded_result[olen++] = SLIP_ESC;
+            encoded_result[olen++] = SLIP_ESC_END;
+        }
+        else if (_buf[i] == SLIP_ESC)
+        {
+            encoded_result[olen++] = SLIP_ESC;
+            encoded_result[olen++] = SLIP_ESC_ESC;
+        }
+        else
+        {
+            encoded_result[olen++] = _buf[i];
+        }
+
+        // overflow
+        if (olen == max_len) return 0;
+    }
+
+    // end
+    encoded_result[olen++] = SLIP_END;
+
+    return olen;
 }
 
 }

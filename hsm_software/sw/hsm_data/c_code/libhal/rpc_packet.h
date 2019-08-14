@@ -88,6 +88,8 @@ class rpc_packet
 
         int createFromSlipEncoded(const char *encoded_buffer);
 
+        int encodeToSlip(char *encoded_result, const int max_len) const;
+
         uint8_t *buffer() const
         {
             return _buf;
