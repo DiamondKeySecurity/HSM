@@ -80,7 +80,7 @@ class ProbeMultiIOStream(muxd.ProbeIOStream):
             if result == "rpc":
                 muxd.logger.info("Found %s as RPC device", dev)
                 # send data directly to the alpha using SerialIOStream
-                rpc_stream = muxd.RPCIOStream(device = dev)                
+                rpc_stream = muxd.RPCIOStream(device = dev)
                 rpc_list.append(HSMPortInfo("RPC"+str(rpc_index), dev, rpc_stream))
                 rpc_index += 1
 
