@@ -171,14 +171,14 @@ def dks_tamper_fault_check(console_object, args):
     return console_object.cty_conn.send_raw_all(cmd, 5)
 
 def dks_tamper_test(console_object, args):
-    console_object.tamper.on_tamper(None)
+    console_object.tamper.on_tamper()
 
     return "TESTING TAMPER"
 
 def dks_tamper_reset(console_object, args):
-    console_object.tamper.reset_tamper_state()
+    console_object.on_tamper_reset()
 
-    return "RESETING TAMPER"
+    return "RESETING TAMPER\r\nPlease restart the console.\r\n"
 
 def dks_battery_set_enable(console_object, args):
     console_object.tamper_config.update_setting("battery", "tamper threshold set battery", [1])

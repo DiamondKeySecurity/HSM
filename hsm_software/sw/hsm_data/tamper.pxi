@@ -37,6 +37,8 @@ class TamperDetector(observable, PFUNIX_HSM):
                     self.on_tamper()
                     return
 
+                time.sleep(14)
+
     def stop(self):
         PFUNIX_HSM.stop(self)
 

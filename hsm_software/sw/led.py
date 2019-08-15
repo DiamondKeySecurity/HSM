@@ -47,6 +47,7 @@ class PFUnixMsgSender(object):
 class LEDContainer(object):
     def __init__(self):
         self.tamper_detected = ThreadSafeVariable(False)
+        self.current_led_function = None
 
         self.sender = PFUnixMsgSender("/tmp/watchdog.tmp.sock")
         self.sender.connect()
@@ -62,40 +63,65 @@ class LEDContainer(object):
         if(self.tamper_detected.value is not True):
             self.send_led_state("led_determine_network_adapter")
 
+            self.current_led_function = "led_determine_network_adapter"
+
     def led_off(self):
         if(self.tamper_detected.value is not True):
             self.send_led_state("led_off")
+
+            self.current_led_function = "led_off"
 
     def led_probe_for_cryptech(self):
         if(self.tamper_detected.value is not True):
             self.send_led_state("led_probe_for_cryptech")
 
+            self.current_led_function = "led_probe_for_cryptech"
+
     def led_start_tcp_servers(self):
         if(self.tamper_detected.value is not True):
             self.send_led_state("led_start_tcp_servers")
+
+            self.current_led_function = "led_start_tcp_servers"
 
     def led_ready(self):
         if(self.tamper_detected.value is not True):
             self.send_led_state("led_ready")
 
+            self.current_led_function = "led_ready"
+
     def led_error_cryptech_failure(self):
         if(self.tamper_detected.value is not True):
             self.send_led_state("led_error_cryptech_failure")
+
+            self.current_led_function = "led_error_cryptech_failure"
 
     def led_error_cryptech_partial_failure(self):
         if(self.tamper_detected.value is not True):
             self.send_led_state("led_error_cryptech_partial_failure")
 
+            self.current_led_function = "led_error_cryptech_partial_failure"
+
     def led_error_login_failure(self):
         if(self.tamper_detected.value is not True):
             self.send_led_state("led_error_login_failure")
+
+            self.current_led_function = "led_error_login_failure"
 
     def led_error_login_partialfailure(self):
         if(self.tamper_detected.value is not True):
             self.send_led_state("led_error_login_partialfailure")
 
+            self.current_led_function = "led_error_login_partialfailure"
+
     def led_error_tamper(self):
         self.send_led_state("led_error_tamper")
+
+    def led_pretamper(self):
+        if(self.current_led_function is None):
+            self.current_led_function = "led_probe_for_cryptech"
+
+        if (hasattr(self, self.current_led_function)):
+            getattr(self, self.current_led_function)()
 
     def on_tamper_notify(self, tamper_object):
         print 'LED GOT A TAMPER'        
@@ -105,4 +131,4 @@ class LEDContainer(object):
             if(self.tamper_detected.value):
                 self.led_error_tamper()
             else:
-                self.led_probe_for_cryptech()
+                self.led_pretamper()

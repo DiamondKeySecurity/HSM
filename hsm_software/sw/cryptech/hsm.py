@@ -113,7 +113,8 @@ class HSMPortInfo:
     def unlock_port(self):
         """If the port is locked, set it to ready"""
         with self.state_lock:
-            if(self.state == CrypTechDeviceState.HSMLocked):
+            if(self.state == CrypTechDeviceState.HSMLocked or
+               self.state == CrypTechDeviceState.TAMPER_RESET):
                 self.state = CrypTechDeviceState.HSMReady
 
     def clear_tamper(self, new_state):

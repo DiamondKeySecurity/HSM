@@ -54,6 +54,9 @@ class Synchronizer(PFUNIX_HSM):
         self.command_queue = Queue()
         self.sync_init_success = "Internal Synchronizer Initialized"
 
+    def reset(self):
+        self.cache.reset()
+
     def cache_initialized(self):
         return self.cache.is_initialized()
 

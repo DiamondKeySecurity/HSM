@@ -36,6 +36,10 @@ class HSMCache(CacheDB):
         for rpc_index in xrange(rpc_count):
             self.alphaTables.append(CacheTableAlpha(self, rpc_index))
 
+    def reset(self):
+        with self.lock:
+            self.__cache_initialized__ = False
+
     def initialize_cache(self):
         """Update cache from changes made to a duplicate DB"""
         with self.lock:
