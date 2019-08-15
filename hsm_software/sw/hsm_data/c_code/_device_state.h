@@ -105,7 +105,7 @@ class device_state
         void unlock_port()
         {
             // If the port is locked, set it to ready
-            if(state == HSMLocked)
+            if(state == HSMLocked || state == TAMPER_RESET)
                 state = HSMReady;
         }
 
