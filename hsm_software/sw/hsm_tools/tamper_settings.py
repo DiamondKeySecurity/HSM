@@ -17,6 +17,18 @@
 import json
 import os
 
+def byteify(input):
+    """Converts unicode(2 byte) values stored in a dictionary or string to utf-8"""
+    if isinstance(input, dict):
+        return {byteify(key): byteify(value)
+                for key, value in input.iteritems()}
+    elif isinstance(input, list):
+        return [byteify(element) for element in input]
+    elif isinstance(input, unicode):
+        return input.encode('utf-8')
+    else:
+        return input
+
 class TamperConfiguration(object):
     """Database for storing tamper settings between saves"""
     def __init__(self, dbpath, detector):
@@ -38,7 +50,7 @@ class TamperConfiguration(object):
     def load_saved_settings(self):
         try:
             with open(self.dbpath, "rt") as fp:
-                self.settings = json.load(fp)
+                self.settings = byteify(json.load(fp))
         except:
             pass
 
