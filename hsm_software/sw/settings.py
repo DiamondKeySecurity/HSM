@@ -22,11 +22,7 @@ from cryptech.cty_connection import HSM_BINARY_FILE
 
 from enum import Enum
 
-<<<<<<< HEAD
 HSM_SOFTWARE_VERSION = '19.08.15.cython27'
-=======
-HSM_SOFTWARE_VERSION = '19.08.15.field30'
->>>>>>> devFieldUpdate
 
 # this is the version of the firmware that's built into the current release
 BUILTIN_FIRMWARE_VERSION = HSM_BINARY_FILE
