@@ -22,7 +22,7 @@ cdef class rpc_path_object(object):
     cdef object synchronizer
     cdef object tamper
 
-    def __init__(self, num_rpc_devices, cache_folder):
+    def __cinit__(self, int num_rpc_devices, str cache_folder):
         # start the cache
         self.cache = HSMCache(num_rpc_devices, cache_folder=cache_folder)
 
@@ -73,7 +73,7 @@ cdef class rpc_path_object(object):
 
     def get_interface_handling(self):
         if (self.rpc_preprocessor is None): return None
-        return rpc_interface_handling(self.rpc_preprocessor)
+        return rpc_interface_handling()
 
     def get_interface_sync(self):
         if (self.synchronizer is None): return None

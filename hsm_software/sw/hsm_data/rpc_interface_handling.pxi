@@ -14,24 +14,56 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, If not, see <https://www.gnu.org/licenses/>.
 
+from cython.operator cimport dereference as deref
 
-class rpc_interface_handling(object):
-    """ "Pure" Python interface to the rpc handler"""
-    def __init__(self, rpc_preprocessor):
-        self.rpc_preprocessor = rpc_preprocessor
+cdef class rpc_interface_handling(object):
+    cdef rpc_handler.rpc_handler *rpc_preprocessor
+    cdef bint hsm_locked
+    object tamper_detected
+    
+    """ Python interface to the rpc handler"""
+    def _init_(self):
+        self.tamper_detected = ThreadSafeVariable(False)
+        self.hsm_locked = False
+
+    def __cinit__(self):
+        self.rpc_preprocessor = new rpc_handler.rpc_handler()
 
     def unlock_hsm(self):
-        self.rpc_preprocessor.unlock_hsm()
+        deref(self.rpc_preprocessor).unlock_hsm()
 
     def device_count(self):
-        return self.rpc_preprocessor.device_count()
+        return deref(self.rpc_preprocessor).device_count()
 
     def get_current_rpc(self):
-        return self.rpc_preprocessor.get_current_rpc()
+        return deref(self.rpc_preprocessor).get_current_rpc()
 
     def set_current_rpc(self, index):
-        self.rpc_preprocessor.set_current_rpc(index)
+        deref(self.rpc_preprocessor).set_current_rpc(index)
 
     def get_names(self):
-        for d in self.rpc_preprocessor.rpc_list:
-            yield d.name
+        cdef int i
+        for i in xrange(self.device_count()):
+            yield "RPC%i"%i
+
+    def on_tamper_event(self, object tamper_object):
+        new_tamper_state = tamper_object.get_tamper_state()
+        old_tamper_state = self.tamper_detected.value
+
+        if(new_tamper_state != old_tamper_state):
+            self.tamper_detected.value = new_tamper_state
+
+            # if(new_tamper_state is True):
+            #     self.hsm_locked = True
+            #     for rpc in self.rpc_list:
+            #         rpc.change_state(CrypTechDeviceState.TAMPER)
+            # else:
+            #     self.hsm_locked = True
+            #     for rpc in self.rpc_list:
+            #         rpc.clear_tamper(CrypTechDeviceState.TAMPER_RESET)
+    
+    def process_incoming_rpc(self, decoded_request):
+        pass
+
+    def append_futures(self, futures):
+        pass
