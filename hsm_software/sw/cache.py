@@ -49,8 +49,6 @@ class HSMCache(CacheDB):
     def reset(self):
         with self.lock:
             self.__cache_initialized__ = False
-        
-        self.clear()
 
     def initialize_cache(self):
         """Update cache from changes made to a duplicate DB"""

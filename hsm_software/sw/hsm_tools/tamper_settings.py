@@ -49,9 +49,9 @@ class TamperConfiguration(object):
             cmd_string = self.get_command_string(command)
 
             if (cmd_string is not None):
-                console_connect.send_raw(cmd_string, 5)
+                console_connect.send_raw_all(cmd_string, 5)
 
-        console_connect.send_raw("tamper set config", 5)
+        console_connect.send_raw_all("tamper set config", 5)
 
         if (self.detector is not None):
             self.detector.enable()
@@ -72,7 +72,7 @@ class TamperConfiguration(object):
 
 if __name__ == "__main__":
     class connect(object):
-        def send_raw(self, cmd, _):
+        def send_raw_all(self, cmd, _):
             print " > %s"%cmd
 
     tamper = TamperConfiguration("/home/douglas/Documents", None)

@@ -123,6 +123,8 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
 
         if (self.tamper is not None):
             self.tamper.reset_tamper_state()
+
+        self.console_locked = True
         self.cache_checked = False
 
     def on_reset(self):
