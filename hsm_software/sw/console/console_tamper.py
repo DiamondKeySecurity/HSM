@@ -171,7 +171,7 @@ def dks_tamper_fault_check(console_object, args):
     return console_object.cty_conn.send_raw_all(cmd, 5)
 
 def dks_tamper_test(console_object, args):
-    console_object.tamper.on_tamper(None)
+    console_object.tamper.on_tamper()
 
     return "TESTING TAMPER"
 
