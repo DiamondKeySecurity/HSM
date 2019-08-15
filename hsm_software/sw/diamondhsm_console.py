@@ -117,6 +117,14 @@ class DiamondHSMConsole(console_interface.ConsoleInterface):
             self.tamper_event_detected.value = True
             self.cty_direct_call('!!!!!!!!!!TAMPER DETECTED!!!!!!!!!!!!!')
 
+    def on_tamper_reset(self):
+        if (self.synchronizer is not None):
+            self.synchronizer.reset()
+
+        if (self.tamper is not None):
+            self.tamper.reset_tamper_state()
+        self.cache_checked = False
+
     def on_reset(self):
         """Override to add commands that must be executed to reset the system
          after a new user logs in"""
