@@ -31,13 +31,13 @@ class TamperDetector(observable, PFUNIX_HSM):
 
     def dowork(self, hsm):
         for rpc_index in xrange(self.rpc_count):
+            time.sleep(14)
             if (self.detection_enabled.value):
                 hsm.rpc_set_device(rpc_index)
                 if (hsm.rpc_check_tamper() == DKS_HALError.HAL_ERROR_TAMPER):
                     self.on_tamper()
+                    time.sleep(15)
                     return
-
-                time.sleep(14)
 
     def stop(self):
         PFUNIX_HSM.stop(self)
