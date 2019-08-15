@@ -73,6 +73,7 @@ cimport conv
 cimport inc_atomic_int
 cimport safe_queue
 cimport libhal
+cimport rpc_handler
 
 include "rpc_action.pxi"
 

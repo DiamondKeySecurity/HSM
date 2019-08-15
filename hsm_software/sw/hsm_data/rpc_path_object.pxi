@@ -14,7 +14,14 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, If not, see <https://www.gnu.org/licenses/>.
 
-class rpc_path_object(object):
+cdef class rpc_path_object(object):
+    cdef object rpc_preprocessor
+    cdef object cache
+    cdef object rpc_server
+    cdef object rpc_secondary_listener
+    cdef object synchronizer
+    cdef object tamper
+
     def __init__(self, num_rpc_devices, cache_folder):
         # start the cache
         self.cache = HSMCache(num_rpc_devices, cache_folder=cache_folder)

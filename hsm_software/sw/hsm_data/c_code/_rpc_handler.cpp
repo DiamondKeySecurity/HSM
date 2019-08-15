@@ -12,3 +12,32 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with this program; if not, If not, see <https://www.gnu.org/licenses/>.
+
+#include "_rpc_handler.h"
+
+namespace diamond_hsm
+{
+
+rpc_handler::rpc_handler()
+{
+}
+
+void rpc_handler::unlock_hsm()
+{
+}
+
+int rpc_handler::device_count()
+{
+    return 5;
+}
+
+int rpc_handler::get_current_rpc()
+{
+    return 1;
+}
+
+void rpc_handler::set_current_rpc(int index)
+{
+}
+
+}
