@@ -169,37 +169,19 @@ class RPCTCPServer(TCPServer):
     def __handle_stream2(self, stream, address, from_ethernet):
         "Handle one network connection."
         cdef int handle = rpc_client_next_handle.inc(1)
-        # queue to receive packet
-        cdef safe_queue.SafeQueue[libhal.rpc_packet] rpc_result_queue
-
-        # packet that we received from the user
-        cdef libhal.rpc_packet ipacket
-
-        # packet to send back to the user
-        cdef libhal.rpc_packet opacket
 
         self.rpc_preprocessor.create_session(handle, from_ethernet)
 
         while True:
             try:
-                print "a"
                 cryptech.muxd.logger.debug("RPC socket read, handle 0x%x", handle)
                 query = yield stream.read_until(cryptech.muxd.SLIP_END)
                 if len(query) < 9:
                     continue
 
-                print "b"
-                decoded_query = slip_decode(query)
-
-                print "c"
-                reply = self.error_from_request(decoded_query, DKS_HALError.HAL_ERROR_FORBIDDEN)
-                reply_encoded = slip_encode(reply)
-
-                print "d"
+                reply_encoded = self.rpc_preprocessor.process_incoming_rpc(query, handle)
 
                 yield stream.write(cryptech.muxd.SLIP_END + reply_encoded)
-
-                print "e"
 
             except tornado.iostream.StreamClosedError:
                 cryptech.muxd.logger.info("RPC closing %r, handle 0x%x", stream, handle)
@@ -255,7 +237,7 @@ class RPCTCPServer(TCPServer):
                 request = cryptech.muxd.client_handle_set(decoded_query, handle)
 
                 # the serial we use is decided on by the query(request), send non-slip encoded
-                action = self.rpc_preprocessor.process_incoming_rpc(request)
+                #action = self.rpc_preprocessor.process_incoming_rpc(request)
 
                 # the request may have been updated
                 request = action.request

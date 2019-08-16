@@ -56,9 +56,37 @@ cdef class rpc_internal_handling(object):
             #     self.hsm_locked = True
             #     for rpc in self.rpc_list:
             #         rpc.clear_tamper(CrypTechDeviceState.TAMPER_RESET)
+
+    def error_from_request(self, encoded_request, hal_error):
+        unencoded_request = slip_decode(encoded_request)
+
+        unpacker = ContextManagedUnpacker(unencoded_request)
+        
+        # get the code of the RPC request
+        code = unpacker.unpack_uint()
+
+        # get the handle which identifies the TCP connection that the request came from
+        client = unpacker.unpack_uint()
+
+        # generate complete response
+        response = xdrlib.Packer()
+        response.pack_uint(code)
+        response.pack_uint(client)
+        response.pack_uint(hal_error)
+
+        return slip_encode(response.get_buffer())
     
-    def process_incoming_rpc(self, bytes decoded_request):
-        pass
+    def process_incoming_rpc(self, bytes encoded_request, int client):
+        # queue to receive packet
+        cdef safe_queue.SafeQueue[libhal.rpc_packet] rpc_result_queue
+
+        # packet that we received from the user
+        cdef libhal.rpc_packet ipacket
+
+        # packet to send back to the user
+        cdef libhal.rpc_packet opacket
+
+        return self.error_from_request(encoded_request, DKS_HALError.HAL_ERROR_FORBIDDEN)
 
     def is_rpc_locked(self):
         return False
