@@ -181,7 +181,8 @@ class RPCTCPServer(TCPServer):
 
                 reply_encoded = self.rpc_preprocessor.process_incoming_rpc(query, handle)
 
-                yield stream.write(cryptech.muxd.SLIP_END + reply_encoded)
+                if (reply_encoded is not None):
+                    yield stream.write(cryptech.muxd.SLIP_END + reply_encoded)
 
             except tornado.iostream.StreamClosedError:
                 cryptech.muxd.logger.info("RPC closing %r, handle 0x%x", stream, handle)

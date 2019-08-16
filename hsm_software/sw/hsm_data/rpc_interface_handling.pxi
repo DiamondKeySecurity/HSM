@@ -29,6 +29,9 @@ cdef class rpc_internal_handling(object):
     def __cinit__(self):
         self.rpc_preprocessor = new rpc_handler.rpc_handler()
 
+    def __dealloc(self):
+        del self.rpc_preprocessor
+
     def unlock_hsm(self):
         deref(self.rpc_preprocessor).unlock_hsm()
 
@@ -56,37 +59,30 @@ cdef class rpc_internal_handling(object):
             #     self.hsm_locked = True
             #     for rpc in self.rpc_list:
             #         rpc.clear_tamper(CrypTechDeviceState.TAMPER_RESET)
-
-    def error_from_request(self, encoded_request, hal_error):
-        unencoded_request = slip_decode(encoded_request)
-
-        unpacker = ContextManagedUnpacker(unencoded_request)
-        
-        # get the code of the RPC request
-        code = unpacker.unpack_uint()
-
-        # get the handle which identifies the TCP connection that the request came from
-        client = unpacker.unpack_uint()
-
-        # generate complete response
-        response = xdrlib.Packer()
-        response.pack_uint(code)
-        response.pack_uint(client)
-        response.pack_uint(hal_error)
-
-        return slip_encode(response.get_buffer())
     
     def process_incoming_rpc(self, bytes encoded_request, int client):
-        # queue to receive packet
-        cdef safe_queue.SafeQueue[libhal.rpc_packet] rpc_result_queue
-
         # packet that we received from the user
         cdef libhal.rpc_packet ipacket
 
         # packet to send back to the user
         cdef libhal.rpc_packet opacket
 
-        return self.error_from_request(encoded_request, DKS_HALError.HAL_ERROR_FORBIDDEN)
+        # used to convert resulting C packet
+        cdef char reply_buffer_encoded[16384]
+        cdef int reply_buffer_encoded_len = 0
+
+        # decode slip packet
+        if (0 == ipacket.createFromSlipEncoded(encoded_request)):
+            return None
+
+        # send to C++ code to process
+        deref(self.rpc_preprocessor).process_incoming_rpc(ipacket, client, opacket)
+
+        # convert result back for Python
+        reply_buffer_encoded_len = opacket.encodeToSlip(reply_buffer_encoded, 16384)
+        out_reply = reply_buffer_encoded[:reply_buffer_encoded_len]
+
+        return out_reply
 
     def is_rpc_locked(self):
         return False

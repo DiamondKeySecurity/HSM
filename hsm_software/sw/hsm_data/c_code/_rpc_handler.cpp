@@ -14,6 +14,7 @@
 // along with this program; if not, If not, see <https://www.gnu.org/licenses/>.
 
 #include "_rpc_handler.h"
+#include "libhal/hal.h"
 
 namespace diamond_hsm
 {
@@ -40,4 +41,16 @@ void rpc_handler::set_current_rpc(int index)
 {
 }
 
+void rpc_handler::process_incoming_rpc(libhal::rpc_packet &ipacket, int client, libhal::rpc_packet &opacket)
+{
+    uint32_t code, incoming_client_handle;
+
+    ipacket.decode_int(&code);
+    ipacket.decode_int(&incoming_client_handle);
+
+    opacket.create(3 * sizeof(uint32_t));
+    opacket.encode_int(code);
+    opacket.encode_int(incoming_client_handle);
+    opacket.encode_int(HAL_ERROR_NOT_IMPLEMENTED);
+}
 }

@@ -12,6 +12,8 @@
 # 
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, If not, see <https://www.gnu.org/licenses/>.
+from libhal cimport rpc_packet
+
 cdef extern from "c_code/_rpc_handler.h" namespace "diamond_hsm":
     cdef cppclass rpc_handler:
         rpc_handler()
@@ -19,3 +21,4 @@ cdef extern from "c_code/_rpc_handler.h" namespace "diamond_hsm":
         int device_count()
         int get_current_rpc()
         void set_current_rpc(int index)
+        void process_incoming_rpc(rpc_packet &ipacket, int client, rpc_packet &opacket)

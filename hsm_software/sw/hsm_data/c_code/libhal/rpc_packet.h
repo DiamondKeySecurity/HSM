@@ -140,6 +140,11 @@ class rpc_packet
             return hal_xdr_decode_variable_opaque((const uint8_t **)&_bptr, _blimit, value, len, len_max);
         }
 
+        void reset_head()
+        {
+            _bptr = _buf;
+        }
+
     private:
         void destroy()
         {
