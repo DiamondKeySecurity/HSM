@@ -15,12 +15,13 @@
 # along with this program; if not, If not, see <https://www.gnu.org/licenses/>.
 
 cdef class rpc_path_object(object):
-    cdef object rpc_preprocessor
     cdef object cache
     cdef object rpc_server
     cdef object rpc_secondary_listener
     cdef object synchronizer
     cdef object tamper
+    cdef object external_rpc_handler
+    cdef rpc_internal_handling rpc_preprocessor
 
     def __cinit__(self, int num_rpc_devices, str cache_folder):
         # start the cache
@@ -31,16 +32,19 @@ cdef class rpc_path_object(object):
         self.rpc_secondary_listener = None
         self.synchronizer = None
         self.tamper = None
+        self.external_rpc_handler = None
 
         conv.setIsSysBigEndian(1 if sys.byteorder == "big" else 0)
 
-    def create_rpc_objects(self, rpc_list, settings, netiface, futures, ssl_options, RPC_IP_PORT):
+    def create_rpc_objects(self, rpc_list, settings, netiface, ssl_options, RPC_IP_PORT):
         # start the load balancer
-        self.rpc_preprocessor = RPCPreprocessor(rpc_list, self.cache, settings, netiface)
+        self.rpc_preprocessor = rpc_internal_handling()
+        self.external_rpc_handler = rpc_interface_handling(self.rpc_preprocessor)
+
+        # OLD self.rpc_preprocessor = RPCPreprocessor(rpc_list, self.cache, settings, netiface)
+
         # Listen for incoming TCP/IP connections from remove cryptech.muxd_client
         self.rpc_server = RPCTCPServer(self.rpc_preprocessor, RPC_IP_PORT, ssl_options)
-        # set the futures for all of our devices
-        self.rpc_preprocessor.append_futures(futures)
 
     def create_internal_listener(self, internal_rpc_socket, internal_rpc_socket_mode):
         # create a secondary listener to handle PF_UNIX request from subprocesses
@@ -72,8 +76,7 @@ cdef class rpc_path_object(object):
         return rpc_interface_cache(self.cache)
 
     def get_interface_handling(self):
-        if (self.rpc_preprocessor is None): return None
-        return rpc_interface_handling()
+        return self.external_rpc_handler
 
     def get_interface_sync(self):
         if (self.synchronizer is None): return None

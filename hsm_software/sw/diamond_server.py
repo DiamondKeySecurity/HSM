@@ -315,7 +315,7 @@ def main():
     # create a path for all RPC request
     global rpc_path
     rpc_path = rpc_path_object(len(rpc_list), cache_folder=args.cache_save)
-    rpc_path.create_rpc_objects(rpc_list, settings, netiface, futures, ssl_options, RPC_IP_PORT)
+    rpc_path.create_rpc_objects(rpc_list, settings, netiface, ssl_options, RPC_IP_PORT)
     rpc_path.create_internal_listener(args.rpc_socket, args.rpc_socket_mode)
 
     # only start synchronizer if we have connected RPC and CTYs
@@ -336,12 +336,15 @@ def main():
 
     # make sure the rpc path can shutdown properly
     safe_shutdown.addOnShutdown(rpc_path.stop)
+    
+    rpc_preprocessor = rpc_path.get_interface_handling()
+    rpc_preprocessor.append_futures(futures)
 
     # start the console
     # holy, large number of parameters Batman!!!
     cty_stream = DiamondHSMConsole(args = args,
                                    cty_list = cty_list,
-                                   rpc_preprocessor = rpc_path.get_interface_handling(),
+                                   rpc_preprocessor = rpc_preprocessor,
                                    synchronizer = rpc_path.get_interface_sync(),
                                    cache_viewer = rpc_path.get_interface_cache(),
                                    netiface = netiface,

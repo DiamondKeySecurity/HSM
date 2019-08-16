@@ -58,7 +58,7 @@ class RPCTCPServer(TCPServer):
     Serve multiplexed Cryptech RPC over a TCP socket.
     """
 
-    def __init__(self, rpc_preprocessor, port, ssl):
+    def __init__(self, rpc_internal_handling rpc_preprocessor, port, ssl):
         self.rpc_preprocessor = rpc_preprocessor
         rpc_client_next_handle.inc(1000)
         super(RPCTCPServer, self).__init__(port, ssl)
@@ -140,12 +140,12 @@ class RPCTCPServer(TCPServer):
                 # stop and close this connection
                 return
 
-        self.__handle_stream(stream, address, from_ethernet = True)
+        self.__handle_stream2(stream, address, from_ethernet = True)
 
     @tornado.gen.coroutine
     def handle_internal_stream(self, stream, address):
         """Start processing a stream from an intenal PF_UNIX connection"""
-        self.__handle_stream(stream, address, from_ethernet = False)
+        self.__handle_stream2(stream, address, from_ethernet = False)
 
     @tornado.gen.coroutine
     def try_restart_serial(self, rpc, encoded_request, handle, queue, e):
@@ -164,6 +164,49 @@ class RPCTCPServer(TCPServer):
         except Exception as e:
             message = 'Unable to restarting serial %s because of %s'%(str(serial_obj.serial_device), e.message)
             rpc.change_state(CrypTechDeviceState.HSMNotReady)
+
+    @tornado.gen.coroutine
+    def __handle_stream2(self, stream, address, from_ethernet):
+        "Handle one network connection."
+        cdef int handle = rpc_client_next_handle.inc(1)
+        # queue to receive packet
+        cdef safe_queue.SafeQueue[libhal.rpc_packet] rpc_result_queue
+
+        # packet that we received from the user
+        cdef libhal.rpc_packet ipacket
+
+        # packet to send back to the user
+        cdef libhal.rpc_packet opacket
+
+        self.rpc_preprocessor.create_session(handle, from_ethernet)
+
+        while True:
+            try:
+                print "a"
+                cryptech.muxd.logger.debug("RPC socket read, handle 0x%x", handle)
+                query = yield stream.read_until(cryptech.muxd.SLIP_END)
+                if len(query) < 9:
+                    continue
+
+                print "b"
+                decoded_query = slip_decode(query)
+
+                print "c"
+                reply = self.error_from_request(decoded_query, DKS_HALError.HAL_ERROR_FORBIDDEN)
+                reply_encoded = slip_encode(reply)
+
+                print "d"
+
+                yield stream.write(cryptech.muxd.SLIP_END + reply_encoded)
+
+                print "e"
+
+            except tornado.iostream.StreamClosedError:
+                cryptech.muxd.logger.info("RPC closing %r, handle 0x%x", stream, handle)
+                stream.close()
+                self.rpc_preprocessor.delete_session(handle)
+                    
+                return
 
     @tornado.gen.coroutine
     def __handle_stream(self, stream, address, from_ethernet):

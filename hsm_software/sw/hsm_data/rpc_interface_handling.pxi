@@ -16,13 +16,13 @@
 
 from cython.operator cimport dereference as deref
 
-cdef class rpc_interface_handling(object):
+cdef class rpc_internal_handling(object):
     cdef rpc_handler.rpc_handler *rpc_preprocessor
     cdef bint hsm_locked
-    object tamper_detected
+    cdef object tamper_detected
     
     """ Python interface to the rpc handler"""
-    def _init_(self):
+    def __init__(self):
         self.tamper_detected = ThreadSafeVariable(False)
         self.hsm_locked = False
 
@@ -38,13 +38,8 @@ cdef class rpc_interface_handling(object):
     def get_current_rpc(self):
         return deref(self.rpc_preprocessor).get_current_rpc()
 
-    def set_current_rpc(self, index):
+    def set_current_rpc(self, int index):
         deref(self.rpc_preprocessor).set_current_rpc(index)
-
-    def get_names(self):
-        cdef int i
-        for i in xrange(self.device_count()):
-            yield "RPC%i"%i
 
     def on_tamper_event(self, object tamper_object):
         new_tamper_state = tamper_object.get_tamper_state()
@@ -62,8 +57,45 @@ cdef class rpc_interface_handling(object):
             #     for rpc in self.rpc_list:
             #         rpc.clear_tamper(CrypTechDeviceState.TAMPER_RESET)
     
-    def process_incoming_rpc(self, decoded_request):
+    def process_incoming_rpc(self, bytes decoded_request):
         pass
 
-    def append_futures(self, futures):
+    def is_rpc_locked(self):
+        return False
+
+    def create_session(self, int handle, bint from_ethernet):
         pass
+
+    def delete_session(self, int handle):
+        pass
+
+class rpc_interface_handling(object):
+    """ Limitted Python interface to the rpc handler"""
+    def __init__(self, internal_handler):
+        self.internal_handler = internal_handler
+
+    def unlock_hsm(self):
+        self.internal_handler.unlock_hsm()
+
+    def device_count(self):
+        self.internal_handler.device_count()
+
+    def get_current_rpc(self):
+        self.internal_handler.get_current_rpc()
+
+    def set_current_rpc(self, index):
+        self.internal_handler.set_current_rpc(index)
+
+    def get_names(self):
+        cdef int i
+        for i in xrange(self.device_count()):
+            yield "RPC%i"%i
+
+    def append_futures(self, futures):
+        futures.append(self.rpc_output_loop())
+
+    @tornado.gen.coroutine
+    def rpc_output_loop(self):
+        "Keep Tornado alive"
+        while(True):
+            yield time.sleep(0.05)
