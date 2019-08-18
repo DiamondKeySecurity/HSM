@@ -54,6 +54,7 @@ void rpc_serial_stream::ReadThread()
                 // all commands must be atleast 12 bytes(the code, the client, and the result)
                 {
                     std::cout << "packet read: length == " << len << std::endl;
+                    
                     const uint8_t *inbuf = &buf[4];
                     const uint8_t *limit = inbuf + 4;
                     uint32_t client;
@@ -217,6 +218,7 @@ hal_error_t rpc_serial_stream::write_packet(const rpc_packet &packet, const uint
 {
     if (thread_running)
     {
+        std::cout << "write_packet" << std::endl;
         // add queue to map so the read thread will know where to put it
         m_queues.insert(std::make_pair<>(client, queue));
 
