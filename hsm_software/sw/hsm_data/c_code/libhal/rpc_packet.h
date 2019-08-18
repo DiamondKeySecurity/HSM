@@ -59,6 +59,21 @@ class rpc_packet
             other._size = 0;
         }
 
+        rpc_packet & operator= ( rpc_packet && other)
+        {
+            _size = other._size;
+            _buf = other._buf;
+            _bptr =  other._buf;
+            _blimit = other._blimit;
+
+            other._buf = NULL;
+            other._bptr = NULL;
+            other._blimit = NULL;
+            other._size = 0;
+
+            return *this;
+        }
+
         rpc_packet(const rpc_packet &other)
         {
             std::cout << "rpc packet copy" << std::endl;
@@ -118,6 +133,12 @@ class rpc_packet
         {
             const uint8_t *ptr = &_buf[pos];
             return hal_xdr_decode_int_peek(&ptr, _blimit, value);
+        }
+
+        hal_error_t encode_int_at(uint32_t value, size_t pos)
+        {
+            uint8_t *ptr = &_buf[pos];
+            return hal_xdr_encode_int(&ptr, _blimit, value);
         }
 
         hal_error_t encode_fixed_opaque(const uint8_t * const value, const size_t len)

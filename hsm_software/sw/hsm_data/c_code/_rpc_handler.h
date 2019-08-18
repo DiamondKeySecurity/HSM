@@ -16,9 +16,12 @@
 #ifndef _RPC_HANDLER_H
 #define _RPC_HANDLER_H
 
+#include <vector>
+#include <string>
 #include <unordered_map>
 #include "_uuid.hpp"
 #include "libhal/rpc_packet.h"
+#include "libhal/rpc_stream.h"
 
 namespace diamond_hsm
 {
@@ -110,6 +113,8 @@ class rpc_handler
     public:
         rpc_handler();
 
+        void create_serial_connections(std::vector<std::string> &rpc_list);
+
         void unlock_hsm();
 
         int device_count();
@@ -119,6 +124,9 @@ class rpc_handler
         void set_current_rpc(int index);
 
         void process_incoming_rpc(libhal::rpc_packet &ipacket, int client, libhal::rpc_packet &opacket);
+
+    private:
+        std::vector<libhal::rpc_serial_stream> rpc_list;
 };
 
 }

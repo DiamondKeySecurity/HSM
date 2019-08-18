@@ -13,8 +13,9 @@
 # 
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, If not, see <https://www.gnu.org/licenses/>.
-
 from cython.operator cimport dereference as deref
+from libcpp.vector cimport vector
+from libcpp.string cimport string
 
 cdef class rpc_internal_handling(object):
     cdef rpc_handler.rpc_handler *rpc_preprocessor
@@ -22,9 +23,17 @@ cdef class rpc_internal_handling(object):
     cdef object tamper_detected
     
     """ Python interface to the rpc handler"""
-    def __init__(self):
+    def __init__(self, rpc_list):
         self.tamper_detected = ThreadSafeVariable(False)
         self.hsm_locked = False
+
+        cdef vector[string] real_rpc_list
+        cdef str rpc
+
+        for rpc in rpc_list:
+            real_rpc_list.push_back(rpc)
+
+        self.rpc_preprocessor.create_serial_connections(real_rpc_list)
 
     def __cinit__(self):
         self.rpc_preprocessor = new rpc_handler.rpc_handler()
@@ -73,9 +82,11 @@ cdef class rpc_internal_handling(object):
 
         # decode slip packet
         if (0 == ipacket.createFromSlipEncoded(encoded_request)):
+            print "returning None"
             return None
 
         # send to C++ code to process
+        print "Send to processor"
         deref(self.rpc_preprocessor).process_incoming_rpc(ipacket, client, opacket)
 
         # convert result back for Python

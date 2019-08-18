@@ -72,17 +72,41 @@ void rpc_serial_stream::ReadThread()
 
                             memcpy(packet.buffer(), buf, len);
 
+                            std::cout << "adding to queue" << std::endl;
+
                             // push the packet to the queue
                             m_queues[client]->enqueue(std::move(packet));
 
                             // remove our reference to the queue
-                            m_queues.erase(pos);
+                            // m_queues.erase(pos);
                         }
                     }
                 }
             }
+            else
+            {
+                thread_running = false;
+
+                // message all waiting threads
+                for (auto it = m_queues.begin(); it != m_queues.end(); ++it)
+                {
+                    // make a packet to hold the response
+                    rpc_packet packet(4);
+                    packet.encode_int(0xffffffff);
+
+                    std::cout << "adding to queue" << std::endl;
+
+                    // push the packet to the queue
+                    (*it).second->enqueue(std::move(packet));
+                }
+
+                // stop on an error
+                break;
+            }   
         }
     }
+
+    thread_running = false;
 
     std::cout << "finished read thread" << std::endl;
 }
@@ -139,11 +163,16 @@ rpc_serial_stream::rpc_serial_stream(const char * const device, const uint32_t s
 
 // move constructor to put in a list
 rpc_serial_stream::rpc_serial_stream(rpc_serial_stream &&other)
+:thread_running(false)
 {
-    if (thread_running)
+    if (other.thread_running)
     {
         throw (int)HAL_ERROR_FORBIDDEN;
     }
+
+    fd = other.fd;
+
+    other.fd = -1;
 }
 
 // destructor
@@ -186,13 +215,29 @@ hal_error_t rpc_serial_stream::stop_read_thread()
 // send packet to the cryptech device and push result to the client's queue
 hal_error_t rpc_serial_stream::write_packet(const rpc_packet &packet, const uint32_t client, std::shared_ptr<SafeQueue<rpc_packet>> queue)
 {
-    // add queue to map so the read thread will know where to put it
-    m_queues.insert(std::make_pair<>(client, queue));
+    if (thread_running)
+    {
+        // add queue to map so the read thread will know where to put it
+        m_queues.insert(std::make_pair<>(client, queue));
 
-    // send the packet
-    hal_slip_send(packet.buffer(), packet.size());
+        // send the packet
+        hal_slip_send(packet.buffer(), packet.size());
 
-    return HAL_OK;
+        return HAL_OK;
+    }
+    else
+    {
+        return HAL_ERROR_RPC_TRANSPORT;
+    }
+}
+
+hal_error_t rpc_serial_stream::remove_queue(const uint32_t client)
+{
+    auto pos = m_queues.find(client); 
+    if (pos != m_queues.end())
+    {
+        m_queues.erase(pos);
+    }
 }
 
 // from Cyptech/libhal/rpc_serial.c
@@ -288,6 +333,7 @@ hal_error_t rpc_serial_stream::hal_slip_process_char(uint8_t c, uint8_t * const 
             *complete = 1;
         break;
     case ESC:
+    std::cout << "ESC READ" << std::endl;
         esc_flag = 1;
         break;
     default:

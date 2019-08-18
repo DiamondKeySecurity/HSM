@@ -12,7 +12,11 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with this program; if not, If not, see <https://www.gnu.org/licenses/>.
+extern "C"
+{
 #include "hal_internal.h"
+}
+
 #include "rpc_packet.h"
 
 #include <iostream>
@@ -56,7 +60,10 @@ int rpc_packet::createFromSlipEncoded(const char *encoded_buffer)
 
         // no end found. must not be formatted correctly
         if (len == HAL_RPC_MAX_PKT_SIZE)
+        {
+            std::cout << "over sized" << std::endl;
             return 0;
+        }
     }
 
     create(len);

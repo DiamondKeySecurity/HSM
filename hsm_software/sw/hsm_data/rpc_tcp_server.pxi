@@ -140,12 +140,12 @@ class RPCTCPServer(TCPServer):
                 # stop and close this connection
                 return
 
-        self.__handle_stream2(stream, address, from_ethernet = True)
+        self.__handle_stream(stream, address, from_ethernet = True)
 
     @tornado.gen.coroutine
     def handle_internal_stream(self, stream, address):
         """Start processing a stream from an intenal PF_UNIX connection"""
-        self.__handle_stream2(stream, address, from_ethernet = False)
+        self.__handle_stream(stream, address, from_ethernet = False)
 
     @tornado.gen.coroutine
     def try_restart_serial(self, rpc, encoded_request, handle, queue, e):
@@ -166,7 +166,7 @@ class RPCTCPServer(TCPServer):
             rpc.change_state(CrypTechDeviceState.HSMNotReady)
 
     @tornado.gen.coroutine
-    def __handle_stream2(self, stream, address, from_ethernet):
+    def __handle_stream(self, stream, address, from_ethernet):
         "Handle one network connection."
         cdef int handle = rpc_client_next_handle.inc(1)
 
@@ -192,7 +192,7 @@ class RPCTCPServer(TCPServer):
                 return
 
     @tornado.gen.coroutine
-    def __handle_stream(self, stream, address, from_ethernet):
+    def __handle_stream_old(self, stream, address, from_ethernet):
         "Handle one network connection."
         cdef int handle = rpc_client_next_handle.inc(1)
         cdef int old_handle

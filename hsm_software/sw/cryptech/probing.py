@@ -66,7 +66,6 @@ class ProbeMultiIOStream(muxd.ProbeIOStream):
         results = yield dict((dev, ProbeMultiIOStream(dev).run_probe()) for dev in devs)
 
         cty_index = 0
-        rpc_index = 0
         for dev, result in results.iteritems():
             if result == "cty":
                 muxd.logger.info("Found %s as CTY device", dev)
@@ -80,9 +79,7 @@ class ProbeMultiIOStream(muxd.ProbeIOStream):
             if result == "rpc":
                 muxd.logger.info("Found %s as RPC device", dev)
                 # send data directly to the alpha using SerialIOStream
-                rpc_stream = muxd.RPCIOStream(device = dev)
-                rpc_list.append(HSMPortInfo("RPC"+str(rpc_index), dev, rpc_stream))
-                rpc_index += 1
+                rpc_list.append(dev)
 
 @tornado.gen.coroutine
 def main():
