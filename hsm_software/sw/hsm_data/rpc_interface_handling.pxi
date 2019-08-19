@@ -82,11 +82,9 @@ cdef class rpc_internal_handling(object):
 
         # decode slip packet
         if (0 == ipacket.createFromSlipEncoded(encoded_request)):
-            print "returning None"
             return None
 
         # send to C++ code to process
-        print "Send to processor"
         deref(self.rpc_preprocessor).process_incoming_rpc(ipacket, client, opacket)
 
         # convert result back for Python

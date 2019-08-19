@@ -12,8 +12,9 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with this program; if not, If not, see <https://www.gnu.org/licenses/>.
-
+#if DEBUG_LIBHAL
 #include <iostream>
+#endif
 
 #include "_rpc_handler.h"
 #include "libhal/hal.h"
@@ -56,12 +57,16 @@ void rpc_handler::process_incoming_rpc(libhal::rpc_packet &ipacket, int client, 
     ipacket.encode_int_at(client, 4);
     ipacket.reset_head();
 
+#if DEBUG_LIBHAL
     std::cout << "sending" << std::endl;
+#endif
     this->rpc_list[0].write_packet(ipacket, client, myqueue);
 
     do
     {
+#if DEBUG_LIBHAL
         std::cout << "waiting for queue" << std::endl;
+#endif
         myqueue->dequeue(opacket);
 
         opacket.decode_int_peak_at(&ocode, 0);
@@ -75,7 +80,9 @@ void rpc_handler::process_incoming_rpc(libhal::rpc_packet &ipacket, int client, 
             ocode = code;
         }
 
+#if DEBUG_LIBHAL
         std::cout << "Wanted: " << code << " Got: " << ocode << std::endl;
+#endif
     } while(ocode != code);
 
     // set back to caller client handle
@@ -84,14 +91,18 @@ void rpc_handler::process_incoming_rpc(libhal::rpc_packet &ipacket, int client, 
 
     this->rpc_list[0].remove_queue(client);
 
+#if DEBUG_LIBHAL
     std::cout << "out" << std::endl;
+#endif
 }
 
 void rpc_handler::create_serial_connections(std::vector<std::string> &rpc_list)
 {
     for(auto it = rpc_list.begin(); it < rpc_list.end(); ++it)
     {
+#if DEBUG_LIBHAL
         std::cout << *it << std::endl;
+#endif
 
         libhal::rpc_serial_stream mystream((*it).c_str(), 921600);
         this->rpc_list.push_back(std::move(mystream));

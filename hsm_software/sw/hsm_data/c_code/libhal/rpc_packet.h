@@ -20,7 +20,10 @@
 #include <sys/types.h>
 #include <memory>
 #include <memory.h>
+
+#if DEBUG_LIBHAL
 #include <iostream>
+#endif
 
 extern "C"
 {
@@ -46,7 +49,9 @@ class rpc_packet
 
         rpc_packet(rpc_packet &&other)
         {
+#if DEBUG_LIBHAL
             std::cout << "rpc packet move" << std::endl;
+#endif
 
             _size = other._size;
             _buf = other._buf;
@@ -76,7 +81,9 @@ class rpc_packet
 
         rpc_packet(const rpc_packet &other)
         {
+#if DEBUG_LIBHAL
             std::cout << "rpc packet copy" << std::endl;
+#endif
 
             _size = other._size;
             _buf = new uint8_t[_size];

@@ -19,10 +19,13 @@
 #include <sys/socket.h>
 #include <sys/poll.h>
 #include <sys/file.h>
-#include <iostream>
 #include <termios.h>
 #include <unistd.h>
 #include <fcntl.h>
+
+#if DEBUG_LIBHAL
+#include <iostream>
+#endif
 
 #include "rpc_packet.h"
 #include "rpc_stream.h"
@@ -32,7 +35,9 @@ namespace libhal
 
 void rpc_serial_stream::ReadThread()
 {
+#if DEBUG_LIBHAL
     std::cout << "In read thread" << std::endl;
+#endif
 
     struct pollfd pfd;
     pfd.fd = fd;
@@ -52,8 +57,10 @@ void rpc_serial_stream::ReadThread()
                 if (len >= 12)
                 // all commands must be atleast 12 bytes(the code, the client, and the result)
                 {
+#if DEBUG_LIBHAL
                     std::cout << "got data" << std::endl;
                     std::cout << "packet read: length == " << len << std::endl;
+#endif
                     rpc_packet ipacket;
                     ipacket.createFromSlipEncoded((char *)buf);
 
@@ -64,11 +71,18 @@ void rpc_serial_stream::ReadThread()
                     // second is client
                     if(HAL_OK == ipacket.decode_int_peak_at(&client, 4))
                     {
-                        std::cout << "got client " << client << std::endl;
+#if DEBUG_LIBHAL
+                        uint32_t result;
+                        ipacket.decode_int_peak_at(&result, 8);
+                        std::cout << "got client " << client << "; result == " << result << std::endl;
+#endif
+
                         auto pos = m_queues.find(client); 
                         if (pos != m_queues.end())
                         {
+#if DEBUG_LIBHAL
                             std::cout << "adding to queue" << std::endl;
+#endif
 
                             // push the packet to the queue
                             m_queues[client]->enqueue(std::move(ipacket));
@@ -90,7 +104,9 @@ void rpc_serial_stream::ReadThread()
                     rpc_packet packet(4);
                     packet.encode_int(0xffffffff);
 
+#if DEBUG_LIBHAL
                     std::cout << "adding to queue" << std::endl;
+#endif
 
                     // push the packet to the queue
                     (*it).second->enqueue(std::move(packet));
@@ -104,7 +120,9 @@ void rpc_serial_stream::ReadThread()
 
     thread_running = false;
 
+#if DEBUG_LIBHAL
     std::cout << "finished read thread" << std::endl;
+#endif
 }
 
 // construct from serial port address
@@ -177,7 +195,9 @@ rpc_serial_stream::~rpc_serial_stream()
     stop_read_thread();
     if (fd != -1)
     {
+#if DEBUG_LIBHAL
         std::cout << "closing stream" << std::endl;
+#endif
         close(fd);
     }
 }
@@ -213,7 +233,9 @@ hal_error_t rpc_serial_stream::write_packet(const rpc_packet &packet, const uint
 {
     if (thread_running)
     {
+#if DEBUG_LIBHAL
         std::cout << "write_packet" << std::endl;
+#endif
         // add queue to map so the read thread will know where to put it
         m_queues.insert(std::make_pair<>(client, queue));
 

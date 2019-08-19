@@ -19,7 +19,9 @@ extern "C"
 
 #include "rpc_packet.h"
 
+#if DEBUG_LIBHAL
 #include <iostream>
+#endif
 
 namespace libhal
 {
@@ -56,7 +58,9 @@ int rpc_packet::createFromSlipEncoded(const char *encoded_buffer)
         // no end found. must not be formatted correctly
         if (len == HAL_RPC_MAX_PKT_SIZE)
         {
+#if DEBUG_LIBHAL
             std::cout << "over sized" << std::endl;
+#endif
             return 0;
         }
     }
@@ -71,7 +75,9 @@ int rpc_packet::createFromSlipEncoded(const char *encoded_buffer)
     decode_int_peak_at(&code, 0);
     decode_int_peak_at(&client, 4);
 
+#if DEBUG_LIBHAL
     std::cout << "RPC Packet: Code == " << code << "; Client == " << client << "; Length == " << len << std::endl;
+#endif
     
     return 1;
 }

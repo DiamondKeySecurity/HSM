@@ -35,7 +35,9 @@
 #include <mutex>
 #include <condition_variable>
 
+#if DEBUG_LIBHAL
 #include <iostream>
+#endif
 
 // A threadsafe-queue.
 template <class T>
@@ -50,7 +52,9 @@ public:
 
   ~SafeQueue(void)
   {
+#if DEBUG_LIBHAL
     std::cout << "deleting SafeQueue" << std::endl;
+#endif
   }
 
   // Add an element to the queue.
