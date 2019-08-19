@@ -85,7 +85,8 @@ cdef class rpc_internal_handling(object):
             return None
 
         # send to C++ code to process
-        deref(self.rpc_preprocessor).process_incoming_rpc(ipacket, client, opacket)
+        with nogil:
+            deref(self.rpc_preprocessor).process_incoming_rpc(ipacket, client, opacket)
 
         # convert result back for Python
         reply_buffer_encoded_len = opacket.encodeToSlip(reply_buffer_encoded, 16384)

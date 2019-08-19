@@ -236,7 +236,9 @@ hal_error_t rpc_serial_stream::write_packet(const rpc_packet &packet, const uint
 #if DEBUG_LIBHAL
         std::cout << "write_packet" << std::endl;
 #endif
-        // send the packet
+        // send the 
+        std::unique_lock<std::mutex> write_lock(serial_write_mutex);
+
         hal_slip_send(packet.buffer(), packet.size());
 
         return HAL_OK;
@@ -249,6 +251,8 @@ hal_error_t rpc_serial_stream::write_packet(const rpc_packet &packet, const uint
 
 hal_error_t rpc_serial_stream::remove_queue(const uint32_t client)
 {
+    std::unique_lock<std::mutex> lock(queue_mutex);
+
     auto pos = m_queues.find(client); 
     if (pos != m_queues.end())
     {
@@ -259,6 +263,8 @@ hal_error_t rpc_serial_stream::remove_queue(const uint32_t client)
 
 hal_error_t rpc_serial_stream::add_queue(const uint32_t client, std::shared_ptr<SafeQueue<rpc_packet>> queue)
 {
+    std::unique_lock<std::mutex> lock(queue_mutex);
+
     // add queue to map so the read thread will know where to put it
     m_queues.insert(std::make_pair<>(client, queue));
 

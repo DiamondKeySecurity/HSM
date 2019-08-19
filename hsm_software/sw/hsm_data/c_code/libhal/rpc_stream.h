@@ -22,6 +22,7 @@
 #include <unordered_map>
 #include <thread>
 #include <atomic>
+#include <mutex>
 
 #include "rpc_packet.h"
 #include "safe_queue.h"
@@ -91,6 +92,11 @@ class rpc_serial_stream
         std::thread read_thread;
 
         std::atomic_bool thread_running;
+
+        std::mutex queue_mutex;
+        std::mutex serial_write_mutex;
+
+        // only the read thread reads from serial so we don't need a read mutex
 };
 
 }

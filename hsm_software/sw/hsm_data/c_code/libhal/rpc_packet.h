@@ -43,6 +43,7 @@ class rpc_packet
         }
 
         rpc_packet(uint32_t len)
+        :_buf(NULL), _bptr(NULL), _blimit(NULL)
         {
             create(len);
         }

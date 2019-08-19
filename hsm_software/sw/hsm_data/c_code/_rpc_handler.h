@@ -19,6 +19,7 @@
 #include <vector>
 #include <string>
 #include <unordered_map>
+#include <mutex>
 #include "_uuid.hpp"
 #include "libhal/rpc_packet.h"
 #include "libhal/rpc_stream.h"
@@ -144,6 +145,8 @@ class rpc_handler
     private:
         std::vector<libhal::rpc_serial_stream> rpc_list;
         std::unordered_map<uint32_t, std::shared_ptr<MuxSession>> sessions;
+
+        std::mutex session_mutex;
 };
 
 }

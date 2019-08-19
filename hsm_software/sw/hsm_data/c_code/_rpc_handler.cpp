@@ -133,7 +133,12 @@ void rpc_handler::create_session(uint32_t handle, bool from_ethernet)
 #if DEBUG_LIBHAL
     std::cout << "creating session for " << handle << std::endl;
 #endif
-    this->sessions[handle] = std::make_shared<MuxSession>(get_current_rpc(),/*cache, settings,*/ from_ethernet);
+    {
+        std::unique_lock<std::mutex> session_lock(session_mutex);
+
+        this->sessions[handle] = std::make_shared<MuxSession>(get_current_rpc(),/*cache, settings,*/ from_ethernet);
+    }
+
     std::shared_ptr<MuxSession> session = sessions[handle];
 
     for (auto rpc_it = rpc_list.begin(); rpc_it < rpc_list.end(); ++rpc_it)
@@ -164,8 +169,11 @@ void rpc_handler::delete_session(uint32_t handle)
     }
 
     // remove session
-    auto it = sessions.find(handle);
-    sessions.erase(it);
+    {
+        std::unique_lock<std::mutex> session_lock(session_mutex);
+        auto it = sessions.find(handle);
+        sessions.erase(it);
+    }
 }
 
 }
