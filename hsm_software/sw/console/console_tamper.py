@@ -181,7 +181,7 @@ def dks_tamper_config_status(console_object, args):
 def dks_tamper_extended_faults(console_object, args):
     cmd = 'tamper extended faults\r'
 
-    return console_object.cty_conn.send_raw_all(cmd, 5)
+    return console_object.cty_conn.send_raw_all(cmd, 15)
 
 def dks_tamper_test(console_object, args):
     console_object.tamper.on_tamper()
