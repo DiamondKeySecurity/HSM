@@ -14,6 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, If not, see <https://www.gnu.org/licenses/>.
 
+import time
 
 def CheckValue(value, name, lo_value, hi_value):
     try:
@@ -115,7 +116,9 @@ def dks_tamper_threshold_set_temp(console_object, args):
     # send temphi
     cmd = console_object.tamper_config.get_command_string("temphi", '\r')
 
-    result = console_object.cty_conn.send_raw_all(cmd, 5)
+    result = console_object.cty_conn.send_raw_all(cmd, 7)
+
+    time.sleep(3)
 
     # send templo
     cmd = console_object.tamper_config.get_command_string("templo", '\r')
@@ -170,6 +173,16 @@ def dks_tamper_fault_check(console_object, args):
 
     return console_object.cty_conn.send_raw_all(cmd, 5)
 
+def dks_tamper_config_status(console_object, args):
+    cmd = 'tamper config status\r'
+
+    return console_object.cty_conn.send_raw_all(cmd, 5)
+
+def dks_tamper_extended_faults(console_object, args):
+    cmd = 'tamper extended faults\r'
+
+    return console_object.cty_conn.send_raw_all(cmd, 5)
+
 def dks_tamper_test(console_object, args):
     console_object.tamper.on_tamper()
 
@@ -212,6 +225,12 @@ def add_tamper_commands(console_object):
     tamper_node.add_child(name="faults", num_args=0,
                             callback=dks_tamper_fault_check)
 
+    tamper_node.add_child_tree(['config','status'], num_args=0,
+                            callback=dks_tamper_config_status)
+
+    tamper_node.add_child_tree(['extended','faults'], num_args=0,
+                            callback=dks_tamper_extended_faults)
+                            
     # add parent nodes
     set_node = tamper_node.add_child('set')
     get_node = tamper_node.add_child('get')
