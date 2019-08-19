@@ -19,8 +19,8 @@ alpha_fmc.bit    - Binaries taken from Cryptech update 2019-04-09
                    "source/core/pkey/ecdsa256": "c617c0c711620f58eb3ead22edcdfe57fed06088",
                    "source/core/hash/sha1": "d3564a0907fe14b92ab02e4da2d9f733bc32e347", 
 bootloader.bin   - Binaries taken from Cryptech update 2018-09-06
-hsm-190813a.bin  - Binaries built by douglas@dkey.org on 2019-08-13 for tamper
-                   stm32   - 96e531f47a0c101c8d931448af2f9af4afa6c865 - devFieldUpdate
+hsm-190819a.bin  - Binaries built by douglas@dkey.org on 2019-08-19 for tamper
+                   stm32   - 96d6dfdc6570a8b474b15439d542300a257db769 - devFieldUpdate
                    libhal  - 361ff05e6a00cf4985a49cd0eb76dbdcfd34bf7b - devFieldUpdate
                    version - hsm-190805a
 Sensor_board.elf - Binaries built by douglas@dkey.org on 2019-05-19
