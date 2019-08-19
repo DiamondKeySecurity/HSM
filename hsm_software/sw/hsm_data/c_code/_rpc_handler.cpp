@@ -51,9 +51,49 @@ void rpc_handler::set_current_rpc(int index)
 {
 }
 
+hal_error_t rpc_handler::sendto_cryptech_device(const libhal::rpc_packet &ipacket,
+                                                libhal::rpc_packet &opacket,
+                                                const int device_index,
+                                                const int session_client_handle,
+                                                const uint32_t code,
+                                                std::shared_ptr<SafeQueue<libhal::rpc_packet>> queue)
+{
+    hal_error_t result;
+#if DEBUG_LIBHAL
+    std::cout << "sending" << std::endl;
+#endif
+
+    result = this->rpc_list[device_index].write_packet(ipacket, session_client_handle);
+    if (result != HAL_OK)
+        return result;
+
+    uint32_t ocode;
+
+    do
+    {
+#if DEBUG_LIBHAL
+        std::cout << "waiting for queue" << std::endl;
+#endif
+        queue->dequeue(opacket);
+
+        opacket.decode_int_peak_at(&ocode, 0);
+
+        if(ocode == 0xffffffff)
+        {
+            return HAL_ERROR_RPC_TRANSPORT;
+        }
+
+#if DEBUG_LIBHAL
+        std::cout << "Wanted: " << code << " Got: " << ocode << std::endl;
+#endif
+    } while (ocode != code);
+    
+    return HAL_OK;
+}
+
 void rpc_handler::process_incoming_rpc(libhal::rpc_packet &ipacket, int client, libhal::rpc_packet &opacket)
 {
-    uint32_t code, incoming_client_handle, ocode;
+    uint32_t code, incoming_client_handle;
 
     ipacket.decode_int(&code);
     ipacket.decode_int(&incoming_client_handle);
@@ -62,47 +102,33 @@ void rpc_handler::process_incoming_rpc(libhal::rpc_packet &ipacket, int client, 
     if (session_it != sessions.end())
     {
         std::shared_ptr<MuxSession> session = (*session_it).second;
-        std::shared_ptr<SafeQueue<libhal::rpc_packet>> myqueue = session->myqueue;
 
         // add our client id
         ipacket.encode_int_at(client, 4);
         ipacket.reset_head();
 
+        std::shared_ptr<SafeQueue<libhal::rpc_packet>> myqueue = session->myqueue;
+
 #if DEBUG_LIBHAL
         std::cout << "sending" << std::endl;
 #endif
-        this->rpc_list[0].write_packet(ipacket, client);
-
-        do
+        hal_error_t result = sendto_cryptech_device(ipacket, opacket, 0, client, code, myqueue);
+        if (result != HAL_OK)
         {
-#if DEBUG_LIBHAL
-            std::cout << "waiting for queue" << std::endl;
-#endif
-            myqueue->dequeue(opacket);
-
-            opacket.decode_int_peak_at(&ocode, 0);
-
-            if(ocode == 0xffffffff)
-            {
-                opacket.create_error_response(code, client, (uint32_t)HAL_ERROR_RPC_TRANSPORT);
-                ocode = code;
-            }
-
-#if DEBUG_LIBHAL
-            std::cout << "Wanted: " << code << " Got: " << ocode << std::endl;
-#endif
-        } while(ocode != code);
-
-        // set back to caller client handle
-        opacket.encode_int_at(incoming_client_handle, 4);
-        opacket.reset_head();
+            opacket.create_error_response(code, incoming_client_handle, result);
+        }
+        else
+        {
+            // set back to caller client handle
+            opacket.encode_int_at(incoming_client_handle, 4);
+            opacket.reset_head();
+        }
     }
     else
     {
         // send error
         opacket.create_error_response(code, incoming_client_handle, (uint32_t)HAL_ERROR_RPC_TRANSPORT);
     }
-
 
 #if DEBUG_LIBHAL
     std::cout << "out" << std::endl;

@@ -17,7 +17,7 @@ from libcpp.vector cimport vector
 from libcpp.string cimport string
 from libc.stdint cimport uint32_t
 
-cdef extern from "c_code/_rpc_handler.h" namespace "diamond_hsm":
+cdef extern from "c_code/_rpc_handler.h" namespace "diamond_hsm" nogil:
     cdef cppclass rpc_handler:
         rpc_handler()
         void unlock_hsm()

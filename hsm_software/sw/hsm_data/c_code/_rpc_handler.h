@@ -143,6 +143,14 @@ class rpc_handler
         void delete_session(uint32_t handle);
 
     private:
+        // processes an incoming packet
+        hal_error_t sendto_cryptech_device(const libhal::rpc_packet &ipacket,
+                                           libhal::rpc_packet &opacket, 
+                                           const int device_index,
+                                           const int session_client_handle,
+                                           const uint32_t code,
+                                           std::shared_ptr<SafeQueue<libhal::rpc_packet>> queue);
+
         std::vector<libhal::rpc_serial_stream> rpc_list;
         std::unordered_map<uint32_t, std::shared_ptr<MuxSession>> sessions;
 
