@@ -20,6 +20,7 @@
 #include <string>
 #include <unordered_map>
 #include <mutex>
+#include <atomic>
 #include "_uuid.hpp"
 #include "libhal/rpc_packet.h"
 #include "libhal/rpc_stream.h"
@@ -62,18 +63,17 @@ class MuxSession
     public:
         // Simple class for defining the state of a
         // connection to the load balancer
-        MuxSession(int rpc_index, /*cache, settings,*/ bool from_ethernet)
-        :from_ethernet(from_ethernet),
+        MuxSession(int _rpc_index, /*cache*/ bool _from_ethernet, bool _enable_exportable_private_keys)
+        :from_ethernet(_from_ethernet),
          cache_generated_keys(true),
          incoming_uuids_are_device_uuids(false),
          current_request(NULL),
-         rpc_index(rpc_index),
+         rpc_index(_rpc_index),
          cur_hashing_index(0),
          key_op_data(-1, 0, uuids::uuid_none),
+         enable_exportable_private_keys(_enable_exportable_private_keys),
          myqueue(new SafeQueue<libhal::rpc_packet>())
         {
-            //s = settings.get_setting(HSMSettings.ENABLE_EXPORTABLE_PRIVATE_KEYS)
-            this->enable_exportable_private_keys = false;
         }
 
         // if true, this session was started by a connection from
@@ -137,10 +137,16 @@ class rpc_handler
         void process_incoming_rpc(libhal::rpc_packet &ipacket, int client, libhal::rpc_packet &opacket);
 
         // creates a session for an incoming connection
-        void create_session(uint32_t handle, bool from_ethernet);
+        void create_session(uint32_t handle, bool from_ethernet, bool enable_exportable_private_keys);
 
         // deletes a session
         void delete_session(uint32_t handle);
+
+        // is the HSM locked
+        bool is_hsm_locked() const
+        {
+            return hsm_locked;
+        }
 
     private:
         // processes an incoming packet
@@ -151,10 +157,14 @@ class rpc_handler
                                            const uint32_t code,
                                            std::shared_ptr<SafeQueue<libhal::rpc_packet>> queue);
 
+        int choose_rpc();
+
         std::vector<libhal::rpc_serial_stream> rpc_list;
         std::unordered_map<uint32_t, std::shared_ptr<MuxSession>> sessions;
 
         std::mutex session_mutex;
+
+        std::atomic_bool hsm_locked;
 };
 
 }

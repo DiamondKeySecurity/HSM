@@ -26,6 +26,7 @@ cdef extern from "c_code/_rpc_handler.h" namespace "diamond_hsm" nogil:
         void set_current_rpc(int index)
         void process_incoming_rpc(rpc_packet &ipacket, int client, rpc_packet &opacket)
         void create_serial_connections(vector[string] &rpc_list)
-        void create_session(uint32_t handle, bint from_ethernet)
+        void create_session(uint32_t handle, bint from_ethernet, bint enable_exportable_private_keys)
         void delete_session(uint32_t handle)
+        bint is_hsm_locked() const
 

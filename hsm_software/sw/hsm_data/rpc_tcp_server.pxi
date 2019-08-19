@@ -58,8 +58,9 @@ class RPCTCPServer(TCPServer):
     Serve multiplexed Cryptech RPC over a TCP socket.
     """
 
-    def __init__(self, rpc_internal_handling rpc_preprocessor, port, ssl):
+    def __init__(self, rpc_internal_handling rpc_preprocessor, settings, port, ssl):
         self.rpc_preprocessor = rpc_preprocessor
+        self.settings = settings
         rpc_client_next_handle.inc(1000)
         super(RPCTCPServer, self).__init__(port, ssl)
 
@@ -170,7 +171,12 @@ class RPCTCPServer(TCPServer):
         "Handle one network connection."
         cdef int handle = rpc_client_next_handle.inc(1)
 
-        self.rpc_preprocessor.create_session(handle, from_ethernet)
+        # should exportable private keys be used for this session?
+        # Use 's' for PEP8 line length
+        s = self.settings.get_setting(HSMSettings.ENABLE_EXPORTABLE_PRIVATE_KEYS)
+        enable_exportable_private_keys = s
+
+        self.rpc_preprocessor.create_session(handle, from_ethernet, enable_exportable_private_keys)
 
         while True:
             try:

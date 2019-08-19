@@ -22,10 +22,12 @@ cdef class rpc_path_object(object):
     cdef object tamper
     cdef object external_rpc_handler
     cdef rpc_internal_handling rpc_preprocessor
+    cdef object cache_interface
 
     def __cinit__(self, int num_rpc_devices, str cache_folder):
         # start the cache
         self.cache = HSMCache(num_rpc_devices, cache_folder=cache_folder)
+        self.cache_interface = rpc_interface_cache(self.cache)
 
         self.rpc_preprocessor = None
         self.rpc_server = None
@@ -38,13 +40,13 @@ cdef class rpc_path_object(object):
 
     def create_rpc_objects(self, rpc_list, settings, netiface, ssl_options, RPC_IP_PORT):
         # start the load balancer
-        self.rpc_preprocessor = rpc_internal_handling(rpc_list)
+        self.rpc_preprocessor = rpc_internal_handling(rpc_list, settings, self.cache_interface)
         self.external_rpc_handler = rpc_interface_handling(self.rpc_preprocessor)
 
         # OLD self.rpc_preprocessor = RPCPreprocessor(rpc_list, self.cache, settings, netiface)
 
         # Listen for incoming TCP/IP connections from remove cryptech.muxd_client
-        self.rpc_server = RPCTCPServer(self.rpc_preprocessor, RPC_IP_PORT, ssl_options)
+        self.rpc_server = RPCTCPServer(self.rpc_preprocessor, settings, RPC_IP_PORT, ssl_options)
 
     def create_internal_listener(self, internal_rpc_socket, internal_rpc_socket_mode):
         # create a secondary listener to handle PF_UNIX request from subprocesses
@@ -72,8 +74,7 @@ cdef class rpc_path_object(object):
         self.tamper.append_future(futures)
 
     def get_interface_cache(self):
-        if (self.cache is None): return None
-        return rpc_interface_cache(self.cache)
+        return self.cache_interface
 
     def get_interface_handling(self):
         return self.external_rpc_handler

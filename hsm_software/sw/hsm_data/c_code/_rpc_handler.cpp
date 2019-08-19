@@ -30,16 +30,18 @@ namespace diamond_hsm
 {
 
 rpc_handler::rpc_handler()
+:hsm_locked(true)
 {
 }
 
 void rpc_handler::unlock_hsm()
 {
+    hsm_locked = false;
 }
 
 int rpc_handler::device_count()
 {
-    return 5;
+    return rpc_list.size();
 }
 
 int rpc_handler::get_current_rpc()
@@ -89,6 +91,46 @@ hal_error_t rpc_handler::sendto_cryptech_device(const libhal::rpc_packet &ipacke
     } while (ocode != code);
     
     return HAL_OK;
+}
+
+int rpc_handler::choose_rpc()
+{
+    return 0;/*
+    // Simple Heuristic for selecting an alpha RPC channel to use
+    const int DEVICE_USES_BEFORE_NEXT = 2;
+    int device_count = this->device_count();
+
+    with(self.choose_any_thread_lock):
+        // first try to evenly distribute
+        self.next_any_device_uses += 1
+        if(self.next_any_device_uses > DEVICE_USES_BEFORE_NEXT):
+            self.next_any_device_uses = 0
+
+            self.next_any_device += 1
+            if(self.next_any_device >= device_count):
+                self.next_any_device = 0
+
+        // make sure this has the smallest weight
+        // If only one process is using the HSM, next_rpc
+        // will probably be ok, but if multiple processes
+        // are using the HSM, it's possible that the call
+        // may try to use a device that's busy
+
+        // initialize to weight of device
+        device_weight = self.get_cryptech_device_weight(self.next_any_device)
+
+        for device_index in xrange(device_count):
+            # if we find a device with a lower weight, use it
+            if (self.next_any_device != device_index):
+                new_device_weight = self.get_cryptech_device_weight(device_index)
+                if (new_device_weight < device_weight):
+                    device_weight = new_device_weight
+                    self.next_any_device = device_index
+
+                    # reset uses
+                    self.next_any_device_uses = 0
+
+        return self.next_any_device*/
 }
 
 void rpc_handler::process_incoming_rpc(libhal::rpc_packet &ipacket, int client, libhal::rpc_packet &opacket)
@@ -154,7 +196,7 @@ void rpc_handler::create_serial_connections(std::vector<std::string> &rpc_list)
 }
 
 // creates a session for an incoming connection
-void rpc_handler::create_session(uint32_t handle, bool from_ethernet)
+void rpc_handler::create_session(uint32_t handle, bool from_ethernet, bool enable_exportable_private_keys)
 {
 #if DEBUG_LIBHAL
     std::cout << "creating session for " << handle << std::endl;
@@ -162,7 +204,7 @@ void rpc_handler::create_session(uint32_t handle, bool from_ethernet)
     {
         std::unique_lock<std::mutex> session_lock(session_mutex);
 
-        this->sessions[handle] = std::make_shared<MuxSession>(get_current_rpc(),/*cache, settings,*/ from_ethernet);
+        this->sessions[handle] = std::make_shared<MuxSession>(get_current_rpc(),/*cache*/ from_ethernet, enable_exportable_private_keys);
     }
 
     std::shared_ptr<MuxSession> session = sessions[handle];

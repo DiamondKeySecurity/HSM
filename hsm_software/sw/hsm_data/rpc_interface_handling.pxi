@@ -21,11 +21,15 @@ cdef class rpc_internal_handling(object):
     cdef rpc_handler.rpc_handler *rpc_preprocessor
     cdef bint hsm_locked
     cdef object tamper_detected
+    cdef object settings
+    cdef object cache
     
     """ Python interface to the rpc handler"""
-    def __init__(self, rpc_list):
+    def __init__(self, rpc_list, settings, cache):
         self.tamper_detected = ThreadSafeVariable(False)
         self.hsm_locked = False
+        self.settings = settings
+        self.cache = cache
 
         cdef vector[string] real_rpc_list
         cdef str rpc
@@ -40,6 +44,10 @@ cdef class rpc_internal_handling(object):
 
     def __dealloc(self):
         del self.rpc_preprocessor
+
+    @property
+    def is_mkm_set(self):
+        return self.settings.get_setting(HSMSettings.MASTERKEY_SET) == True
 
     def unlock_hsm(self):
         deref(self.rpc_preprocessor).unlock_hsm()
@@ -96,9 +104,12 @@ cdef class rpc_internal_handling(object):
 
     def is_rpc_locked(self):
         return False
+        return ((deref(self.rpc_preprocessor).is_hsm_locked()) or
+                (not self.is_mkm_set) or
+                (not self.cache.is_initialized()))
 
-    def create_session(self, int handle, bint from_ethernet):
-        deref(self.rpc_preprocessor).create_session(handle, from_ethernet)
+    def create_session(self, int handle, bint from_ethernet, bint enable_exportable_private_keys):
+        deref(self.rpc_preprocessor).create_session(handle, from_ethernet, enable_exportable_private_keys)
 
     def delete_session(self, int handle):
         deref(self.rpc_preprocessor).delete_session(handle)
