@@ -47,36 +47,31 @@ void rpc_serial_stream::ReadThread()
 
         if(pfd.revents & POLLIN)
         {
-            std::cout << "got data" << std::endl;
-            if (hal_slip_recv(buf, &len, HAL_RPC_MAX_PKT_SIZE) == HAL_OK)
+            if (read_until(SLIP_END, buf, &len, HAL_RPC_MAX_PKT_SIZE) == HAL_OK)
             {
                 if (len >= 12)
                 // all commands must be atleast 12 bytes(the code, the client, and the result)
                 {
+                    std::cout << "got data" << std::endl;
                     std::cout << "packet read: length == " << len << std::endl;
-                    
-                    const uint8_t *inbuf = &buf[4];
-                    const uint8_t *limit = inbuf + 4;
+                    rpc_packet ipacket;
+                    ipacket.createFromSlipEncoded((char *)buf);
+
                     uint32_t client;
 
                     // get the client handle so we know where to queue the response
                     // first uint32 is code
                     // second is client
-                    if(HAL_OK == hal_xdr_decode_int_peek(&inbuf, limit, &client))
+                    if(HAL_OK == ipacket.decode_int_peak_at(&client, 4))
                     {
                         std::cout << "got client " << client << std::endl;
                         auto pos = m_queues.find(client); 
                         if (pos != m_queues.end())
                         {
-                            // make a packet to hold the response
-                            rpc_packet packet(len);
-
-                            memcpy(packet.buffer(), buf, len);
-
                             std::cout << "adding to queue" << std::endl;
 
                             // push the packet to the queue
-                            m_queues[client]->enqueue(std::move(packet));
+                            m_queues[client]->enqueue(std::move(ipacket));
 
                             // remove our reference to the queue
                             // m_queues.erase(pos);
@@ -258,14 +253,27 @@ hal_error_t rpc_serial_stream::hal_serial_recv_char(uint8_t * const c)
     return HAL_OK;
 }
 
-// start -> from Cyptech/libhal/slip.c and Cyptech/libhal/slip_internal.h ----
-/* SLIP special character codes
- */
-#define END             0300    /* indicates end of packet */
-#define ESC             0333    /* indicates byte stuffing */
-#define ESC_END         0334    /* ESC ESC_END means END data byte */
-#define ESC_ESC         0335    /* ESC ESC_ESC means ESC data byte */
+hal_error_t rpc_serial_stream::read_until(const uint8_t end_char, uint8_t *buf, size_t *len, const size_t max_len)
+{
+    *len = 0;
+    uint8_t c;
+    hal_error_t result;
 
+    do
+    {
+        if(*len == max_len) return HAL_ERROR_RPC_PACKET_OVERFLOW;
+
+        result = hal_serial_recv_char(&c);
+        if(result != HAL_OK) return result;
+        buf[(*len)++] = c;
+    } while (c != end_char);
+    
+    return HAL_OK;
+}
+
+// start -> from Cyptech/libhal/slip.c and Cyptech/libhal/slip_internal.h ----
+/* SLIP special character codes)
+ */
 #ifndef HAL_SLIP_DEBUG
 #define HAL_SLIP_DEBUG 0
 #endif
@@ -282,13 +290,13 @@ hal_error_t rpc_serial_stream::hal_serial_recv_char(uint8_t * const c)
 hal_error_t rpc_serial_stream::hal_slip_send_char(const uint8_t c)
 {
     switch (c) {
-    case END:
-        check(hal_serial_send_char(ESC));
-        check(hal_serial_send_char(ESC_END));
+    case SLIP_END:
+        check(hal_serial_send_char(SLIP_ESC));
+        check(hal_serial_send_char(SLIP_ESC_END));
         break;
-    case ESC:
-        check(hal_serial_send_char(ESC));
-        check(hal_serial_send_char(ESC_ESC));
+    case SLIP_ESC:
+        check(hal_serial_send_char(SLIP_ESC));
+        check(hal_serial_send_char(SLIP_ESC_ESC));
         break;
     default:
         check(hal_serial_send_char(c));
@@ -304,7 +312,7 @@ hal_error_t rpc_serial_stream::hal_slip_send(const uint8_t * const buf, const si
     /* send an initial END character to flush out any data that may
      * have accumulated in the receiver due to line noise
      */
-    check(hal_serial_send_char(END));
+    check(hal_serial_send_char(SLIP_END));
 
     /* for each byte in the packet, send the appropriate character
      * sequence
@@ -317,7 +325,7 @@ hal_error_t rpc_serial_stream::hal_slip_send(const uint8_t * const buf, const si
 
     /* tell the receiver that we're done sending the packet
      */
-    check(hal_serial_send_char(END));
+    check(hal_serial_send_char(SLIP_END));
 
     return HAL_OK;
 }
@@ -330,23 +338,22 @@ hal_error_t rpc_serial_stream::hal_slip_process_char(uint8_t c, uint8_t * const 
     static int esc_flag = 0;
     *complete = 0;
     switch (c) {
-    case END:
+    case SLIP_END:
         if (*len)
             *complete = 1;
         break;
-    case ESC:
-    std::cout << "ESC READ" << std::endl;
+    case SLIP_ESC:
         esc_flag = 1;
         break;
     default:
         if (esc_flag) {
             esc_flag = 0;
             switch (c) {
-            case ESC_END:
-                buf_push(END);
+            case SLIP_ESC_END:
+                buf_push(SLIP_END);
                 break;
-            case ESC_ESC:
-                buf_push(ESC);
+            case SLIP_ESC_ESC:
+                buf_push(SLIP_ESC);
                 break;
             default:
                 buf_push(c);

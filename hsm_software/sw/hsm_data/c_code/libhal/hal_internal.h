@@ -690,6 +690,13 @@ typedef enum {
 #define HAL_RPC_MAX_PKT_SIZE    16384
 #endif
 
+#ifndef SLIP_END
+#define SLIP_END             0300    /* indicates end of packet */
+#define SLIP_ESC             0333    /* indicates byte stuffing */
+#define SLIP_ESC_END         0334    /* ESC ESC_END means END data byte */
+#define SLIP_ESC_ESC         0335    /* ESC ESC_ESC means ESC data byte */
+#endif
+
 // /*
 //  * Location of AF_UNIX socket for RPC client mux daemon.
 //  */

@@ -21,11 +21,6 @@ extern "C"
 
 #include <iostream>
 
-#define SLIP_END             0300    /* indicates end of packet */
-#define SLIP_ESC             0333    /* indicates byte stuffing */
-#define SLIP_ESC_END         0334    /* ESC ESC_END means END data byte */
-#define SLIP_ESC_ESC         0335    /* ESC ESC_ESC means ESC data byte */
-
 namespace libhal
 {
 

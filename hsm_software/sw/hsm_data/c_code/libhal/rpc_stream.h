@@ -67,6 +67,8 @@ class rpc_serial_stream
     private:
         void ReadThread();
 
+        hal_error_t read_until(const uint8_t end_char, uint8_t *buf, size_t *len, const size_t max_len);
+
         // from Cyptech/libhal/rpc_serial.c
         hal_error_t hal_serial_send_char(const uint8_t c);
         hal_error_t hal_serial_recv_char(uint8_t * const c);

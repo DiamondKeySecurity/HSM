@@ -58,8 +58,6 @@ sys.argv = [sys.argv[0]] + unknown
 if (args.use_gcc is True):
     os.environ["CC"] = "gcc"
 
-subprocess.Popen(["make"], stdout=subprocess.PIPE, cwd="hsm_data/c_code/libhal")
-
 setup(
     name='dvedit',
     version='0.1',
