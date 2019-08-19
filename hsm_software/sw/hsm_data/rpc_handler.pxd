@@ -15,6 +15,7 @@
 from libhal cimport rpc_packet
 from libcpp.vector cimport vector
 from libcpp.string cimport string
+from libc.stdint cimport uint32_t
 
 cdef extern from "c_code/_rpc_handler.h" namespace "diamond_hsm":
     cdef cppclass rpc_handler:
@@ -25,3 +26,6 @@ cdef extern from "c_code/_rpc_handler.h" namespace "diamond_hsm":
         void set_current_rpc(int index)
         void process_incoming_rpc(rpc_packet &ipacket, int client, rpc_packet &opacket)
         void create_serial_connections(vector[string] &rpc_list)
+        void create_session(uint32_t handle, bint from_ethernet)
+        void delete_session(uint32_t handle)
+

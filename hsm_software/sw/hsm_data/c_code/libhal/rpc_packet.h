@@ -108,6 +108,8 @@ class rpc_packet
             _blimit = _bptr + _size;
         }
 
+        int create_error_response(uint32_t code, uint32_t client, uint32_t result);
+
         int createFromSlipEncoded(const char *encoded_buffer);
 
         int encodeToSlip(char *encoded_result, const int max_len) const;

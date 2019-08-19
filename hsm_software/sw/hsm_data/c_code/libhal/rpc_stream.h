@@ -55,8 +55,9 @@ class rpc_serial_stream
         hal_error_t stop_read_thread();
 
         // send packet to the cryptech device and push result to the client's queue
-        hal_error_t write_packet(const rpc_packet &packet, const uint32_t client, std::shared_ptr<SafeQueue<rpc_packet>> queue);
+        hal_error_t write_packet(const rpc_packet &packet, const uint32_t client);
 
+        hal_error_t add_queue(const uint32_t client, std::shared_ptr<SafeQueue<rpc_packet>> queue);
         hal_error_t remove_queue(const uint32_t client);
 
         bool isOpen() const

@@ -82,6 +82,16 @@ int rpc_packet::createFromSlipEncoded(const char *encoded_buffer)
     return 1;
 }
 
+int rpc_packet::create_error_response(uint32_t code, uint32_t client, uint32_t result)
+{
+    create(12);
+    encode_int(code);
+    encode_int(client);
+    encode_int(result);
+
+    return 1;
+}
+
 int rpc_packet::encodeToSlip(char *encoded_result, const int max_len) const
 {
     int olen = 0;

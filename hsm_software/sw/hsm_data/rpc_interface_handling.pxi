@@ -97,10 +97,10 @@ cdef class rpc_internal_handling(object):
         return False
 
     def create_session(self, int handle, bint from_ethernet):
-        pass
+        deref(self.rpc_preprocessor).create_session(handle, from_ethernet)
 
     def delete_session(self, int handle):
-        pass
+        deref(self.rpc_preprocessor).delete_session(handle)
 
 class rpc_interface_handling(object):
     """ Limitted Python interface to the rpc handler"""

@@ -229,16 +229,13 @@ hal_error_t rpc_serial_stream::stop_read_thread()
 }
 
 // send packet to the cryptech device and push result to the client's queue
-hal_error_t rpc_serial_stream::write_packet(const rpc_packet &packet, const uint32_t client, std::shared_ptr<SafeQueue<rpc_packet>> queue)
+hal_error_t rpc_serial_stream::write_packet(const rpc_packet &packet, const uint32_t client)
 {
     if (thread_running)
     {
 #if DEBUG_LIBHAL
         std::cout << "write_packet" << std::endl;
 #endif
-        // add queue to map so the read thread will know where to put it
-        m_queues.insert(std::make_pair<>(client, queue));
-
         // send the packet
         hal_slip_send(packet.buffer(), packet.size());
 
@@ -257,6 +254,15 @@ hal_error_t rpc_serial_stream::remove_queue(const uint32_t client)
     {
         m_queues.erase(pos);
     }
+    return HAL_OK;
+}
+
+hal_error_t rpc_serial_stream::add_queue(const uint32_t client, std::shared_ptr<SafeQueue<rpc_packet>> queue)
+{
+    // add queue to map so the read thread will know where to put it
+    m_queues.insert(std::make_pair<>(client, queue));
+
+    return HAL_OK;
 }
 
 // from Cyptech/libhal/rpc_serial.c

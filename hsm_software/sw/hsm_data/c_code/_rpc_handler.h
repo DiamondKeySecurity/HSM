@@ -68,7 +68,8 @@ class MuxSession
          current_request(NULL),
          rpc_index(rpc_index),
          cur_hashing_index(0),
-         key_op_data(-1, 0, uuids::uuid_none)
+         key_op_data(-1, 0, uuids::uuid_none),
+         myqueue(new SafeQueue<libhal::rpc_packet>())
         {
             //s = settings.get_setting(HSMSettings.ENABLE_EXPORTABLE_PRIVATE_KEYS)
             this->enable_exportable_private_keys = false;
@@ -106,6 +107,9 @@ class MuxSession
 
         // should exportable private keys be used for this session?
         bool enable_exportable_private_keys;
+
+        // queue to retrieve packet from stream
+        std::shared_ptr<SafeQueue<libhal::rpc_packet>> myqueue;
 };
 
 class rpc_handler
@@ -113,20 +117,33 @@ class rpc_handler
     public:
         rpc_handler();
 
+        // uses list of serial device addresses to create serial connections
         void create_serial_connections(std::vector<std::string> &rpc_list);
 
+        // unlocks the hsm
         void unlock_hsm();
 
+        // returns the number of connected devices
         int device_count();
 
+        // returns the currently set rpc index
         int get_current_rpc();
 
+        // sets the current rpc
         void set_current_rpc(int index);
 
+        // processes an incoming packet
         void process_incoming_rpc(libhal::rpc_packet &ipacket, int client, libhal::rpc_packet &opacket);
+
+        // creates a session for an incoming connection
+        void create_session(uint32_t handle, bool from_ethernet);
+
+        // deletes a session
+        void delete_session(uint32_t handle);
 
     private:
         std::vector<libhal::rpc_serial_stream> rpc_list;
+        std::unordered_map<uint32_t, std::shared_ptr<MuxSession>> sessions;
 };
 
 }
