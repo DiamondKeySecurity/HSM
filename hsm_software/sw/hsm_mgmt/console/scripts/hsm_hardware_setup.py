@@ -121,12 +121,34 @@ class HSMHardwareSetupScriptModule(ScriptModule):
             self.check_tamper(None)
 
     def check_tamper(self, _):
-        if (len(self.console_object.tamper_config.settings) > 0):
+        self.console_object.cty_direct_call("Verifying tamper configuration")
+        tamper_config_set = True
+
+        for cty_index in xrange(self.console_object.cty_conn.cty_count):
+            self.console_object.cty_direct_call("Device %i:"%cty_index)
+            status = self.console_object.cty_conn.check_tamper_config_status(cty_index)
+            if (status is not True):
+                tamper_config_set = False
+                self.console_object.cty_direct_call("Config Status not OK")
+            else:
+                self.console_object.cty_direct_call("Config Status == OK")
+
+
+        if (tamper_config_set):
+            self.console_object.cty_direct_call("Tamper configurations have been set.")
+            self.console_object.cty_direct_call("If the HSM has been reset, this may mean it's running off the battery.")
+            self.console_object.tamper.enable()
+
+        if (not tamper_config_set and len(self.console_object.tamper_config.settings) > 0):
             self.sub_module = TamperSettingsScriptModule(self.console_object.cty_conn,
                                                          self.console_object.cty_direct_call,
                                                          self.console_object.tamper_config,
                                                          finished_callback = self.init_cache)
         else:
+            if (not tamper_config_set):
+                self.console_object.cty_direct_call("Previous tamper configurations not found.")
+                self.console_object.cty_direct_call("You will need to reenter the tamper settings.")
+
             self.init_cache(None)
 
     def init_cache(self, _):
