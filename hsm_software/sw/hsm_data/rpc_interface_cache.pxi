@@ -16,6 +16,9 @@
 
 from cython.operator cimport dereference as deref
 from libcpp.map cimport map as mapcpp
+from libcpp.pair cimport pair
+from libcpp.vector cimport vector
+from libcpp.string cimport string as stringcpp
 
 from c_uuids cimport uuid_t
 
@@ -65,24 +68,23 @@ cdef class rpc_internal_cache(object):
 
         deref(self.c_cache_object).add_key_to_device(rpc_index, c_uuid, keytype, flags, c_param_masterListID, auto_backup)
 
-    def remove_key_from_alpha(self, int rpc_index, uuid):
-        cdef uuid_t c_uuid
-        if (uuid is not None):
-            c_uuid.fromBytes(uuid.bytes)
-
-        deref(self.c_cache_object).remove_key_from_device(rpc_index, c_uuid)
-
     def get_alpha_lowest_index(self, master_uuid):
         cdef uuid_t c_master_uuid
+        cdef pair[int, uuid_t] result
+
         if (master_uuid is not None):
             c_master_uuid.fromBytes(master_uuid.bytes)
 
-        return deref(self.c_cache_object).get_device_lowest_index(c_master_uuid)
+        if(deref(self.c_cache_object).get_device_lowest_index(c_master_uuid, result)):
+            return result.first
+
+        return -1
 
     def get_alphas(self, master_uuid):
         cdef uuid_t c_master_uuid
         cdef mapcpp[int, uuid_t] results
         cdef mapcpp[int, uuid_t].iterator it
+        cdef char buffer[40]
         cdef int i
 
         if (master_uuid is not None):
@@ -96,7 +98,7 @@ cdef class rpc_internal_cache(object):
         if (results.size() > 0):
             it = results.begin()
             while (it != results.end()):
-                rval[deref(it).first] = deref(it).second
+                rval[deref(it).first] = uuid.UUID(hex = deref(it).second.to_string(buffer))
 
         return rval
 
@@ -117,7 +119,16 @@ cdef class rpc_internal_cache(object):
         deref(self.c_cache_object).backup()
 
     def getVerboseMapping(self):
-        deref(self.c_cache_object).getVerboseMapping()
+        cdef vector[stringcpp] result
+
+        deref(self.c_cache_object).getVerboseMapping(result)
+
+        rval = []
+
+        for i in range(result.size()):
+            rval.append(result[i].c_str())
+
+        return rval
 
 
 class rpc_interface_cache(object):
