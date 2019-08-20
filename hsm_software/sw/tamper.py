@@ -54,7 +54,7 @@ class TamperDetector(observable, PFUNIX_HSM):
             if (not self.last_rpc_tamper_status[rpc_index].value and self.detection_enabled.value):
                 hsm.rpc_set_device(rpc_index)
                 if (hsm.rpc_check_tamper() == DKS_HALError.HAL_ERROR_TAMPER):
-                    self.last_rpc_tamper_status[rpc_index] = True
+                    self.last_rpc_tamper_status[rpc_index].value = True
                     self.on_tamper()
 
     def stop(self):
@@ -76,6 +76,8 @@ class TamperDetector(observable, PFUNIX_HSM):
 
     def reset_tamper_state(self):
         self.tamper_event_detected.value = False
+        for rpc_index in xrange(self.rpc_count):
+            self.last_rpc_tamper_status[rpc_index].value = False
 
         # notify changed state to all observers
         self.notify()        
