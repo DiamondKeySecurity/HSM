@@ -45,8 +45,7 @@ public:
     uuid_t(const byte binary[16])
     {
 		// copy the 
-        memcpy(uuid, binary, sizeof(uuid));
-		generate_hash_code();
+        fromBytes((char *)binary);
 	}
 
     uuid_t(const char *str)
@@ -121,6 +120,12 @@ public:
 
         return buffer;
     }
+
+	void fromBytes(char *bytes)
+	{
+        memcpy(uuid, bytes, sizeof(uuid));
+		generate_hash_code();	
+	}
 
     operator std::string () const
     {

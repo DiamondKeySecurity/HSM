@@ -22,10 +22,12 @@ from libcpp.vector cimport vector
 from libcpp.string cimport string
 
 cdef extern from "c_code/_hsm_cache.h" namespace "advanced_cache":
-    cdef cppclass HSMCache:
-        HSMCache(int rpc_count, const char *cache_folder)
+    cdef cppclass hsm_cache:
+        hsm_cache(int rpc_count, const char *cache_folder)
         void initialize_cache()
-        bint is_initialized()
+        bint is_initialized() const
+        int get_device_count() const
+        int get_key_count(int device_index) const
         bint get_device_table_rows(int device_index, unordered_map[uuid_t, alpha_table_row] &rows)
         void get_master_table_rows(unordered_map[uuid_t, master_table_row] &rows)
         uuid_t get_master_uuid(int device_index, uuid_t device_uuid)
