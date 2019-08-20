@@ -65,7 +65,7 @@ class TamperDetector(observable, PFUNIX_HSM):
             self.tamper_event_detected.value = True
 
             print("!!!!!!! TAMPER !!!!!!!!!!")
-            hsm_tools.cryptech.muxd.logger.info("!!!!!!! TAMPER !!!!!!!!!!")
+            hsm_tools.cryptech.muxd.logger.error("!!!!!!! TAMPER !!!!!!!!!!")
 
         # tell our observers of the tamper event
         # continuously signal

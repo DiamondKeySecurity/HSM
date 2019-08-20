@@ -377,6 +377,24 @@ class CTYConnection(StatusObject):
 
         return CTYError.CTY_OK
 
+    def check_tamper_config_status(self, cty_index):
+        if (cty_index < 0 or cty_index >= self.cty_count):
+            # device not found
+            return None
+
+        cmd = 'tamper config status\r'
+
+        hsm_cty = self.cty_list[cty_index]
+
+        cty_output = self.send_raw(cmd, hsm_cty.serial, 3)
+        print cty_output
+
+        # check for the proper value
+        if ('Config value is 85' in cty_output):
+            return True
+        else:
+            return False
+
     def check_fpga(self, cty_index):
         if (cty_index < 0 or cty_index >= self.cty_count):
             # device not found

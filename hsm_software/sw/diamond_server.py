@@ -256,6 +256,8 @@ def main():
     if args.verbose:
         level = logging.DEBUG if args.verbose > 1 else logging.INFO
         logging.getLogger().setLevel(level)
+    else:
+        logging.getLogger().setLevel(logging.WARNING)
 
     # network interface ------------------------------
     if(led_container is not None):
@@ -438,7 +440,7 @@ def main():
             try:
                 result = yield wait_iterator.next()
             except Exception as e:
-                muxd.logger.info("Error {} from {}".format(e,
+                muxd.logger.exception("Error {} from {}".format(e,
                                  wait_iterator.current_future))
             else:
                 muxd.logger.info("Result {} received from {} at {}".format(
