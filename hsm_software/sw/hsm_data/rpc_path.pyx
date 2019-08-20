@@ -75,7 +75,6 @@ cimport table_rows
 include "rpc_tcp_server.pxi"
 
 include "rpc_interface_cache.pxi"
-include "cache.pxi"
 
 include "rpc_builder.pxi"
 include "load_distribution.pxi"

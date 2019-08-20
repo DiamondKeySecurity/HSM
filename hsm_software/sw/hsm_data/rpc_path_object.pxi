@@ -17,7 +17,7 @@
 class rpc_path_object(object):
     def __init__(self, num_rpc_devices, cache_folder):
         # start the cache
-        self.cache = HSMCache(num_rpc_devices, cache_folder=cache_folder)
+        self.cache =  rpc_internal_cache(num_rpc_devices, cache_folder=cache_folder)
 
         self.rpc_preprocessor = None
         self.rpc_server = None

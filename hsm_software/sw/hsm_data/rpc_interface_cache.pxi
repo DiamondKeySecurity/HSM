@@ -29,6 +29,12 @@ cdef class rpc_internal_cache(object):
     def __cinit__(self, int rpc_count, bytes cache_folder):
         self.c_cache_object = new hsm_cache.hsm_cache(rpc_count, cache_folder)
 
+    def __dealloc__(self):
+        del self.c_cache_object
+
+    cdef hsm_cache.hsm_cache *get_c_object(self):
+        return self.c_cache_object
+
     def initialize_cache(self):
         deref(self.c_cache_object).initialize_cache()
 
