@@ -280,6 +280,7 @@ class DKS_HSM(HSM):
         client = unpacker.unpack_uint()
 
         return unpacker.unpack_uint()
+
     def rpc_use_incoming_device_uuids(self, client = 0):
         with self.rpc(DKS_RPCFunc.RPC_FUNC_USE_INCOMING_DEVICE_UUIDS, client = client):
             return
