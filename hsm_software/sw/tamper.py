@@ -32,6 +32,7 @@ class TamperDetector(observable, PFUNIX_HSM):
 
         self.tamper_event_detected = ThreadSafeVariable(False)
         self.detection_enabled = ThreadSafeVariable(False)
+        self.last_rpc_tamper_status = [ThreadSafeVariable(False) for _ in range(rpc_count)]
 
         self.rpc_count = rpc_count
 
@@ -42,13 +43,19 @@ class TamperDetector(observable, PFUNIX_HSM):
 
     def dowork(self, hsm):
         for rpc_index in xrange(self.rpc_count):
-            time.sleep(14)
-            if (self.detection_enabled.value):
+            for _ in xrange(15):
+                time.sleep(1)
+
+                # if there's been a tamper event, inform the rest of the application every second
+                if (self.tamper_event_detected.value is True):
+                    self.on_tamper()
+
+            # after at least 15 seconds, ask the HSM if it's in tamper
+            if (not self.last_rpc_tamper_status[rpc_index].value and self.detection_enabled.value):
                 hsm.rpc_set_device(rpc_index)
                 if (hsm.rpc_check_tamper() == DKS_HALError.HAL_ERROR_TAMPER):
+                    self.last_rpc_tamper_status[rpc_index] = True
                     self.on_tamper()
-                    time.sleep(15)
-                    return
 
     def stop(self):
         PFUNIX_HSM.stop(self)
