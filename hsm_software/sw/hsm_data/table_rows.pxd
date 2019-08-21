@@ -17,7 +17,7 @@ from c_uuids cimport uuid_t
 from libcpp.map cimport map
 from libcpp.string cimport string
 
-cdef extern from "c_code/_table_rows.h" namespace "advanced_cache":
+cdef extern from "c_code/_table_rows.h" namespace "diamond_hsm":
     cdef cppclass alpha_table_row:
         uuid_t masterListID
         alpha_table_row()
@@ -31,3 +31,4 @@ cdef extern from "c_code/_table_rows.h" namespace "advanced_cache":
         master_table_row()
         master_table_row(int key_rpc_index, uuid_t key_uuid, unsigned int keytype, unsigned int flags)
         string operator () const
+        bint containsRPCRef(int rpc_index) const

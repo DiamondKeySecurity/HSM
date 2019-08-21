@@ -27,7 +27,7 @@
 namespace diamond_hsm
 {
 
-HSMCache::HSMCache(int rpc_count, const char *_cache_folder)
+hsm_cache::hsm_cache(int rpc_count, const char *_cache_folder)
 	:cache_initialized(false), cache_folder(_cache_folder)
 {
 	// make sure the folder exist
@@ -39,7 +39,7 @@ HSMCache::HSMCache(int rpc_count, const char *_cache_folder)
 }
 
 // get the master uuid from a device_uuid
-uuids::uuid_t HSMCache::get_master_uuid(int device_index, uuids::uuid_t device_uuid)
+uuids::uuid_t hsm_cache::get_master_uuid(int device_index, uuids::uuid_t device_uuid)
 {
 	if (!validate_device_index(device_index)) return uuids::uuid_none;
 
@@ -56,7 +56,7 @@ uuids::uuid_t HSMCache::get_master_uuid(int device_index, uuids::uuid_t device_u
 }
 
 // get the lowest device index that the master_uuid has a reference to
-int HSMCache::get_master_uuid_lowest_index(uuids::uuid_t master_uuid)
+int hsm_cache::get_master_uuid_lowest_index(uuids::uuid_t master_uuid)
 {
 	std::pair<int, uuids::uuid_t> lowest_item;
 	if (get_device_lowest_index(master_uuid, lowest_item))
@@ -72,7 +72,7 @@ int HSMCache::get_master_uuid_lowest_index(uuids::uuid_t master_uuid)
 // adds a newly found key to the cache. will add to the alpha table and the master table
 // if param_masterListID is None, a new UUID will be generated otherwise, this will
 // be added as a duplicate to a key on another alpha
-uuids::uuid_t HSMCache::add_key_to_device(int device_index, uuids::uuid_t device_uuid, unsigned int keytype = 0,
+uuids::uuid_t hsm_cache::add_key_to_device(int device_index, uuids::uuid_t device_uuid, unsigned int keytype = 0,
 	unsigned int flags = 0, uuids::uuid_t param_masterListID = uuids::uuid_none,
 	bool auto_backup = true)
 {
@@ -129,8 +129,27 @@ uuids::uuid_t HSMCache::add_key_to_device(int device_index, uuids::uuid_t device
 	return masterListID;
 }
 
+bool hsm_cache::remove_key_from_device_only(int device_index, uuids::uuid_t device_uuid)
+{
+	uuids::uuid_t master_uuid = get_master_uuid(device_index, device_uuid);
+
+	if (master_uuid != uuids::uuid_none)
+	{
+		std::map<int, uuids::uuid_t> device_uuids;
+
+		remove_key_from_device(master_uuid, device_uuids);
+
+		return true;
+	}
+
+	// updates to the mapping must be made right away
+	backup_matching_map();
+
+	return false;
+}
+
 // removes an entry from all tables based on the master uuid and returns the associated device uuids
-void HSMCache::remove_key_from_device(uuids::uuid_t master_uuid, std::map<int, uuids::uuid_t> &device_uuids)
+void hsm_cache::remove_key_from_device(uuids::uuid_t master_uuid, std::map<int, uuids::uuid_t> &device_uuids)
 {
 	try
 	{
@@ -165,7 +184,7 @@ void HSMCache::remove_key_from_device(uuids::uuid_t master_uuid, std::map<int, u
 // The first element is the device index and the second is the device
 // uuid. If the master_uuid refers to items on multiple devices,
 // the device with the smallest index is returned
-bool HSMCache::get_device_lowest_index(uuids::uuid_t master_uuid, std::pair<int, uuids::uuid_t> &result)
+bool hsm_cache::get_device_lowest_index(uuids::uuid_t master_uuid, std::pair<int, uuids::uuid_t> &result)
 {
 	try
 	{
@@ -189,7 +208,7 @@ bool HSMCache::get_device_lowest_index(uuids::uuid_t master_uuid, std::pair<int,
 }
 
 // gets a list of the devices that the UUID can be found on
-void HSMCache::get_devices(uuids::uuid_t master_uuid, std::map<int, uuids::uuid_t> &results)
+void hsm_cache::get_devices(uuids::uuid_t master_uuid, std::map<int, uuids::uuid_t> &results)
 {
 	try
 	{
@@ -204,7 +223,7 @@ void HSMCache::get_devices(uuids::uuid_t master_uuid, std::map<int, uuids::uuid_
 }
 
 // clears all tables
-void HSMCache::clear()
+void hsm_cache::clear()
 {
 	// clear master table
 	master_table.clear();
@@ -217,7 +236,7 @@ void HSMCache::clear()
 }
 
 // saves a JSON mapping of all the matching UUIDs in the master table
-void HSMCache::backup_matching_map()
+void hsm_cache::backup_matching_map()
 {
 	std::cout << "backing up matching uuids" << std::endl;
 
@@ -262,7 +281,7 @@ void HSMCache::backup_matching_map()
 }
 
 // saves a copy of all device tables and the master table to JSON files
-void HSMCache::backup_tables()
+void hsm_cache::backup_tables()
 {
 	std::cout << "backing up tables" << std::endl;
 
@@ -280,7 +299,7 @@ void HSMCache::backup_tables()
 }
 
 // saves the tables and the matching map
-void HSMCache::backup()
+void hsm_cache::backup()
 {
 	std::cout << "backing up" << std::endl;
 
@@ -289,7 +308,7 @@ void HSMCache::backup()
 }
 
 // returns a list of strings with a list of the keys on all device tables
-void HSMCache::getVerboseMapping(std::vector<std::string> &result)
+void hsm_cache::getVerboseMapping(std::vector<std::string> &result)
 {
 	// Return a list of strings with information on the cache and all linked keys
 	std::unordered_map<uuids::uuid_t, master_table_row> master_rows;
@@ -314,7 +333,7 @@ void HSMCache::getVerboseMapping(std::vector<std::string> &result)
 }
 
 // print verbose mapping to stdout
-void HSMCache::printdb()
+void hsm_cache::printdb()
 {
 	std::vector<std::string> mapping;
 

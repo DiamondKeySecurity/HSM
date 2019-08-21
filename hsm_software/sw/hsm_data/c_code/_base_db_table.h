@@ -160,6 +160,11 @@ class BaseDBTable
 			table.clear();
 		}
 
+		int get_row_count() const
+		{
+			return table.size();
+		}
+
 	private:
 		// get a read lock and save to a file
 		void saveToFile(std::ostream &os)

@@ -43,19 +43,17 @@ from Queue import Queue
 import enum
 from enum import IntEnum
 
+from cython.operator cimport dereference as deref, postincrement
+
 # import classes from the original cryptech.muxd
 # cryptech_muxd has been renamed to cryptech/muxd.py
 import cryptech.muxd
 from cryptech.muxd import logger
-from cryptech.hsm import CrypTechDeviceState, PFUNIX_HSM
+from cryptech.hsm import CrypTechDeviceState
 from cryptech.libhal import *
-from cryptech.cryptech_port import DKS_RPCFunc, DKS_HALKeyType, DKS_HALKeyFlag, DKS_HALError, DKS_HALUser, DKS_HALError
+from cryptech.cryptech_port import DKS_RPCFunc, DKS_HALKeyType, DKS_HALKeyFlag, DKS_HALError, DKS_HALUser, DKS_HALError, DKS_HSM
 from cryptech.tcpserver import TCPServer
 from cryptech.backup import b64, b64join, SoftKEKEK
-
-from hsm_cache_db.alpha import CacheTableAlpha, AlphaCacheRow
-from hsm_cache_db.master import CacheTableMaster, MasterKeyListRow
-from hsm_cache_db.cache import CacheDB
 
 from settings import HSMSettings
 
@@ -77,10 +75,11 @@ cimport rpc_handler
 
 include "rpc_action.pxi"
 
+include "pfunix_hsm.pxi"
+
 include "rpc_tcp_server.pxi"
 
 include "rpc_interface_cache.pxi"
-include "cache.pxi"
 
 include "rpc_builder.pxi"
 include "load_distribution.pxi"

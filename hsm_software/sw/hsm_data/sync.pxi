@@ -42,8 +42,11 @@ def makeDictValuesB64(input):
     else:
         return b64(input)
 
-class Synchronizer(PFUNIX_HSM):
+cdef class Synchronizer(PFUNIX_HSM):
     """Class for providing mirroring services to an HSM"""
+    cdef bint __initialized__
+    cdef object cache
+    cdef object command_queue
 
     def __init__(self, sockname, cache):
         """
@@ -52,7 +55,10 @@ class Synchronizer(PFUNIX_HSM):
         self.__initialized__ = False
         self.cache = cache
         self.command_queue = Queue()
-        self.sync_init_success = "Internal Synchronizer Initialized"
+
+    @property
+    def sync_init_success(self):
+        return "Internal Synchronizer Initialized"
 
     def reset(self):
         self.cache.reset()
@@ -167,14 +173,10 @@ class Synchronizer(PFUNIX_HSM):
 
     def cmd_OneWayBackup(self, hsm, cmd):
         # Get basic data from the cache -------------
-
         # this function has been generalized to work on an HSM with n alphas
-        source = self.cache.get_alpha_table_object(cmd.src)
-        destination = self.cache.get_alpha_table_object(cmd.dest)
-        master = self.cache.get_master_table_object()
 
         # get a copy of the data that won't be affected if there are changes on another thread
-        master_rows = master.get_rows()
+        master_rows = self.cache.get_master_table_rows()
 
         # get the list of keys to copy
         uuid_list = self.buildUUIDCopyList(master_rows = master_rows,
@@ -195,10 +197,8 @@ class Synchronizer(PFUNIX_HSM):
 
         # import dest -------------------------------
         # get the source alpha
-        source = self.cache.get_alpha_table_object(cmd.src)
-
         # get a copy of the data that won't be affected if there are changes on another thread
-        source_list = source.get_rows()
+        source_list = self.cache.get_device_table_rows(cmd.src)
 
         self.import_to_dst_hsm(hsm, source_list, cmd.dest, export_db)
 
@@ -219,10 +219,6 @@ class Synchronizer(PFUNIX_HSM):
         self.do_cmd_callback(cmd, "Two way backup between %d to %d complete"%(cmd.src, cmd.dest))
 
     def addAlphaData(self, hsm, rpc_index, console, matching_map):
-        # get master table
-        master = self.cache.get_master_table_object()
-        master_rows = master.get_rows()
-
         # select the device
         hsm.rpc_set_device(rpc_index)
 
@@ -257,14 +253,14 @@ class Synchronizer(PFUNIX_HSM):
                             # add uuid without matching
                             masterListID = None
                         else:
-                            masterListID = self.findMatchingMasterListID(new_uuid, matching_map, master_rows)
+                            masterListID = self.findMatchingMasterListID(new_uuid, matching_map)
 
                         self.cache.add_key_to_alpha(rpc_index, new_uuid, pkey.key_type, pkey.key_flags, param_masterListID = masterListID, auto_backup=False)
 
                     prev_uuid = uuid
                     recv_count = recv_count + 1
 
-    def findMatchingMasterListID(self, new_uuid, matching_map, master_rows):
+    def findMatchingMasterListID(self, new_uuid, matching_map):
         """Uses the matching map to find the masterListID of a matching key"""
         if (new_uuid in matching_map):
             return matching_map[new_uuid]
@@ -302,7 +298,7 @@ class Synchronizer(PFUNIX_HSM):
 
         # get the mapping
         try:
-            with open('%s/cache_mapping.db'%self.cache.cache_folder, 'r') as fh:
+            with open('%s/cache_mapping.db'%self.cache.get_cache_folder(), 'r') as fh:
                 base_matching_map = byteify(json.load(fh))
 
             # convert to UUIDs
@@ -516,7 +512,7 @@ class Synchronizer(PFUNIX_HSM):
                     if (cache_source_rows is not None):
                         # get the masterlistID
                         try:
-                            masterlistID = cache_source_rows[original_uuid].masterListID
+                            masterlistID = cache_source_rows[original_uuid]
                         except:
                             # the source key is no longer in the cache so don't copy it
                             continue

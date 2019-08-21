@@ -21,6 +21,7 @@ cdef extern from "c_code/_uuid.hpp" namespace "uuids":
         uuid_t(const uuid_t &other)
         uuid_t(const unsigned char binary[16])
         uuid_t(const char *str_)
+        void fromBytes(char *bytes)
         void gen_random()
         char *to_string(char *buffer) const
         string operator () const

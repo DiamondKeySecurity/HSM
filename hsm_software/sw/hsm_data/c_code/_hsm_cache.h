@@ -25,10 +25,15 @@
 namespace diamond_hsm
 {
 
-class HSMCache
+class hsm_cache
 {
 	public:
-		HSMCache(int rpc_count, const char *cache_folder);
+		hsm_cache(int rpc_count, const char *cache_folder);
+
+		const char *get_cache_folder() const
+		{
+			return cache_folder.c_str();
+		}
 
 		// set the cache initialized variable
 		void initialize_cache()
@@ -37,9 +42,22 @@ class HSMCache
 		}
 
 		// get the cache initialized variable
-		bool is_initialized()
+		bool is_initialized() const 
 		{
 			return cache_initialized;
+		}
+
+    	int get_device_count() const
+		{
+			return device_tables.size();
+		}
+
+		int get_key_count(int device_index) const
+		{
+			if (device_index < 0 || device_index >= get_device_count())
+				return -1;
+
+			return device_tables[device_index]->get_row_count();
 		}
 
 		// get all the table rows from the device table cache
@@ -69,6 +87,8 @@ class HSMCache
 		// be added as a duplicate to a key on another alpha
 		uuids::uuid_t add_key_to_device(int device_index, uuids::uuid_t device_uuid, unsigned int keytype,
 			unsigned int flags, uuids::uuid_t param_masterListID, bool auto_backup);
+
+		bool remove_key_from_device_only(int device_index, uuids::uuid_t device_uuid);
 
 		// removes an entry from all tables based on the master uuid and returns the associated device uuids
 		void remove_key_from_device(uuids::uuid_t master_uuid, std::map<int, uuids::uuid_t> &device_uuids);
