@@ -78,7 +78,7 @@ struct master_table_row
 
 	bool containsRPCRef(int rpc_index) const
 	{
-		return uuid_dict.find() != uuid_dict.end()
+		return uuid_dict.find(rpc_index) != uuid_dict.end();
 	}
 
 	operator std::string() const

@@ -24,9 +24,9 @@ from cache import CacheTable
 
 from cryptech.muxd import logger
 
-class MasterKeyListRow(object):
+class MasterTableRow(object):
     """Represents a row in the cache's master key list"""
-    def __init__(self, key_rpc_index, key_uuid, keytype = 0, flags = 0):
+    def __init__(self, keytype = 0, flags = 0):
         """Initialize the rows data
         key_rpc_index - index of the CrypTech device that the key with the associated key_uuid is on
         key_uuid      - uuid of the key on the CrypTech deviced defined by key_rpc_index
@@ -35,7 +35,7 @@ class MasterKeyListRow(object):
         """
         self.keytype = keytype
         self.flags = flags
-        self.uuid_dict = { key_rpc_index : key_uuid }
+        self.uuid_dict = { }
 
     def __str__(self):
         """Provide override of _str__ for testing"""

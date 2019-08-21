@@ -15,11 +15,14 @@
 # along with this program; if not, If not, see <https://www.gnu.org/licenses/>.
 
 from libcpp.map cimport map as mapcpp
+from libcpp.unordered_map cimport unordered_map
 from libcpp.pair cimport pair
 from libcpp.vector cimport vector
 from libcpp.string cimport string as stringcpp
+from table_rows cimport alpha_table_row, master_table_row
 
 from c_uuids cimport uuid_t
+from hsm_data.hsm_cache_db.master import MasterTableRow
 
 cdef class rpc_interface_cache:
     cdef hsm_cache.hsm_cache *c_cache_object
@@ -130,6 +133,60 @@ cdef class rpc_interface_cache:
             rval.append(result[i].c_str())
 
         return rval
+
+    def get_device_table_rows(self, int device_index):
+        """Returns a dictionary [device_uuid, master_uuid]"""
+        cdef unordered_map[uuid_t, alpha_table_row] rows
+        cdef unordered_map[uuid_t, alpha_table_row].iterator it
+        cdef char master_buffer[40]
+        cdef char device_buffer[40]
+
+        result = {}
+
+        deref(self.c_cache_object).get_device_table_rows(device_index, rows)
+
+        # convert to Python
+        it = rows.begin()
+        while (it != rows.end()):
+            device_uuid = uuid.UUID(deref(it).first.to_string(device_buffer))
+            master_uuid = uuid.UUID(deref(it).second.masterListID.to_string(device_buffer))
+
+            result[device_uuid] = master_uuid
+            postincrement(it)
+
+        return result
+
+    def get_master_table_rows(self):
+        """Returns a dictionary [master_uuid, MasterTableRow]"""
+        cdef unordered_map[uuid_t, master_table_row] rows
+        cdef unordered_map[uuid_t, master_table_row].iterator it
+        cdef mapcpp[int, uuid_t].iterator uuid_dict_it
+        cdef char master_buffer[40]
+        cdef char device_buffer[40]
+
+        result = {}
+
+        deref(self.c_cache_object).get_master_table_rows(rows)
+
+        # convert to Python
+        it = rows.begin()
+        while (it != rows.end()):
+            master_uuid = uuid.UUID(deref(it).first.to_string(device_buffer))
+            master_row = MasterTableRow(deref(it).second.keytype, deref(it).second.flags)
+
+            uuid_dict_it = deref(it).second.uuid_dict.begin()
+            while (uuid_dict_it != deref(it).second.uuid_dict.end()):
+                rpc_index = deref(uuid_dict_it).first
+                device_uuid = uuid.UUID(deref(uuid_dict_it).second.to_string(device_buffer))
+                master_row.uuid_dict[rpc_index] = device_uuid
+
+                postincrement(uuid_dict_it)
+
+            result[master_uuid] = master_row
+
+            postincrement(it)
+
+        return result
 
 cdef _internal_set_cache_variable_(rpc_interface_cache o, hsm_cache.hsm_cache *c_cache_object):
     o.c_cache_object = c_cache_object

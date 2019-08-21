@@ -56,10 +56,6 @@ from cryptech.cryptech_port import DKS_RPCFunc, DKS_HALKeyType, DKS_HALKeyFlag, 
 from cryptech.tcpserver import TCPServer
 from cryptech.backup import b64, b64join, SoftKEKEK
 
-from hsm_cache_db.alpha import CacheTableAlpha, AlphaCacheRow
-from hsm_cache_db.master import CacheTableMaster, MasterKeyListRow
-from hsm_cache_db.cache import CacheDB
-
 from settings import HSMSettings
 
 from hsm_tools.rpc_action import RPCAction
