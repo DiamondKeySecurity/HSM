@@ -14,16 +14,34 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, If not, see <https://www.gnu.org/licenses/>.
 
-class rpc_path_object(object):
-    def __init__(self, num_rpc_devices, cache_folder):
-        # start the cache
-        self.cache =  rpc_internal_cache(num_rpc_devices, cache_folder=cache_folder)
+#cimport rpc_interface_cache
 
+cdef class rpc_path_object(object):
+    cdef hsm_cache.hsm_cache *c_cache_object
+    cdef object cache
+    cdef object rpc_preprocessor
+    cdef object rpc_server
+    cdef object rpc_secondary_listener
+    cdef object synchronizer
+    cdef object tamper
+
+    def __init__(self, num_rpc_devices, cache_folder):
         self.rpc_preprocessor = None
         self.rpc_server = None
         self.rpc_secondary_listener = None
         self.synchronizer = None
         self.tamper = None
+
+        self.cache = rpc_interface_cache()
+        _internal_set_cache_variable_(self.cache, self.c_cache_object)
+
+    def __cinit__(self, int num_rpc_devices, bytes cache_folder):
+        # start the cache
+        self.c_cache_object = new hsm_cache.hsm_cache(num_rpc_devices, cache_folder)
+
+    def __dealloc__(self):
+        print "deleting cache"
+        del self.c_cache_object
 
     def create_rpc_objects(self, rpc_list, settings, netiface, futures, ssl_options, RPC_IP_PORT):
         # start the load balancer

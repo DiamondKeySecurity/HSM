@@ -22,18 +22,12 @@ from libcpp.string cimport string as stringcpp
 
 from c_uuids cimport uuid_t
 
-cdef class rpc_internal_cache(object):
+cdef class rpc_interface_cache:
     cdef hsm_cache.hsm_cache *c_cache_object
 
     """ Root cache object that uses dictionaries to store key information"""
-    def __cinit__(self, int rpc_count, bytes cache_folder):
-        self.c_cache_object = new hsm_cache.hsm_cache(rpc_count, cache_folder)
-
-    def __dealloc__(self):
-        del self.c_cache_object
-
-    cdef hsm_cache.hsm_cache *get_c_object(self):
-        return self.c_cache_object
+    cdef void set_internal(self, hsm_cache.hsm_cache *cache_object):
+        self.c_cache_object = cache_object
 
     def initialize_cache(self):
         deref(self.c_cache_object).initialize_cache()
@@ -136,32 +130,5 @@ cdef class rpc_internal_cache(object):
 
         return rval
 
-
-class rpc_interface_cache(object):
-    """ "Pure" Python interface to the cache object"""
-    def __init__(self, cache_object):
-        self.cache_object = cache_object
-
-    def is_initialized(self):
-        return self.cache_object.is_initialized()
-
-    def clear(self):
-        self.cache_object.clear()
-
-    def get_device_count(self):
-        return self.cache_object.get_device_count()
-
-    def get_key_count(self, device_index):
-        return self.cache_object.get_key_count(device_index)
-
-    def backup_matching_map(self):
-        self.cache_object.backup_matching_map()
-
-    def backup_tables(self):
-        self.cache_object.backup_tables()
-
-    def backup(self):
-        self.cache_object.backup()
-
-    def getVerboseMapping(self):
-        return self.cache_object.getVerboseMapping()
+cdef _internal_set_cache_variable_(rpc_interface_cache o, hsm_cache.hsm_cache *c_cache_object):
+    o.c_cache_object = c_cache_object
