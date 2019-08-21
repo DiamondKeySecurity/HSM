@@ -129,6 +129,25 @@ uuids::uuid_t hsm_cache::add_key_to_device(int device_index, uuids::uuid_t devic
 	return masterListID;
 }
 
+bool hsm_cache::remove_key_from_device_only(int device_index, uuids::uuid_t device_uuid)
+{
+	uuids::uuid_t master_uuid = get_master_uuid(device_index, device_uuid);
+
+	if (master_uuid != uuids::uuid_none)
+	{
+		std::map<int, uuids::uuid_t> device_uuids;
+
+		remove_key_from_device(master_uuid, device_uuids);
+
+		return true;
+	}
+
+	// updates to the mapping must be made right away
+	backup_matching_map();
+
+	return false;
+}
+
 // removes an entry from all tables based on the master uuid and returns the associated device uuids
 void hsm_cache::remove_key_from_device(uuids::uuid_t master_uuid, std::map<int, uuids::uuid_t> &device_uuids)
 {

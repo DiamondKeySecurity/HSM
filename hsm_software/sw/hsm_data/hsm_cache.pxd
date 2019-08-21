@@ -35,6 +35,7 @@ cdef extern from "c_code/_hsm_cache.h" namespace "advanced_cache":
         int get_master_uuid_lowest_index(uuid_t master_uuid)
         uuid_t add_key_to_device(int device_index, uuid_t device_uuid, unsigned int keytype, unsigned int flags, uuid_t param_masterListID, bint auto_backup)
         void remove_key_from_device(uuid_t master_uuid, map[int, uuid_t] &device_uuids)
+        bint remove_key_from_device_only(int device_index, uuid_t device_uuid)
         bint get_device_lowest_index(uuid_t master_uuid, pair[int, uuid_t] &result)
         void get_devices(uuid_t master_uuid, map[int, uuid_t] &results)
         void clear()

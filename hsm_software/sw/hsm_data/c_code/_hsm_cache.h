@@ -88,6 +88,8 @@ class hsm_cache
 		uuids::uuid_t add_key_to_device(int device_index, uuids::uuid_t device_uuid, unsigned int keytype,
 			unsigned int flags, uuids::uuid_t param_masterListID, bool auto_backup);
 
+		bool remove_key_from_device_only(int device_index, uuids::uuid_t device_uuid);
+
 		// removes an entry from all tables based on the master uuid and returns the associated device uuids
 		void remove_key_from_device(uuids::uuid_t master_uuid, std::map<int, uuids::uuid_t> &device_uuids);
 

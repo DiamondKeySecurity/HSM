@@ -76,6 +76,12 @@ cdef class rpc_interface_cache:
         # return as Python
         return UUID(hex = master_uuid.to_string(buffer))
 
+    def remove_key_from_alpha(self, int rpc_index, uuid):
+        cdef uuid_t c_uuid
+        if (uuid is not None):
+            c_uuid.fromBytes(uuid.bytes)
+            deref(self.c_cache_object).remove_key_from_device_only(rpc_index, c_uuid)
+
     def get_alpha_lowest_index(self, master_uuid):
         cdef uuid_t c_master_uuid
         cdef pair[int, uuid_t] result
