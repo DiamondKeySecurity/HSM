@@ -48,9 +48,9 @@ from enum import IntEnum
 # cryptech_muxd has been renamed to cryptech/muxd.py
 import cryptech.muxd
 from cryptech.muxd import logger
-from cryptech.hsm import CrypTechDeviceState, PFUNIX_HSM
+from cryptech.hsm import CrypTechDeviceState
 from cryptech.libhal import *
-from cryptech.cryptech_port import DKS_RPCFunc, DKS_HALKeyType, DKS_HALKeyFlag, DKS_HALError, DKS_HALUser, DKS_HALError
+from cryptech.cryptech_port import DKS_RPCFunc, DKS_HALKeyType, DKS_HALKeyFlag, DKS_HALError, DKS_HALUser, DKS_HALError, DKS_HSM
 from cryptech.tcpserver import TCPServer
 from cryptech.backup import b64, b64join, SoftKEKEK
 
@@ -71,6 +71,8 @@ from cryptech.cryptech_port import DKS_HALUser, DKS_RPCFunc, DKS_HALError, DKS_H
 cimport c_uuids
 cimport hsm_cache
 cimport table_rows
+
+include "pfunix_hsm.pxi"
 
 include "rpc_tcp_server.pxi"
 

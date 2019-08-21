@@ -42,8 +42,11 @@ def makeDictValuesB64(input):
     else:
         return b64(input)
 
-class Synchronizer(PFUNIX_HSM):
+cdef class Synchronizer(PFUNIX_HSM):
     """Class for providing mirroring services to an HSM"""
+    cdef bint __initialized__
+    cdef object cache
+    cdef object command_queue
 
     def __init__(self, sockname, cache):
         """
@@ -52,7 +55,10 @@ class Synchronizer(PFUNIX_HSM):
         self.__initialized__ = False
         self.cache = cache
         self.command_queue = Queue()
-        self.sync_init_success = "Internal Synchronizer Initialized"
+
+    @property
+    def sync_init_success(self):
+        return "Internal Synchronizer Initialized"
 
     def cache_initialized(self):
         return self.cache.is_initialized()

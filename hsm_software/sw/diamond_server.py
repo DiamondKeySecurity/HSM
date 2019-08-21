@@ -322,7 +322,7 @@ def main():
     if(len(cty_list) > 0 and len(rpc_list) > 0):
         # Synchronizer -----------------------------------
         # connect to the secondary socket for mirroring
-        rpc_path.create_synchronizer(args.rpc_socket, futures)
+        rpc_path.create_synchronizer(args.rpc_socket)
 
         # Tamper -----------------------------------------
         # initialize the tamper system
@@ -332,7 +332,7 @@ def main():
             if(led_container is not None):
                 tamper_listener_list.append(led_container.on_tamper_notify)
 
-            rpc_path.create_rpc_tamper(len(rpc_list), args.rpc_socket, futures, tamper_listener_list)
+            rpc_path.create_rpc_tamper(len(rpc_list), args.rpc_socket, tamper_listener_list)
 
     # make sure the rpc path can shutdown properly
     safe_shutdown.addOnShutdown(rpc_path.stop)

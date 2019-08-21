@@ -37,11 +37,16 @@ cdef class rpc_path_object(object):
 
     def __cinit__(self, int num_rpc_devices, bytes cache_folder):
         # start the cache
+        print "creating cache"
         self.c_cache_object = new hsm_cache.hsm_cache(num_rpc_devices, cache_folder)
 
     def __dealloc__(self):
+        self.cleanup()
+
+    def cleanup(self):
         print "deleting cache"
         del self.c_cache_object
+        self.c_cache_object = NULL
 
     def create_rpc_objects(self, rpc_list, settings, netiface, futures, ssl_options, RPC_IP_PORT):
         # start the load balancer
@@ -57,13 +62,13 @@ cdef class rpc_path_object(object):
                                                               internal_rpc_socket,
                                                               internal_rpc_socket_mode)
 
-    def create_synchronizer(self, internal_rpc_socket, futures):
+    def create_synchronizer(self, internal_rpc_socket):
         self.synchronizer = Synchronizer(internal_rpc_socket, self.cache)
 
         # start the mirrorer
-        self.synchronizer.append_future(futures)
+        self.synchronizer.start()
 
-    def create_rpc_tamper(self, num_rpc_devices, internal_rpc_socket, futures, tamper_listener_list):
+    def create_rpc_tamper(self, num_rpc_devices, internal_rpc_socket, tamper_listener_list):
         self.tamper = TamperDetector(internal_rpc_socket, num_rpc_devices)
 
         # add basic tamper detection
@@ -74,7 +79,7 @@ cdef class rpc_path_object(object):
             self.tamper.add_observer(listener)
 
         # start the listener
-        self.tamper.append_future(futures)
+        self.tamper.start()
 
     def get_interface_cache(self):
         if (self.cache is None): return None
@@ -97,3 +102,5 @@ cdef class rpc_path_object(object):
             self.tamper.stop()
         if(self.synchronizer != None):
             self.synchronizer.stop()
+
+        self.cleanup()
