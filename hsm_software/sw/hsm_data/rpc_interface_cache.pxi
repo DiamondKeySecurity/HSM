@@ -28,9 +28,6 @@ cdef class rpc_interface_cache:
     cdef hsm_cache.hsm_cache *c_cache_object
 
     """ Root cache object that uses dictionaries to store key information"""
-    cdef void set_internal(self, hsm_cache.hsm_cache *cache_object):
-        self.c_cache_object = cache_object
-
     def initialize_cache(self):
         deref(self.c_cache_object).initialize_cache()
 

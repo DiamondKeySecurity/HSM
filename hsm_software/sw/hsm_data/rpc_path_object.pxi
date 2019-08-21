@@ -82,8 +82,7 @@ cdef class rpc_path_object(object):
         self.tamper.start()
 
     def get_interface_cache(self):
-        if (self.cache is None): return None
-        return rpc_interface_cache(self.cache)
+        return self.cache
 
     def get_interface_handling(self):
         if (self.rpc_preprocessor is None): return None

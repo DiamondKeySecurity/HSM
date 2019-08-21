@@ -24,6 +24,8 @@
 #include <atomic>
 #include "_uuid.hpp"
 
+#include <iostream>
+
 namespace advanced_cache
 {
 
