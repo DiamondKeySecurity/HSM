@@ -34,6 +34,10 @@ cdef class rpc_interface_cache:
     def initialize_cache(self):
         deref(self.c_cache_object).initialize_cache()
 
+    def get_cache_folder(self):
+        cdef bytes folder = deref(self.c_cache_object).get_cache_folder()
+        return folder
+
     def is_initialized(self):
         return deref(self.c_cache_object).is_initialized()
 
