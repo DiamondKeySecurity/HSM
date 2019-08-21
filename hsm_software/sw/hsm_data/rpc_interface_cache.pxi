@@ -56,7 +56,7 @@ cdef class rpc_interface_cache:
 
         result = deref(self.c_cache_object).get_master_uuid(device_index, c_device_uuid)
 
-        return uuid.UUID(hex = result.to_string(buffer))
+        return UUID(hex = result.to_string(buffer))
 
     def get_master_uuid_lowest_index(self, master_uuid):
         cdef uuid_t c_master_uuid
@@ -67,12 +67,17 @@ cdef class rpc_interface_cache:
     def add_key_to_alpha(self, rpc_index, uuid, keytype = 0, flags = 0, param_masterListID = None, auto_backup = True):
         cdef uuid_t c_uuid
         cdef uuid_t c_param_masterListID
+        cdef uuid_t master_uuid
+        cdef char buffer[40]
         if (uuid is not None):
             c_uuid.fromBytes(uuid.bytes)
         if (param_masterListID is not None):
             c_param_masterListID.fromBytes(param_masterListID.bytes)
 
-        deref(self.c_cache_object).add_key_to_device(rpc_index, c_uuid, keytype, flags, c_param_masterListID, auto_backup)
+        master_uuid = deref(self.c_cache_object).add_key_to_device(rpc_index, c_uuid, keytype, flags, c_param_masterListID, auto_backup)
+
+        # return as Python
+        return UUID(hex = master_uuid.to_string(buffer))
 
     def get_alpha_lowest_index(self, master_uuid):
         cdef uuid_t c_master_uuid
@@ -104,7 +109,7 @@ cdef class rpc_interface_cache:
         if (results.size() > 0):
             it = results.begin()
             while (it != results.end()):
-                rval[deref(it).first] = uuid.UUID(hex = deref(it).second.to_string(buffer))
+                rval[deref(it).first] = UUID(hex = deref(it).second.to_string(buffer))
 
                 postincrement(it)
 
@@ -152,8 +157,8 @@ cdef class rpc_interface_cache:
         # convert to Python
         it = rows.begin()
         while (it != rows.end()):
-            device_uuid = uuid.UUID(deref(it).first.to_string(device_buffer))
-            master_uuid = uuid.UUID(deref(it).second.masterListID.to_string(device_buffer))
+            device_uuid = UUID(deref(it).first.to_string(device_buffer))
+            master_uuid = UUID(deref(it).second.masterListID.to_string(device_buffer))
 
             result[device_uuid] = master_uuid
             postincrement(it)
@@ -175,13 +180,13 @@ cdef class rpc_interface_cache:
         # convert to Python
         it = rows.begin()
         while (it != rows.end()):
-            master_uuid = uuid.UUID(deref(it).first.to_string(device_buffer))
+            master_uuid = UUID(deref(it).first.to_string(device_buffer))
             master_row = MasterTableRow(deref(it).second.keytype, deref(it).second.flags)
 
             uuid_dict_it = deref(it).second.uuid_dict.begin()
             while (uuid_dict_it != deref(it).second.uuid_dict.end()):
                 rpc_index = deref(uuid_dict_it).first
-                device_uuid = uuid.UUID(deref(uuid_dict_it).second.to_string(device_buffer))
+                device_uuid = UUID(deref(uuid_dict_it).second.to_string(device_buffer))
                 master_row.uuid_dict[rpc_index] = device_uuid
 
                 postincrement(uuid_dict_it)
