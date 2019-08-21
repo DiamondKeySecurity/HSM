@@ -14,7 +14,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, If not, see <https://www.gnu.org/licenses/>.
 
-from cython.operator cimport dereference as deref
 from libcpp.map cimport map as mapcpp
 from libcpp.pair cimport pair
 from libcpp.vector cimport vector
@@ -99,6 +98,8 @@ cdef class rpc_interface_cache:
             it = results.begin()
             while (it != results.end()):
                 rval[deref(it).first] = uuid.UUID(hex = deref(it).second.to_string(buffer))
+
+                postincrement(it)
 
         return rval
 

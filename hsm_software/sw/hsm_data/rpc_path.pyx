@@ -44,6 +44,8 @@ from Queue import Queue
 import enum
 from enum import IntEnum
 
+from cython.operator cimport dereference as deref, postincrement
+
 # import classes from the original cryptech.muxd
 # cryptech_muxd has been renamed to cryptech/muxd.py
 import cryptech.muxd

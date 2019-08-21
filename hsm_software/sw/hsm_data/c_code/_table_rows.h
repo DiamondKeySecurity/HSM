@@ -76,6 +76,11 @@ struct master_table_row
 		uuid_dict.insert(std::pair<int, uuids::uuid_t>(key_rpc_index, key_uuid));
 	}
 
+	bool containsRPCRef(int rpc_index) const
+	{
+		return uuid_dict.find() != uuid_dict.end()
+	}
+
 	operator std::string() const
 	{
 		std::string uuid_list_str;

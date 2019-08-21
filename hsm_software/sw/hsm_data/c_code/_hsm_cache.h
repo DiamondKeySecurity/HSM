@@ -30,6 +30,11 @@ class hsm_cache
 	public:
 		hsm_cache(int rpc_count, const char *cache_folder);
 
+		const char *get_cache_folder() const
+		{
+			return cache_folder.c_str();
+		}
+
 		// set the cache initialized variable
 		void initialize_cache()
 		{

@@ -24,6 +24,7 @@ from libcpp.string cimport string
 cdef extern from "c_code/_hsm_cache.h" namespace "advanced_cache":
     cdef cppclass hsm_cache:
         hsm_cache(int rpc_count, const char *cache_folder)
+        const char *get_cache_folder() const
         void initialize_cache()
         bint is_initialized() const
         int get_device_count() const
