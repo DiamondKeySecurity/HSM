@@ -14,8 +14,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, If not, see <https://www.gnu.org/licenses/>.
 
-#cimport rpc_interface_cache
-
 cdef class rpc_path_object(object):
     cdef hsm_cache.hsm_cache *c_cache_object
     cdef rpc_internal_handling rpc_preprocessor

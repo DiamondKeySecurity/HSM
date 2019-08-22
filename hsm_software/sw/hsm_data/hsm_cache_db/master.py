@@ -20,8 +20,6 @@ import enum
 import os
 import uuid
 
-from cache import CacheTable
-
 from cryptech.muxd import logger
 
 class MasterTableRow(object):
@@ -58,59 +56,3 @@ class MasterTableRow(object):
             result = '{}'
 
         return result
-
-class CacheTableMaster(CacheTable):
-    """Uses a dictionary to hold table data for keys on the HSM
-    key    - the uuid of the key in the alpha
-    record - MasterKeyListRow
-    """
-    def __init__(self, cacheDB):
-        self.lock = threading.Lock()
-        super(CacheTableMaster, self).__init__(cacheDB)
-
-    def get_table(self):
-        return self.cacheDB.get_masterTable()
-
-    def check_record_type(self, record):
-        return isinstance(record, MasterKeyListRow)
-
-    def add_row(self, key, record):
-        if (key is None):
-            key = uuid.uuid4()
-        return super(CacheTableMaster, self).add_row(key, record)
-
-    def delete_row(self, key):
-        super(CacheTableMaster, self).delete_row(key)
-
-    def save_mapping(self, fname):
-        """
-        Saves mapping as a JSON dictionary,
-        Key   - device uuid
-        Value - master uuid
-
-        Values will duplicate. Keys will not.
-        """
-        rows = self.get_rows()
-        num_rows = len(rows)
-        row_num = 0
-
-        with open(fname, "w") as fh:
-            fh.write('{')
-            for key, row in rows.iteritems():
-                uuid_count = len(row.uuid_dict)
-                uuid_index = 0
-                for uuid in row.uuid_dict.itervalues():
-                    fh.write('\n  "%s": "%s"'%(uuid, key))
-
-                    # do we need a comma
-                    uuid_index += 1
-                    if(uuid_index < uuid_count):
-                        fh.write(',')
-
-                # do we need a comma
-                row_num += 1
-                if(row_num < num_rows):
-                    fh.write(',')
-
-            fh.write('\n}')
-            fh.truncate()

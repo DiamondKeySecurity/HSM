@@ -82,7 +82,6 @@ include "rpc_tcp_server.pxi"
 include "rpc_interface_cache.pxi"
 
 include "rpc_builder.pxi"
-include "load_distribution.pxi"
 include "rpc_interface_handling.pxi"
 include "rpc_handling.pxi"
 
