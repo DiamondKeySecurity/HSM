@@ -17,6 +17,18 @@
 import json
 import os
 
+def byteify(input):
+    """Converts unicode(2 byte) values stored in a dictionary or string to utf-8"""
+    if isinstance(input, dict):
+        return {byteify(key): byteify(value)
+                for key, value in input.iteritems()}
+    elif isinstance(input, list):
+        return [byteify(element) for element in input]
+    elif isinstance(input, unicode):
+        return input.encode('utf-8')
+    else:
+        return input
+
 class TamperConfiguration(object):
     """Database for storing tamper settings between saves"""
     def __init__(self, dbpath, detector):
@@ -26,6 +38,7 @@ class TamperConfiguration(object):
 
     def update_setting(self, name, command, values):
         self.settings[name] = (command, values)
+        self.save_settings()
 
     def save_settings(self):
         try:
@@ -37,7 +50,7 @@ class TamperConfiguration(object):
     def load_saved_settings(self):
         try:
             with open(self.dbpath, "rt") as fp:
-                self.settings = json.load(fp)
+                self.settings = byteify(json.load(fp))
         except:
             pass
 
@@ -48,9 +61,9 @@ class TamperConfiguration(object):
             cmd_string = self.get_command_string(command)
 
             if (cmd_string is not None):
-                console_connect.send_raw(cmd_string, 5)
+                console_connect.send_raw_all(cmd_string, 5)
 
-        console_connect.send_raw("tamper set config", 5)
+        console_connect.send_raw_all("tamper set config", 5)
 
         if (self.detector is not None):
             self.detector.enable()
@@ -71,7 +84,7 @@ class TamperConfiguration(object):
 
 if __name__ == "__main__":
     class connect(object):
-        def send_raw(self, cmd, _):
+        def send_raw_all(self, cmd, _):
             print " > %s"%cmd
 
     tamper = TamperConfiguration("/home/douglas/Documents", None)

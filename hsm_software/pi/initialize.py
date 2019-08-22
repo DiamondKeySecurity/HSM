@@ -24,19 +24,22 @@ import subprocess
 
 # version of the files included in this package
 firewall_version = '2019-02-26-01'
-hsm_startup_version = '2019-03-11-01'
-system_init_version = '2019-02-26-01'
+hsm_startup_version = '2019-08-06-03'
+system_init_version = '2019-08-06-01'
+watchdog_led_version = '2019-08-07-01'
 
 # set all the paths we might need
 firewall_path = '/usr/bin/dkey-pi.firewall.sh'
 hsm_startup_path = '/usr/bin/hsm_startup.py'
 system_init_path = '/usr/bin/system_init.py'
+watchdog_led_path = '/usr/bin/watchdog.py'
 
 resource_path = "%s/resources"%os.path.dirname(os.path.realpath(__file__))
 
 firewall_resource_path = '%s/dkey-pi.firewall.sh'%resource_path
 hsm_startup_resource_path = '%s/hsm_startup.py'%resource_path
 system_init_resource_path = '%s/system_init.py'%resource_path
+watchdog_led_resource_path = '%s/watchdog.py'%resource_path
 
 def get_file_version(path):
     """scans a file to get the version"""
@@ -76,8 +79,9 @@ print "Performing after update initialization."
 firewall_update_needed = update_needed(firewall_path, firewall_version)
 startup_update_needed = update_needed(hsm_startup_path, hsm_startup_version)
 system_update_needed = update_needed(system_init_path, system_init_version)
+watchdog_update_needed = update_needed(watchdog_led_path, watchdog_led_version)
 
-if(firewall_update_needed or startup_update_needed or system_update_needed):
+if(firewall_update_needed or startup_update_needed or system_update_needed or watchdog_update_needed):
     # make the system read/write
     os.system("mount -o remount,rw /")
 
@@ -85,6 +89,7 @@ if(firewall_update_needed or startup_update_needed or system_update_needed):
     copyfile(firewall_resource_path, firewall_path, firewall_update_needed)
     copyfile(hsm_startup_resource_path, hsm_startup_path, startup_update_needed)
     copyfile(system_init_resource_path, system_init_path, system_update_needed)
+    copyfile(watchdog_led_resource_path, watchdog_led_path, watchdog_update_needed)
 
     # make the system read-only
     os.system("mount -o remount,ro /")

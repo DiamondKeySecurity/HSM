@@ -1,8 +1,1 @@
-*.c
-*.cpp
-*.so
 build/
-.fuse*
-!c_code/*.cpp
-!c_code/*.c
-

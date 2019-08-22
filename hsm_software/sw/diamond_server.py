@@ -63,18 +63,16 @@ import tornado.ioloop
 
 # import classes from the original cryptech.muxd
 # cryptech_muxd has been renamed to cryptech/muxd.py
-from hsm_tools.cryptech import muxd
+from cryptech import muxd
 
 from zero_conf import HSMZeroConfSetup
 
-from hsm_tools.probing import ProbeMultiIOStream
-from hsm_tools.tcpserver import RPCTCPServer, CTYTCPServer, \
-                                SecondaryPFUnixListener
+from cryptech.probing import ProbeMultiIOStream
+from hsm_mgmt.cty_tcp_server import CTYTCPServer
 
-from diamondhsm_console import DiamondHSMConsole
+from hsm_mgmt.diamondhsm_console import DiamondHSMConsole
 
-from cache import HSMCache
-from rpc_handling import RPCPreprocessor
+from hsm_data.rpc_path import rpc_path_object
 
 from ipconfig import NetworkInterfaces
 from settings import Settings, RPC_IP_PORT, CTY_IP_PORT, HSMSettings, HSM_SOFTWARE_VERSION
@@ -87,32 +85,19 @@ except Exception:
 
 from safe_shutdown import SafeShutdown
 
-from sync import Synchronizer
-
 from security import HSMSecurity
-
-from tamper import TamperDetector
 
 import accounts.db
 
-synchronizer = None
+rpc_path = None
 safe_shutdown = None
-tamper = None
 ssh_cty_server = None
-
 
 def start_leds(use_leds):
     if (use_leds is True):
         from led import LEDContainer
 
         leds = LEDContainer()
-
-        leds.system_led.set_yellow()
-        leds.system_led.on()
-
-        leds.tamper_led.set_yellow()
-        leds.tamper_led.on()
-
         return leds
     else:
         return None
@@ -231,7 +216,9 @@ def main():
 
 
     # LEDs -------------------------------------------
-    led_container = start_leds(settings.get_setting(HSMSettings.GPIO_LEDS))
+    led_container = start_leds(True)# settings.get_setting(HSMSettings.GPIO_LEDS))
+    if (led_container is not None):
+        safe_shutdown.addOnShutdown(led_container.led_off)
 
     # Make sure the certs exist ----------------------
     HSMSecurity().create_certs_if_not_exist(private_key_name=args.keyfile,
@@ -256,6 +243,8 @@ def main():
     if args.verbose:
         level = logging.DEBUG if args.verbose > 1 else logging.INFO
         logging.getLogger().setLevel(level)
+    else:
+        logging.getLogger().setLevel(logging.WARNING)
 
     # network interface ------------------------------
     if(led_container is not None):
@@ -314,10 +303,6 @@ def main():
     ssl_options = {"certfile": args.certfile,
                    "keyfile": args.keyfile}
 
-    rpc_preprocessor = None
-
-    cache = None
-
     # Get ready to start servers ----------------------------------------
     if(led_container is not None):
         led_container.led_start_tcp_servers()
@@ -329,65 +314,47 @@ def main():
     # db with domain information
     db = accounts.db.DBContext(dbpath=args.cache_save)
 
-    # start the cache
-    cache = HSMCache(len(rpc_list), cache_folder=args.cache_save)
-    safe_shutdown.addOnShutdown(cache.backup)
-
-    # start the load balancer
-    rpc_preprocessor = RPCPreprocessor(rpc_list, cache, settings, netiface)
-    # Listen for incoming TCP/IP connections from remove cryptech.muxd_client
-    rpc_server = RPCTCPServer(rpc_preprocessor, RPC_IP_PORT, ssl_options)
-    # set the futures for all of our devices
-    rpc_preprocessor.append_futures(futures)
-
-    # create a secondary listener to handle PF_UNIX request from subprocesses
-    rpc_secondary_listener = SecondaryPFUnixListener(rpc_server,
-                                                     args.rpc_socket,
-                                                     args.rpc_socket_mode)
-
-    # Tamper -----------------------------------------
-    # pull global tamper variable
-    global tamper
+    # create a path for all RPC request
+    global rpc_path
+    rpc_path = rpc_path_object(len(rpc_list), cache_folder=args.cache_save)
+    rpc_path.create_rpc_objects(rpc_list, settings, netiface, ssl_options, RPC_IP_PORT)
+    rpc_path.create_internal_listener(args.rpc_socket, args.rpc_socket_mode)
 
     # only start synchronizer if we have connected RPC and CTYs
     if(len(cty_list) > 0 and len(rpc_list) > 0):
         # Synchronizer -----------------------------------
         # connect to the secondary socket for mirroring
-        global synchronizer
-        synchronizer = Synchronizer(args.rpc_socket, cache)
-
-        # start the mirrorer
-        synchronizer.append_future(futures)
+        rpc_path.create_synchronizer(args.rpc_socket)
 
         # Tamper -----------------------------------------
         # initialize the tamper system
         if(settings.get_setting(HSMSettings.DATAPORT_TAMPER)):
-            tamper = TamperDetector(args.rpc_socket, len(rpc_list))
-
-            safe_shutdown.addOnShutdown(tamper.stop)
+            tamper_listener_list = []
 
             if(led_container is not None):
-                tamper.add_observer(led_container.on_tamper_notify)
+                tamper_listener_list.append(led_container.on_tamper_notify)
 
-            if (rpc_preprocessor is not None):
-                tamper.add_observer(rpc_preprocessor.on_tamper_event)
+            rpc_path.create_rpc_tamper(len(rpc_list), args.rpc_socket, tamper_listener_list)
 
-            # start the listener
-            tamper.append_future(futures)
+    # make sure the rpc path can shutdown properly
+    safe_shutdown.addOnShutdown(rpc_path.stop)
+    
+    rpc_preprocessor = rpc_path.get_interface_handling()
+    rpc_preprocessor.append_futures(futures)
 
     # start the console
     # holy, large number of parameters Batman!!!
     cty_stream = DiamondHSMConsole(args = args,
                                    cty_list = cty_list,
                                    rpc_preprocessor = rpc_preprocessor,
-                                   synchronizer = synchronizer,
-                                   cache = cache,
+                                   synchronizer = rpc_path.get_interface_sync(),
+                                   cache_viewer = rpc_path.get_interface_cache(),
                                    netiface = netiface,
                                    settings = settings,
                                    safe_shutdown = safe_shutdown,
                                    led = led_container,
                                    zero_conf_object = my_zero_conf,
-                                   tamper = tamper)
+                                   tamper = rpc_path.get_interface_tamper())
 
     # Listen for incoming TCP/IP connections from remove cryptech.muxd_client
     cty_server = CTYTCPServer(cty_stream, port=CTY_IP_PORT, ssl=ssl_options)
@@ -438,7 +405,7 @@ def main():
             try:
                 result = yield wait_iterator.next()
             except Exception as e:
-                muxd.logger.info("Error {} from {}".format(e,
+                muxd.logger.exception("Error {} from {}".format(e,
                                  wait_iterator.current_future))
             else:
                 muxd.logger.info("Result {} received from {} at {}".format(
@@ -452,10 +419,6 @@ if __name__ == "__main__":
     except (SystemExit, KeyboardInterrupt):
         if(ssh_cty_server is not None):
             ssh_cty_server.stop()
-        if(synchronizer is not None):
-            synchronizer.stop()
-        if(tamper is not None):
-            tamper.stop()
         if (safe_shutdown is not None):
             safe_shutdown.prepareForShutdown()
     except Exception:

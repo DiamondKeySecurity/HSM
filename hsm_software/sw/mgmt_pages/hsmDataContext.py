@@ -14,7 +14,7 @@
 # along with this program; if not, If not, see <https://www.gnu.org/licenses/>.
 
 
-from hsm_tools.cryptech_port import DKS_HSM
+from cryptech.cryptech_port import DKS_HSM
 
 class HSMDataContext(object):
     def connect(self, socket = "/var/tmp/.cryptech_muxd.rpc"):

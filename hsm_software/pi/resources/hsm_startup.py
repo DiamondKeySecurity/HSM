@@ -13,7 +13,7 @@
 # 
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, If not, see <https://www.gnu.org/licenses/>.
-#VERSION 2019-03-11-01
+#VERSION 2019-08-06-03
 
 import os
 import shutil
@@ -52,7 +52,6 @@ class HSM(object):
                 return fp.readline().rstrip("\r\n")
         except:
             return '10000000'
-
 
     def start_main_program(self):
         # get the arguments
@@ -112,6 +111,10 @@ class HSM(object):
 
             # delete uploaded files
             shutil.rmtree(folder)
+
+            # build Cython
+            os.chdir(self.software_dir)
+            os.system("/usr/bin/python cython_setup.py build_ext --inplace")
         else:
             # just delete the restart file
             os.remove(self.restart_file)

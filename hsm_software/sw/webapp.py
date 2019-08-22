@@ -16,8 +16,6 @@
 import tornado.ioloop
 import tornado.web
 
-from hsm_tools.hsm import PFUNIX_HSM
-from hsm_tools.cryptech_port import DKS_HALError, DKS_RPCFunc
 from mgmt_pages.homeController import homeController
 
 from settings import WEB_PORT
