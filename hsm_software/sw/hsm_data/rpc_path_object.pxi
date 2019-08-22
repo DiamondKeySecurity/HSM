@@ -54,7 +54,7 @@ cdef class rpc_path_object(object):
 
     def create_rpc_objects(self, rpc_list, settings, netiface, ssl_options, RPC_IP_PORT):
         # start the load balancer
-        self.rpc_preprocessor = rpc_internal_handling(rpc_list, settings, self.cache)
+        self.rpc_preprocessor = rpc_internal_handling(rpc_list, settings)
         self.external_rpc_handler = rpc_interface_handling(self.rpc_preprocessor)
 
         _internal_set_cache_variable_rpc_(self.rpc_preprocessor, self.c_cache_object)
