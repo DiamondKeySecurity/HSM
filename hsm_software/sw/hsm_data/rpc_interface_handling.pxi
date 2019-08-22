@@ -22,14 +22,12 @@ cdef class rpc_internal_handling(object):
     cdef bint hsm_locked
     cdef object tamper_detected
     cdef object settings
-    cdef object cache
     
     """ Python interface to the rpc handler"""
-    def __init__(self, rpc_list, settings, cache):
+    def __init__(self, rpc_list, settings):
         self.tamper_detected = ThreadSafeVariable(False)
         self.hsm_locked = False
         self.settings = settings
-        self.cache = cache
 
         cdef vector[string] real_rpc_list
         cdef str rpc
@@ -105,14 +103,16 @@ cdef class rpc_internal_handling(object):
     def is_rpc_locked(self):
         return False
         return ((deref(self.rpc_preprocessor).is_hsm_locked()) or
-                (not self.is_mkm_set) or
-                (not self.cache.is_initialized()))
+                (not self.is_mkm_set))
 
     def create_session(self, int handle, bint from_ethernet, bint enable_exportable_private_keys):
         deref(self.rpc_preprocessor).create_session(handle, from_ethernet, enable_exportable_private_keys)
 
     def delete_session(self, int handle):
         deref(self.rpc_preprocessor).delete_session(handle)
+
+cdef _internal_set_cache_variable_rpc_(rpc_internal_handling o, hsm_cache.hsm_cache *c_cache_object):
+    deref(o.rpc_preprocessor).set_cache_object(c_cache_object)
 
 class rpc_interface_handling(object):
     """ Limitted Python interface to the rpc handler"""

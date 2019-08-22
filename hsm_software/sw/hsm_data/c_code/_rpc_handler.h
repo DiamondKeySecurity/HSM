@@ -24,6 +24,7 @@
 #include "_uuid.hpp"
 #include "libhal/rpc_packet.h"
 #include "libhal/rpc_stream.h"
+#include "_hsm_cache.h"
 
 namespace diamond_hsm
 {
@@ -133,6 +134,9 @@ class rpc_handler
         // sets the current rpc
         void set_current_rpc(int index);
 
+        // sets the cache object
+        void set_cache_object(hsm_cache *c_cache_object);
+
         // processes an incoming packet
         void process_incoming_rpc(libhal::rpc_packet &ipacket, int client, libhal::rpc_packet &opacket);
 
@@ -143,10 +147,7 @@ class rpc_handler
         void delete_session(uint32_t handle);
 
         // is the HSM locked
-        bool is_hsm_locked() const
-        {
-            return hsm_locked;
-        }
+        bool is_hsm_locked() const;
 
     private:
         // processes an incoming packet
@@ -165,6 +166,9 @@ class rpc_handler
         std::mutex session_mutex;
 
         std::atomic_bool hsm_locked;
+
+        // An external program (Python) controls the life of this object
+        hsm_cache *c_cache_object;
 };
 
 }

@@ -16,11 +16,13 @@ from libhal cimport rpc_packet
 from libcpp.vector cimport vector
 from libcpp.string cimport string
 from libc.stdint cimport uint32_t
+from hsm_cache cimport hsm_cache
 
 cdef extern from "c_code/_rpc_handler.h" namespace "diamond_hsm" nogil:
     cdef cppclass rpc_handler:
         rpc_handler()
         void unlock_hsm()
+        void set_cache_object(hsm_cache *c_cache_object)
         int device_count()
         int get_current_rpc()
         void set_current_rpc(int index)

@@ -30,13 +30,25 @@ namespace diamond_hsm
 {
 
 rpc_handler::rpc_handler()
-:hsm_locked(true)
+:hsm_locked(true), c_cache_object(NULL)
 {
+    // FOR DEBUGGINH
+    hsm_locked = false;
+}
+
+void rpc_handler::set_cache_object(hsm_cache *c_cache_object)
+{
+    this->c_cache_object = c_cache_object;
 }
 
 void rpc_handler::unlock_hsm()
 {
     hsm_locked = false;
+}
+
+bool rpc_handler::is_hsm_locked() const
+{
+    return (hsm_locked || c_cache_object == NULL || !c_cache_object->is_initialized());
 }
 
 int rpc_handler::device_count()
