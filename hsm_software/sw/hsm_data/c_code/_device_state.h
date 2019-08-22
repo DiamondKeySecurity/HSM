@@ -85,14 +85,9 @@ class device_state
             return count;
         }
 
-        void inc_busy_count()
+        void inc_busy_count(int amount)
         {
-            count.inc(1);
-        }
-
-        void dec_busy_count()
-        {
-            count.inc(-1);
+            count.inc(amount);
         }
 
         void change_state(CrypTechDeviceState new_state)

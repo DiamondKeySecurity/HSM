@@ -131,13 +131,13 @@ class DKS_RPCFunc(IntEnum):
     RPC_FUNC_CHECK_TAMPER                 = 66
 
     # non-CrypTech RPCs. Handled by the Diamond-HSM
-    RPC_FUNC_GET_HSM_STATE                = 1979
-    RPC_FUNC_GET_IP                       = 1980
-    RPC_FUNC_SET_RPC_DEVICE               = 1981
-    RPC_FUNC_DISABLE_CACHE_KEYGEN         = 1982
-    RPC_FUNC_ENABLE_CACHE_KEYGEN          = 1983
-    RPC_FUNC_USE_INCOMING_DEVICE_UUIDS    = 1984
-    RPC_FUNC_USE_INCOMING_MASTER_UUIDS    = 1985
+    RPC_FUNC_GET_HSM_STATE                = 67
+    RPC_FUNC_GET_IP                       = 68
+    RPC_FUNC_SET_RPC_DEVICE               = 69
+    RPC_FUNC_DISABLE_CACHE_KEYGEN         = 70
+    RPC_FUNC_ENABLE_CACHE_KEYGEN          = 71
+    RPC_FUNC_USE_INCOMING_DEVICE_UUIDS    = 72
+    RPC_FUNC_USE_INCOMING_MASTER_UUIDS    = 73
 
 class DKS_HALDigestAlgorithm(IntEnum):
     HAL_DIGEST_ALGORITHM_NONE       = 0

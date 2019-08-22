@@ -21,10 +21,13 @@
 #include <unordered_map>
 #include <mutex>
 #include <atomic>
+#include <limits>
 #include "_uuid.hpp"
 #include "libhal/rpc_packet.h"
 #include "libhal/rpc_stream.h"
 #include "_hsm_cache.h"
+#include "_device_state.h"
+#include "_rpc_action.h"
 
 namespace diamond_hsm
 {
@@ -114,6 +117,13 @@ class MuxSession
         std::shared_ptr<SafeQueue<libhal::rpc_packet>> myqueue;
 };
 
+class rpc_handler;
+
+typedef rpc_action *(rpc_handler:: *rpc_handler_func)(uint32_t code,
+                                        uint32_t client,
+                                        libhal::rpc_packet &opacket,
+                                        std::shared_ptr<MuxSession>);
+
 class rpc_handler
 {
     public:
@@ -160,7 +170,24 @@ class rpc_handler
 
         int choose_rpc();
 
+        int get_cryptech_device_weight(int device_index)
+        {
+            int weight = -1;
+            if (device_index > 0 && device_index < device_count())
+            {
+                weight = rpc_device_states[device_index].get_busy_factor();
+            }
+
+            if (weight < 0) return large_weight;
+            else return weight;
+        }
+
+        // list of the connected RPC devices
         std::vector<libhal::rpc_serial_stream> rpc_list;
+
+        // parallel array with information on the RPC device states
+        std::vector<device_state> rpc_device_states;
+
         std::unordered_map<uint32_t, std::shared_ptr<MuxSession>> sessions;
 
         std::mutex session_mutex;
@@ -169,6 +196,52 @@ class rpc_handler
 
         // An external program (Python) controls the life of this object
         hsm_cache *c_cache_object;
+
+        // used when selecting any rpc, attempts to evenly
+        // distribute keys across all devices, even when
+        // only one thread is being used
+        int next_any_device;
+        int next_any_device_uses;
+        std::mutex choose_any_thread_lock;
+
+        const int large_weight = std::numeric_limits<int>::max();
+        const int pkey_op_weight = 1;
+        const int pkey_gen_weight = 100;
+
+        // function table for quick calls to rpc handlers
+        rpc_handler_func *function_table;
+
+        // handlers and call backs
+        rpc_action *handle_set_rpc(uint32_t code, uint32_t client, libhal::rpc_packet &opacket, std::shared_ptr<MuxSession>);
+        rpc_action *handle_enable_cache_keygen(uint32_t code, uint32_t client, libhal::rpc_packet &opacket, std::shared_ptr<MuxSession>);
+        rpc_action *handle_disable_cache_keygen(uint32_t code, uint32_t client, libhal::rpc_packet &opacket, std::shared_ptr<MuxSession>);
+        rpc_action *handle_use_incoming_device_uuids(uint32_t code, uint32_t client, libhal::rpc_packet &opacket, std::shared_ptr<MuxSession>);
+        rpc_action *handle_use_incoming_master_uuids(uint32_t code, uint32_t client, libhal::rpc_packet &opacket, std::shared_ptr<MuxSession>);
+        rpc_action *handle_rpc_any(uint32_t code, uint32_t client, libhal::rpc_packet &opacket, std::shared_ptr<MuxSession>);
+        rpc_action *handle_rpc_all(uint32_t code, uint32_t client, libhal::rpc_packet &opacket, std::shared_ptr<MuxSession>);
+        rpc_action *handle_rpc_starthash(uint32_t code, uint32_t client, libhal::rpc_packet &opacket, std::shared_ptr<MuxSession>);
+        rpc_action *handle_rpc_hash(uint32_t code, uint32_t client, libhal::rpc_packet &opacket, std::shared_ptr<MuxSession>);
+        rpc_action *handle_rpc_endhash(uint32_t code, uint32_t client, libhal::rpc_packet &opacket, std::shared_ptr<MuxSession>);
+        rpc_action *handle_rpc_usecurrent(uint32_t code, uint32_t client, libhal::rpc_packet &opacket, std::shared_ptr<MuxSession>);
+        rpc_action *handle_rpc_pkeyexport(uint32_t code, uint32_t client, libhal::rpc_packet &opacket, std::shared_ptr<MuxSession>);
+        rpc_action *handle_rpc_pkeyopen(uint32_t code, uint32_t client, libhal::rpc_packet &opacket, std::shared_ptr<MuxSession>);
+        rpc_action *handle_rpc_pkey(uint32_t code, uint32_t client, libhal::rpc_packet &opacket, std::shared_ptr<MuxSession>);
+        rpc_action *handle_rpc_pkeyload(uint32_t code, uint32_t client, libhal::rpc_packet &opacket, std::shared_ptr<MuxSession>);
+        rpc_action *handle_rpc_pkeyimport(uint32_t code, uint32_t client, libhal::rpc_packet &opacket, std::shared_ptr<MuxSession>);
+        rpc_action *handle_rpc_keygen(uint32_t code, uint32_t client, libhal::rpc_packet &opacket, std::shared_ptr<MuxSession>);
+        rpc_action *handle_rpc_pkeymatch(uint32_t code, uint32_t client, libhal::rpc_packet &opacket, std::shared_ptr<MuxSession>);
+        rpc_action *handle_rpc_getdevice_ip(uint32_t code, uint32_t client, libhal::rpc_packet &opacket, std::shared_ptr<MuxSession>);
+        rpc_action *handle_rpc_getdevice_state(uint32_t code, uint32_t client, libhal::rpc_packet &opacket, std::shared_ptr<MuxSession>);
+
+        rpc_action *callback_rpc_all(std::vector<libhal::rpc_packet> &reply_list);
+        rpc_action *callback_rpc_starthash(std::vector<libhal::rpc_packet> &reply_list);
+        rpc_action *callback_rpc_pkeyopen(std::vector<libhal::rpc_packet> &reply_list);
+        rpc_action *callback_rpc_close_deletekey(std::vector<libhal::rpc_packet> &reply_list);
+        rpc_action *callback_rpc_keygen(std::vector<libhal::rpc_packet> &reply_list);
+        rpc_action *callback_rpc_pkeymatch(std::vector<libhal::rpc_packet> &reply_list);
+
+        void create_function_table();
+
 };
 
 }
