@@ -260,7 +260,6 @@ class rpc_handler
         void handle_rpc_getdevice_state(const uint32_t code, const uint32_t session_client_handle, const libhal::rpc_packet &ipacket,
                                         std::shared_ptr<MuxSession> session, libhal::rpc_packet &opacket);
 
-        void callback_rpc_all(const std::vector<libhal::rpc_packet> &reply_list, libhal::rpc_packet &opacket);
         void callback_rpc_starthash(const std::vector<libhal::rpc_packet> &reply_list, libhal::rpc_packet &opacket);
         void callback_rpc_pkeyopen(const std::vector<libhal::rpc_packet> &reply_list, libhal::rpc_packet &opacket);
         void callback_rpc_close_deletekey(const std::vector<libhal::rpc_packet> &reply_list, libhal::rpc_packet &opacket);

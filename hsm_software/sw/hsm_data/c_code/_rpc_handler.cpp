@@ -179,8 +179,6 @@ void rpc_handler::process_incoming_rpc(const libhal::rpc_packet &ipacket, int cl
     {
         std::shared_ptr<MuxSession> session = (*session_it).second;
 
-        std::shared_ptr<SafeQueue<libhal::rpc_packet>> myqueue = session->myqueue;
-
         int index = (int)code;
         if (index >= first_dks_rpc_index) index += dks_rpc_modifier;
 

@@ -157,166 +157,215 @@ void rpc_handler::handle_use_incoming_master_uuids(const uint32_t code, const ui
                                                    const libhal::rpc_packet &ipacket,
                                                    std::shared_ptr<MuxSession> session,
                                                    libhal::rpc_packet &opacket)
-{ /*
-    // Special DKS RPC to enable using incoming master uuids
-    logger.info("RPC code received %s, handle 0x%x",
-                RPC_FUNC_USE_INCOMING_MASTER_UUIDS.name, client)
+{
+    // Special DKS RPC to enable using incoming device uuids
+    // Special DKS RPC to enable caching of generated keys
+    opacket.create(sizeof(uint32_t) * 3);
+    // code
+    // client
+    // result
+    opacket.encode_int(code);
+    opacket.encode_int(session_client_handle);
 
-    response = xdrlib.Packer()
-    response.pack_uint(code)
-    response.pack_uint(client)
-
-    if (session.from_ethernet):
+    if (session->from_ethernet)
+    {
         // using device uuids can not be set fom
         // an ethernet connection
-        response.pack_uint(DKS_HALError.HAL_ERROR_FORBIDDEN)
-    else:
-        response.pack_uint(DKS_HALError.HAL_OK)
+        opacket.encode_int(HAL_ERROR_FORBIDDEN);
+    }
+    else
+    {
+        opacket.encode_int(HAL_OK);
 
-    unencoded_response = response.get_buffer()
-
-    session.incoming_uuids_are_device_uuids = False
-    print('accepting incoming master uuids')
-
-    return RPCAction(unencoded_response, None, None)
-*/ }
+        session->incoming_uuids_are_device_uuids = false;
+#if DEBUG_LIBHAL
+        std::cout << "accepting incoming master uuids" << std::endl;
+#endif
+    }
+}
 
 void rpc_handler::handle_rpc_any(const uint32_t code, const uint32_t session_client_handle, const libhal::rpc_packet &ipacket,
                                  std::shared_ptr<MuxSession> session, libhal::rpc_packet &opacket)
-{ /*
+{
     // Can run on any available alpha because this is not alpha specific
-    rpc_index = session.rpc_index if(session.rpc_index >= 0) else self.choose_rpc()
+    int rpc_index = (session->rpc_index >= 0) ? session->rpc_index : choose_rpc();
 
-    logger.info("any rpc sent to %i", rpc_index)
+#if DEBUG_LIBHAL
+        std::cout << "any rpc sent to " << rpc_index << std::endl;
+#endif
+    std::shared_ptr<SafeQueue<libhal::rpc_packet>> myqueue = session->myqueue;
 
-    return RPCAction(None, [self.rpc_list[rpc_index]], None)
-*/ }
+    hal_error_t result = sendto_cryptech_device(ipacket, opacket, rpc_index, session_client_handle, code, myqueue);
+    if (result != HAL_OK)
+    {
+        opacket.create_error_response(code, session_client_handle, result);
+    }
+}
 
 void rpc_handler::handle_rpc_all(const uint32_t code, const uint32_t session_client_handle, const libhal::rpc_packet &ipacket,
                                  std::shared_ptr<MuxSession> session, libhal::rpc_packet &opacket)
-{ /*
+{
     // Must run on all alphas to either to keep PINs synchronized
     // or because we don't know which alpha we'll need later
+    int first_rpc = 0, last_rpc = 0;
+
+    std::shared_ptr<SafeQueue<libhal::rpc_packet>> myqueue = session->myqueue;
 
     // if the rpc_index has been set for the session, always use it
-    if(session.rpc_index >= 0):
-        return RPCAction(None, [self.rpc_list[session.rpc_index]], None)
+    if(session->rpc_index >= 0)
+    {
+        first_rpc = last_rpc = session->rpc_index;
+    }
+    else
+    {
+        last_rpc = device_count();
+    }
 
-    rpc_list = self.make_all_rpc_list()
+    uint32_t error_found = HAL_OK;
 
-    return RPCAction(None, rpc_list, self.callback_rpc_all)
-*/ }
+    for (int rpc_index = first_rpc; rpc_index <= last_rpc; ++rpc_index)
+    {
+        hal_error_t result = sendto_cryptech_device(ipacket, opacket, rpc_index, session_client_handle, code, myqueue);
+        if (result != HAL_OK)
+        {
+            error_found = result;
+        }
+        else
+        {
+            uint32_t error;
+            opacket.decode_int_peak_at(&error, 8);
+            if (error != HAL_OK) error_found = error;
+        }
+    }
 
-void rpc_handler::callback_rpc_all(const std::vector<libhal::rpc_packet> &reply_list, libhal::rpc_packet &opacket)
-{ /*
-    code = None
-
-    for reply in reply_list:
-        unpacker = self.get_response_unpacker(reply)
-
-        new_code = unpacker.unpack_int()
-
-        // get the client
-        client = unpacker.unpack_uint()
-
-        if(code is not None and new_code != code):
-            // error, the codes don't match
-            return self.create_error_response(new_code, client, DKS_HALError.HAL_ERROR_RPC_TRANSPORT)
-
-        code = new_code
-
-        status = unpacker.unpack_uint()
-        if(status != 0):
-            // one of the alpha's returned an error so return that error
-            // TODO log error
-            return self.create_error_response(code, client, status)
-
-    // all of the replies are the same so just return the first one
-    return RPCAction(reply_list[0], None, None)
-*/ }
+    // will send the response from the last RPC unless there was an error
+    if (error_found != HAL_OK)
+    {
+        opacket.create_error_response(code, session_client_handle, error_found);
+    }
+}
 
 void rpc_handler::handle_rpc_starthash(const uint32_t code, const uint32_t session_client_handle,
                                        const libhal::rpc_packet &ipacket,
                                        std::shared_ptr<MuxSession> session,
                                        libhal::rpc_packet &opacket)
-{ /*
+{
     // This is the begining of a hash operation. Any RPC can be used.
 
     // select an RPC to use for this hashing operation
-    session.cur_hashing_index = session.rpc_index if(session.rpc_index >= 0) else self.choose_rpc()
+    session->cur_hashing_index = (session->rpc_index >= 0) ? session->rpc_index : choose_rpc();
 
-    logger.info("hashing on RPC: %i", session.cur_hashing_index)
+#if DEBUG_LIBHAL
+        std::cout << "hashing on RPC: " << session->cur_hashing_index << std::endl;
+#endif
+    std::shared_ptr<SafeQueue<libhal::rpc_packet>> myqueue = session->myqueue;
 
-    return RPCAction(None, [self.rpc_list[session.cur_hashing_index]], self.callback_rpc_starthash)
-*/ }
+    hal_error_t result = sendto_cryptech_device(ipacket, opacket, session->cur_hashing_index, session_client_handle, code, myqueue);
+    if (result != HAL_OK)
+    {
+        opacket.create_error_response(code, session_client_handle, result);
+        return;
+    }
 
-void rpc_handler::callback_rpc_starthash(const std::vector<libhal::rpc_packet> &reply_list, libhal::rpc_packet &opacket)
-{ /*
-    unpacker = self.get_response_unpacker(reply_list[0])
+    // process result
+    uint32_t oresult;
+    const uint8_t *ptr = NULL;
 
-    code = unpacker.unpack_uint()
-    client = unpacker.unpack_uint()
+    // consume code
+    opacket.decode_int(&oresult, &ptr);
+    // consume client
+    opacket.decode_int(&oresult, &ptr);
+    // result
+    opacket.decode_int(&oresult, &ptr);
 
-    // hashing only happens on one alpha
-    if(len(reply_list) != 1):
-        logger.info("callback_rpc_starthash: len(reply_list) != 1")
-        return self.create_error_response(code, client, DKS_HALError.HAL_ERROR_RPC_TRANSPORT)
+    if(oresult != HAL_OK)
+    {
+#if DEBUG_LIBHAL
+        std::cout << "callback_rpc_starthash: result != 0" << std::endl;
+#endif
+        // there's already an error so just return it
+        opacket.reset_head();
+        return;
+    }
 
-    result = unpacker.unpack_uint()
-
-    if(code != RPC_FUNC_HASH_INITIALIZE):
-        logger.info("callback_rpc_starthash: code != RPCFunc.RPC_FUNC_HASH_INITIALIZE")
-        return self.create_error_response(code, client, DKS_HALError.HAL_ERROR_RPC_TRANSPORT)
-
-    // get the session
-    session = self.get_session(client)        
-
-    if(result != DKS_HALError.HAL_OK):
-        logger.info("callback_rpc_starthash: result != 0")
-        return self.create_error_response(code, client, result)
-
-    handle = unpacker.unpack_uint()
+    uint32_t handle;
+    opacket.decode_int(&handle, &ptr);
 
     // save the RPC to use for this handle
-    session.hash_rpcs[handle] = session.cur_hashing_index
+    if (session->hash_rpcs.find(handle) == session->hash_rpcs.end())
+    {
+        session->hash_rpcs.insert(std::pair<uint32_t, uint32_t>(handle, session->cur_hashing_index));
+    }
+    else
+    {
+        opacket.create_error_response(code, session_client_handle, HAL_ERROR_RPC_TRANSPORT);
+    }
 
-    return RPCAction(reply_list[0], None, None)
-*/ }
+    opacket.reset_head();
+}
 
 void rpc_handler::handle_rpc_hash(const uint32_t code, const uint32_t session_client_handle, const libhal::rpc_packet &ipacket,
                                  std::shared_ptr<MuxSession> session, libhal::rpc_packet &opacket)
-{ /*
-    // Once a hash has started, we have to continue with it the same RPC
-
+{
+    // Once a hash has started, we have to continue with the same RPC
+    // 0 - code
+    // 4 - client
+    // 8 - handle
     // get the handle of the hash operation
-    handle = unpacker.unpack_uint()
+    uint32_t handle;
+    const size_t handle_index_pos = 8;
+    ipacket.decode_int_peak_at(&handle, handle_index_pos);
 
     // this handle must be a key
-    if(handle not in session.hash_rpcs):
-        logger.info("handle_rpc_hash: handle not in session.hash_rpcs")
-        return self.create_error_response(code, client, DKS_HALError.HAL_ERROR_BAD_ARGUMENTS)
+    if (session->hash_rpcs.find(handle) == session->hash_rpcs.end())
+    {
+#if DEBUG_LIBHAL
+        std::cout << "handle_rpc_hash: handle not in session.hash_rpcs" << std::endl;
+#endif
+        opacket.create_error_response(code, session_client_handle, HAL_ERROR_BAD_ARGUMENTS);
+        return;
+    }
 
-    return RPCAction(None, [self.rpc_list[session.hash_rpcs[handle]]], None)
-*/ }
+    int rpc_index = session->hash_rpcs[handle];
+
+    std::shared_ptr<SafeQueue<libhal::rpc_packet>> myqueue = session->myqueue;
+
+    hal_error_t result = sendto_cryptech_device(ipacket, opacket, rpc_index, session_client_handle, code, myqueue);
+    if (result != HAL_OK)
+    {
+        opacket.create_error_response(code, session_client_handle, result);
+    }
+}
 
 void rpc_handler::handle_rpc_endhash(const uint32_t code, const uint32_t session_client_handle, const libhal::rpc_packet &ipacket,
                                      std::shared_ptr<MuxSession> session, libhal::rpc_packet &opacket)
-{ /*
+{
     // we've finished a hash operation
-
+    // 0 - code
+    // 4 - client
+    // 8 - handle
     // get the handle of the hash operation
-    handle = unpacker.unpack_uint()
+    uint32_t handle;
+    const size_t handle_index_pos = 8;
+    ipacket.decode_int_peak_at(&handle, handle_index_pos);
 
     // this handle must be a key
-    if(handle not in session.hash_rpcs):
-        logger.info("handle_rpc_hash: handle not in session.hash_rpcs")
-        return self.create_error_response(code, client, DKS_HALError.HAL_ERROR_BAD_ARGUMENTS)
+    auto handle_loc = session->hash_rpcs.find(handle);
+    if (handle_loc == session->hash_rpcs.end())
+    {
+#if DEBUG_LIBHAL
+        std::cout << "handle_rpc_hash: handle not in session.hash_rpcs" << std::endl;
+#endif
+        opacket.create_error_response(code, session_client_handle, HAL_ERROR_BAD_ARGUMENTS);
+    }
+
+    int rpc_index = session->hash_rpcs[handle];
 
     // the handle no longer needs to be in the dictionary
-    del session.hash_rpcs.pop[handle]
+    session->hash_rpcs.erase(handle_loc);
 
     return RPCAction(None, [self.rpc_list[session.rpc_index]], None)
-*/ }
+}
 
 void rpc_handler::handle_rpc_usecurrent(const uint32_t code, const uint32_t session_client_handle, const libhal::rpc_packet &ipacket,
                                         std::shared_ptr<MuxSession> session, libhal::rpc_packet &opacket)
