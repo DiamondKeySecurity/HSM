@@ -571,10 +571,12 @@ class RPCPreprocessor:
             logger.info("handle_rpc_hash: handle not in session.hash_rpcs")
             return self.create_error_response(code, client, DKS_HALError.HAL_ERROR_BAD_ARGUMENTS)
 
+        rpc_index = session.hash_rpcs[handle]
+
         # the handle no longer needs to be in the dictionary
         del session.hash_rpcs.pop[handle]
 
-        return RPCAction(None, [self.rpc_list[session.rpc_index]], None)
+        return RPCAction(None, [self.rpc_list[rpc_index]], None)
 
     def handle_rpc_usecurrent(self, code, client, unpacker, session):
         """The manually selected RPC must be used"""
