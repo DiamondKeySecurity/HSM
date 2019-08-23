@@ -364,35 +364,49 @@ void rpc_handler::handle_rpc_endhash(const uint32_t code, const uint32_t session
     // the handle no longer needs to be in the dictionary
     session->hash_rpcs.erase(handle_loc);
 
-    return RPCAction(None, [self.rpc_list[session.rpc_index]], None)
+    std::shared_ptr<SafeQueue<libhal::rpc_packet>> myqueue = session->myqueue;
+
+    hal_error_t result = sendto_cryptech_device(ipacket, opacket, rpc_index, session_client_handle, code, myqueue);
+    if (result != HAL_OK)
+    {
+        opacket.create_error_response(code, session_client_handle, result);
+    }
 }
 
 void rpc_handler::handle_rpc_usecurrent(const uint32_t code, const uint32_t session_client_handle, const libhal::rpc_packet &ipacket,
                                         std::shared_ptr<MuxSession> session, libhal::rpc_packet &opacket)
-{ /*
+{
     // The manually selected RPC must be used
-    rpc_index = session.rpc_index
-    if(rpc_index < 0):
-        rpc_index = session.key_op_data.rpc_index
+    int rpc_index = session->rpc_index;
+    if(rpc_index < 0)
+    {
+        opacket.create_error_response(code, session_client_handle, HAL_ERROR_FORBIDDEN);
+    }
+    else
+    {
+        std::shared_ptr<SafeQueue<libhal::rpc_packet>> myqueue = session->myqueue;
 
-    return RPCAction(None, [self.rpc_list[rpc_index]], None)
-*/ }
+        hal_error_t result = sendto_cryptech_device(ipacket, opacket, rpc_index, session_client_handle, code, myqueue);
+        if (result != HAL_OK)
+        {
+            opacket.create_error_response(code, session_client_handle, result);
+        }
+    }
+}
 
 void rpc_handler::handle_rpc_pkeyexport(const uint32_t code, const uint32_t session_client_handle, const libhal::rpc_packet &ipacket,
                                         std::shared_ptr<MuxSession> session, libhal::rpc_packet &opacket)
-{ /*
+{
     // make sure pkey export has been enabled. Always allow from internal non-ethernet sources
-    if (session.from_ethernet and
-        self.settings.get_setting(HSMSettings.ENABLE_KEY_EXPORT) is False):
-        return self.create_error_response(code, client, DKS_HALError.HAL_ERROR_FORBIDDEN)
-
-    // The manually selected RPC must be used
-    rpc_index = session.rpc_index
-    if(rpc_index < 0):
-        rpc_index = session.key_op_data.rpc_index
-
-    return RPCAction(None, [self.rpc_list[rpc_index]], None)
-*/ }
+    if (session->from_ethernet == false || session->enable_exportable_private_keys == false)
+    {
+        opacket.create_error_response(code, session_client_handle, HAL_ERROR_FORBIDDEN);
+    }
+    else
+    {
+        handle_rpc_usecurrent(code, session_client_handle, ipacket, session, opacket);
+    }
+}
 
 void rpc_handler::handle_rpc_pkeyopen(const uint32_t code, const uint32_t session_client_handle, const libhal::rpc_packet &ipacket,
                                       std::shared_ptr<MuxSession> session, libhal::rpc_packet &opacket)
