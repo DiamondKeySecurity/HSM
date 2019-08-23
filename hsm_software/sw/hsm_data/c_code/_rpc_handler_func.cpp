@@ -30,117 +30,133 @@ namespace diamond_hsm
 {
 void rpc_handler::handle_set_rpc(const uint32_t code, const uint32_t session_client_handle, const libhal::rpc_packet &ipacket,
                                  std::shared_ptr<MuxSession> session, libhal::rpc_packet &opacket)
-{ /*
+{
     // Special DKS RPC to set the RPC to use for all calls
-    logger.info("RPC code received %s, handle 0x%x",
-                RPC_FUNC_SET_RPC_DEVICE, client)
 
-    // get the serial to switch to
-    rpc_index = unpacker.unpack_uint()
+    // 0 - code
+    // 4 - client
+    // 8 - rpc_index
+    uint32_t rpc_index;
+    const size_t rpc_index_pos = 8;
+    ipacket.decode_int_peak_at(&rpc_index, rpc_index_pos);
 
-    response = xdrlib.Packer()
-    response.pack_uint(code)
-    response.pack_uint(client)
+    opacket.create(sizeof(uint32_t) * 3);
+    // code
+    // client
+    // result
+    opacket.encode_int(code);
+    opacket.encode_int(session_client_handle);
 
-    if (session.from_ethernet):
+    if (session->from_ethernet)
+    {
         // the RPC can not be explicitly set from an outside
         // ethernet connection
-        response.pack_uint(DKS_HALError.HAL_ERROR_FORBIDDEN)
-    elif (rpc_index < len(self.rpc_list)):
+        opacket.encode_int(HAL_ERROR_FORBIDDEN);
+    }
+    else if (rpc_index < device_count())
+    {
         // set the rpc to use for this session
-        session.rpc_index = rpc_index
+        session->rpc_index = rpc_index;
 
-        response.pack_uint(DKS_HALError.HAL_OK)
-    else:
-        response.pack_uint(DKS_HALError.HAL_ERROR_BAD_ARGUMENTS)
-
-    unencoded_response = response.get_buffer()
-
-    return RPCAction(unencoded_response, None, None)
-*/ }
+        opacket.encode_int(HAL_OK);
+    }
+    else
+    {
+        opacket.encode_int(HAL_ERROR_BAD_ARGUMENTS);
+    }
+}
 
 void rpc_handler::handle_enable_cache_keygen(const uint32_t code, const uint32_t session_client_handle, const libhal::rpc_packet &ipacket,
                                              std::shared_ptr<MuxSession> session, libhal::rpc_packet &opacket)
-{ /*
+{
     // Special DKS RPC to enable caching of generated keys
-    logger.info("RPC code received %s, handle 0x%x",
-                RPC_FUNC_ENABLE_CACHE_KEYGEN.name, client)
+    opacket.create(sizeof(uint32_t) * 3);
+    // code
+    // client
+    // result
+    opacket.encode_int(code);
+    opacket.encode_int(session_client_handle);
 
-    response = xdrlib.Packer()
-    response.pack_uint(code)
-    response.pack_uint(client)
-
-    if (session.from_ethernet):
+    if (session->from_ethernet)
+    {
         // keygen caching can not be explicitly set from
         // an ethernet connection
-        response.pack_uint(DKS_HALError.HAL_ERROR_FORBIDDEN)
-    else:
-        response.pack_uint(DKS_HALError.HAL_OK)
+        opacket.encode_int(HAL_ERROR_FORBIDDEN);
+    }
+    else
+    {
+        session->cache_generated_keys = true;
+        opacket.encode_int(HAL_OK);
+    }
 
-    unencoded_response = response.get_buffer()
-
-    session.cache_generated_keys = True
-    print('caching enabled')
-
-    return RPCAction(unencoded_response, None, None)
-*/ }
+#if DEBUG_LIBHAL
+    std::cout << "caching enabled" << std::endl;
+#endif
+}
 
 void rpc_handler::handle_disable_cache_keygen(const uint32_t code, const uint32_t session_client_handle, const libhal::rpc_packet &ipacket,
                                               std::shared_ptr<MuxSession> session, libhal::rpc_packet &opacket)
-{ /*
-    // Special DKS RPC to disable caching of generated keys
-    logger.info("RPC code received %s, handle 0x%x",
-                RPC_FUNC_DISABLE_CACHE_KEYGEN.name, client)
+{
+    // Special DKS RPC to enable caching of generated keys
+    opacket.create(sizeof(uint32_t) * 3);
+    // code
+    // client
+    // result
+    opacket.encode_int(code);
+    opacket.encode_int(session_client_handle);
 
-    response = xdrlib.Packer()
-    response.pack_uint(code)
-    response.pack_uint(client)
-
-    if (session.from_ethernet):
+    if (session->from_ethernet)
+    {
         // keygen caching can not be explicitly set from
         // an ethernet connection
-        response.pack_uint(DKS_HALError.HAL_ERROR_FORBIDDEN)
-    else:
-        response.pack_uint(DKS_HALError.HAL_OK)
+        opacket.encode_int(HAL_ERROR_FORBIDDEN);
+    }
+    else
+    {
+        session->cache_generated_keys = false;
+        opacket.encode_int(HAL_OK);
+    }
 
-    unencoded_response = response.get_buffer()
-
-    session.cache_generated_keys = False
-    print('caching disabled')
-
-    return RPCAction(unencoded_response, None, None)
-*/ }
+#if DEBUG_LIBHAL
+    std::cout << "caching disabled" << std::endl;
+#endif
+}
 
 void rpc_handler::handle_use_incoming_device_uuids(const uint32_t code, const uint32_t session_client_handle,
                                                    const libhal::rpc_packet &ipacket,
                                                    std::shared_ptr<MuxSession> session,
                                                    libhal::rpc_packet &opacket)
-{ /*
+{
     // Special DKS RPC to enable using incoming device uuids
-    logger.info("RPC code received %s, handle 0x%x",
-                RPC_FUNC_USE_INCOMING_DEVICE_UUIDS.name, client)
+    // Special DKS RPC to enable caching of generated keys
+    opacket.create(sizeof(uint32_t) * 3);
+    // code
+    // client
+    // result
+    opacket.encode_int(code);
+    opacket.encode_int(session_client_handle);
 
-    response = xdrlib.Packer()
-    response.pack_uint(code)
-    response.pack_uint(client)
-
-    if (session.from_ethernet):
+    if (session->from_ethernet)
+    {
         // using device uuids can not be set fom
         // an ethernet connection
-        response.pack_uint(DKS_HALError.HAL_ERROR_FORBIDDEN)
-    else:
-        response.pack_uint(DKS_HALError.HAL_OK)
+        opacket.encode_int(HAL_ERROR_FORBIDDEN);
+    }
+    else
+    {
+        opacket.encode_int(HAL_OK);
 
-    unencoded_response = response.get_buffer()
+        session->incoming_uuids_are_device_uuids = true;
+#if DEBUG_LIBHAL
+        std::cout << "accepting incoming device uuids" << std::endl;
+#endif
+    }
+}
 
-    session.incoming_uuids_are_device_uuids = True
-    print('accepting incoming device uuids')
-
-    return RPCAction(unencoded_response, None, None)
-*/ }
-
-void rpc_handler::handle_use_incoming_master_uuids(const uint32_t code, const uint32_t session_client_handle, const libhal::rpc_packet &ipacket,
-                                 std::shared_ptr<MuxSession> session, libhal::rpc_packet &opacket)
+void rpc_handler::handle_use_incoming_master_uuids(const uint32_t code, const uint32_t session_client_handle,
+                                                   const libhal::rpc_packet &ipacket,
+                                                   std::shared_ptr<MuxSession> session,
+                                                   libhal::rpc_packet &opacket)
 { /*
     // Special DKS RPC to enable using incoming master uuids
     logger.info("RPC code received %s, handle 0x%x",

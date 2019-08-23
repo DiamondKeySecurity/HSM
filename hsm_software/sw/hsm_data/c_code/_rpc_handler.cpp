@@ -184,6 +184,10 @@ void rpc_handler::process_incoming_rpc(const libhal::rpc_packet &ipacket, int cl
         int index = (int)code;
         if (index >= first_dks_rpc_index) index += dks_rpc_modifier;
 
+#if DEBUG_LIBHAL
+        std::cout << "RPC code received " << code << " handle " << client << std::endl; 
+#endif
+
         (*this.*function_table[index])(code, client, ipacket, session, opacket);
 
         // set back to caller client handle
