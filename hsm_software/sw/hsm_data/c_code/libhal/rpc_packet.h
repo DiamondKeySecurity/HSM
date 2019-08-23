@@ -109,6 +109,11 @@ class rpc_packet
             _blimit = _bptr + _size;
         }
 
+        void shrink_to_fit()
+        {
+            _size = _bptr - _buf;
+        }
+
         int create_error_response(uint32_t code, uint32_t client, uint32_t result);
 
         int createFromSlipEncoded(const char *encoded_buffer);
@@ -129,17 +134,18 @@ class rpc_packet
             return hal_xdr_encode_int(&_bptr, _blimit, value);
         }
 
-        hal_error_t decode_int(uint32_t *value)
+        hal_error_t decode_int(uint32_t *value, const uint8_t **ptr) const
         {
+            if (*ptr == NULL) *ptr = (const uint8_t *)&_bptr;
             return hal_xdr_decode_int((const uint8_t **)&_bptr, _blimit, value);
         }
 
-        hal_error_t decode_int_peak(uint32_t *value)
+        hal_error_t decode_int_peak(uint32_t *value) const
         {
             return hal_xdr_decode_int_peek((const uint8_t **)&_bptr, _blimit, value);
         }
 
-        hal_error_t decode_int_peak_at(uint32_t *value, size_t pos)
+        hal_error_t decode_int_peak_at(uint32_t *value, size_t pos) const
         {
             const uint8_t *ptr = &_buf[pos];
             return hal_xdr_decode_int_peek(&ptr, _blimit, value);
@@ -156,8 +162,9 @@ class rpc_packet
             return hal_xdr_encode_fixed_opaque(&_bptr, _blimit, value, len);
         }
 
-        hal_error_t decode_fixed_opaque(uint8_t * const value, const size_t len)
+        hal_error_t decode_fixed_opaque(uint8_t * const value, const size_t len, const uint8_t **ptr) const
         {
+            if (*ptr == NULL) *ptr = (const uint8_t *)&_bptr;
             return hal_xdr_decode_fixed_opaque((const uint8_t **)&_bptr, _blimit, value, len);
         }
 
@@ -166,8 +173,9 @@ class rpc_packet
             return hal_xdr_encode_variable_opaque(&_bptr, _blimit, value, len);
         }
 
-        hal_error_t decode_variable_opaque(uint8_t * const value, size_t * const len, const size_t len_max)
+        hal_error_t decode_variable_opaque(uint8_t * const value, size_t * const len, const size_t len_max, const uint8_t **ptr) const
         {
+            if (*ptr == NULL) *ptr = (const uint8_t *)&_bptr;
             return hal_xdr_decode_variable_opaque((const uint8_t **)&_bptr, _blimit, value, len, len_max);
         }
 

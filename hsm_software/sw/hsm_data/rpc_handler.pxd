@@ -20,13 +20,13 @@ from hsm_cache cimport hsm_cache
 
 cdef extern from "c_code/_rpc_handler.h" namespace "diamond_hsm" nogil:
     cdef cppclass rpc_handler:
-        rpc_handler()
+        rpc_handler(const char *ip_address)
         void unlock_hsm()
         void set_cache_object(hsm_cache *c_cache_object)
         int device_count()
         int get_current_rpc()
         void set_current_rpc(int index)
-        void process_incoming_rpc(rpc_packet &ipacket, int client, rpc_packet &opacket)
+        void process_incoming_rpc(const rpc_packet &ipacket, const int client, rpc_packet &opacket)
         void create_serial_connections(vector[string] &rpc_list)
         void create_session(uint32_t handle, bint from_ethernet, bint enable_exportable_private_keys)
         void delete_session(uint32_t handle)

@@ -24,7 +24,7 @@ cdef class rpc_internal_handling(object):
     cdef object settings
     
     """ Python interface to the rpc handler"""
-    def __init__(self, rpc_list, settings):
+    def __init__(self, rpc_list, settings, netiface):
         self.tamper_detected = ThreadSafeVariable(False)
         self.hsm_locked = False
         self.settings = settings
@@ -37,8 +37,8 @@ cdef class rpc_internal_handling(object):
 
         self.rpc_preprocessor.create_serial_connections(real_rpc_list)
 
-    def __cinit__(self):
-        self.rpc_preprocessor = new rpc_handler.rpc_handler()
+    def __cinit__(self, rpc_list, settings, netiface):
+        self.rpc_preprocessor = new rpc_handler.rpc_handler(netiface.get_ip())
 
     def __dealloc(self):
         del self.rpc_preprocessor

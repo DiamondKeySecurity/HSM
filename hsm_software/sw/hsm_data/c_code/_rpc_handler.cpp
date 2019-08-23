@@ -29,11 +29,20 @@ extern "C"
 namespace diamond_hsm
 {
 
-rpc_handler::rpc_handler()
-:hsm_locked(true), c_cache_object(NULL), next_any_device(0), next_any_device_uses(0)
+rpc_handler::rpc_handler(const char *ipaddress)
+:hsm_locked(true), c_cache_object(NULL), next_any_device(0), next_any_device_uses(0), function_table(NULL)
 {
     // FOR DEBUGGINH
     hsm_locked = false;
+
+    this->ip_address = ipaddress;
+
+    create_function_table();
+}
+
+rpc_handler::~rpc_handler()
+{
+    delete [] function_table;
 }
 
 void rpc_handler::set_cache_object(hsm_cache *c_cache_object)
@@ -76,8 +85,10 @@ hal_error_t rpc_handler::sendto_cryptech_device(const libhal::rpc_packet &ipacke
 #if DEBUG_LIBHAL
     std::cout << "sending" << std::endl;
 #endif
+    libhal::rpc_packet packet_to_send(ipacket);
+    packet_to_send.encode_int_at(session_client_handle, 4);
 
-    result = this->rpc_list[device_index].write_packet(ipacket, session_client_handle);
+    result = this->rpc_list[device_index].write_packet(packet_to_send, session_client_handle);
     if (result != HAL_OK)
         return result;
 
@@ -154,38 +165,44 @@ int rpc_handler::choose_rpc()
     return next_any_device;
 }
 
-void rpc_handler::process_incoming_rpc(libhal::rpc_packet &ipacket, int client, libhal::rpc_packet &opacket)
+void rpc_handler::process_incoming_rpc(const libhal::rpc_packet &ipacket, int client, libhal::rpc_packet &opacket)
 {
     uint32_t code, incoming_client_handle;
 
-    ipacket.decode_int(&code);
-    ipacket.decode_int(&incoming_client_handle);
+    const uint8_t *decode_ptr = NULL;
+
+    ipacket.decode_int(&code, &decode_ptr);
+    ipacket.decode_int(&incoming_client_handle, &decode_ptr);
 
     auto session_it = sessions.find(client);
     if (session_it != sessions.end())
     {
         std::shared_ptr<MuxSession> session = (*session_it).second;
 
-        // add our client id
-        ipacket.encode_int_at(client, 4);
-        ipacket.reset_head();
-
         std::shared_ptr<SafeQueue<libhal::rpc_packet>> myqueue = session->myqueue;
 
-#if DEBUG_LIBHAL
-        std::cout << "sending" << std::endl;
-#endif
-        hal_error_t result = sendto_cryptech_device(ipacket, opacket, 0, client, code, myqueue);
-        if (result != HAL_OK)
-        {
-            opacket.create_error_response(code, incoming_client_handle, result);
-        }
-        else
-        {
-            // set back to caller client handle
-            opacket.encode_int_at(incoming_client_handle, 4);
-            opacket.reset_head();
-        }
+        int index = (int)code;
+        if (index >= first_dks_rpc_index) index += dks_rpc_modifier;
+
+        (*this.*function_table[index])(code, client, ipacket, session, opacket);
+
+        // set back to caller client handle
+        opacket.encode_int_at(incoming_client_handle, 4);
+        opacket.reset_head();
+// #if DEBUG_LIBHAL
+//         std::cout << "sending" << std::endl;
+// #endif
+//         hal_error_t result = sendto_cryptech_device(ipacket, opacket, 0, client, code, myqueue);
+//         if (result != HAL_OK)
+//         {
+//             opacket.create_error_response(code, incoming_client_handle, result);
+//         }
+//         else
+//         {
+//             // set back to caller client handle
+//             opacket.encode_int_at(incoming_client_handle, 4);
+//             opacket.reset_head();
+//         }
     }
     else
     {

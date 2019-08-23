@@ -73,8 +73,6 @@ cimport safe_queue
 cimport libhal
 cimport rpc_handler
 
-include "rpc_action.pxi"
-
 include "pfunix_hsm.pxi"
 
 include "rpc_tcp_server.pxi"

@@ -44,6 +44,12 @@ class device_state
         {
         }
 
+        device_state(device_state &&other)
+        {
+            state = (CrypTechDeviceState)other.state;
+            count.inc(other.count.get());
+        }
+
         const char *GetStateString() const
         {
             switch(state)

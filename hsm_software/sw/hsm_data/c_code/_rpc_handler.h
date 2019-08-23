@@ -119,15 +119,17 @@ class MuxSession
 
 class rpc_handler;
 
-typedef rpc_action *(rpc_handler:: *rpc_handler_func)(uint32_t code,
-                                        uint32_t client,
-                                        libhal::rpc_packet &opacket,
-                                        std::shared_ptr<MuxSession>);
+typedef void (rpc_handler:: *rpc_handler_func)(const uint32_t code,
+                                               const uint32_t session_client_handle,
+                                               const libhal::rpc_packet &ipacket,
+                                               std::shared_ptr<MuxSession> session,
+                                               libhal::rpc_packet &opacket);
 
 class rpc_handler
 {
     public:
-        rpc_handler();
+        rpc_handler(const char *ip_address);
+        ~rpc_handler();
 
         // uses list of serial device addresses to create serial connections
         void create_serial_connections(std::vector<std::string> &rpc_list);
@@ -148,7 +150,7 @@ class rpc_handler
         void set_cache_object(hsm_cache *c_cache_object);
 
         // processes an incoming packet
-        void process_incoming_rpc(libhal::rpc_packet &ipacket, int client, libhal::rpc_packet &opacket);
+        void process_incoming_rpc(const libhal::rpc_packet &ipacket, const int client, libhal::rpc_packet &opacket);
 
         // creates a session for an incoming connection
         void create_session(uint32_t handle, bool from_ethernet, bool enable_exportable_private_keys);
@@ -212,35 +214,68 @@ class rpc_handler
         rpc_handler_func *function_table;
 
         // handlers and call backs
-        rpc_action *handle_set_rpc(uint32_t code, uint32_t client, libhal::rpc_packet &opacket, std::shared_ptr<MuxSession>);
-        rpc_action *handle_enable_cache_keygen(uint32_t code, uint32_t client, libhal::rpc_packet &opacket, std::shared_ptr<MuxSession>);
-        rpc_action *handle_disable_cache_keygen(uint32_t code, uint32_t client, libhal::rpc_packet &opacket, std::shared_ptr<MuxSession>);
-        rpc_action *handle_use_incoming_device_uuids(uint32_t code, uint32_t client, libhal::rpc_packet &opacket, std::shared_ptr<MuxSession>);
-        rpc_action *handle_use_incoming_master_uuids(uint32_t code, uint32_t client, libhal::rpc_packet &opacket, std::shared_ptr<MuxSession>);
-        rpc_action *handle_rpc_any(uint32_t code, uint32_t client, libhal::rpc_packet &opacket, std::shared_ptr<MuxSession>);
-        rpc_action *handle_rpc_all(uint32_t code, uint32_t client, libhal::rpc_packet &opacket, std::shared_ptr<MuxSession>);
-        rpc_action *handle_rpc_starthash(uint32_t code, uint32_t client, libhal::rpc_packet &opacket, std::shared_ptr<MuxSession>);
-        rpc_action *handle_rpc_hash(uint32_t code, uint32_t client, libhal::rpc_packet &opacket, std::shared_ptr<MuxSession>);
-        rpc_action *handle_rpc_endhash(uint32_t code, uint32_t client, libhal::rpc_packet &opacket, std::shared_ptr<MuxSession>);
-        rpc_action *handle_rpc_usecurrent(uint32_t code, uint32_t client, libhal::rpc_packet &opacket, std::shared_ptr<MuxSession>);
-        rpc_action *handle_rpc_pkeyexport(uint32_t code, uint32_t client, libhal::rpc_packet &opacket, std::shared_ptr<MuxSession>);
-        rpc_action *handle_rpc_pkeyopen(uint32_t code, uint32_t client, libhal::rpc_packet &opacket, std::shared_ptr<MuxSession>);
-        rpc_action *handle_rpc_pkey(uint32_t code, uint32_t client, libhal::rpc_packet &opacket, std::shared_ptr<MuxSession>);
-        rpc_action *handle_rpc_pkeyload(uint32_t code, uint32_t client, libhal::rpc_packet &opacket, std::shared_ptr<MuxSession>);
-        rpc_action *handle_rpc_pkeyimport(uint32_t code, uint32_t client, libhal::rpc_packet &opacket, std::shared_ptr<MuxSession>);
-        rpc_action *handle_rpc_keygen(uint32_t code, uint32_t client, libhal::rpc_packet &opacket, std::shared_ptr<MuxSession>);
-        rpc_action *handle_rpc_pkeymatch(uint32_t code, uint32_t client, libhal::rpc_packet &opacket, std::shared_ptr<MuxSession>);
-        rpc_action *handle_rpc_getdevice_ip(uint32_t code, uint32_t client, libhal::rpc_packet &opacket, std::shared_ptr<MuxSession>);
-        rpc_action *handle_rpc_getdevice_state(uint32_t code, uint32_t client, libhal::rpc_packet &opacket, std::shared_ptr<MuxSession>);
+        void handle_set_rpc(const uint32_t code, const uint32_t session_client_handle, const libhal::rpc_packet &ipacket,
+                            std::shared_ptr<MuxSession> session, libhal::rpc_packet &opacket);
+        void handle_enable_cache_keygen(const uint32_t code, const uint32_t session_client_handle,
+                                        const libhal::rpc_packet &ipacket, std::shared_ptr<MuxSession> session,
+                                        libhal::rpc_packet &opacket);
+        void handle_disable_cache_keygen(const uint32_t code, const uint32_t session_client_handle,
+                                         const libhal::rpc_packet &ipacket, std::shared_ptr<MuxSession> session,
+                                         libhal::rpc_packet &opacket);
+        void handle_use_incoming_device_uuids(const uint32_t code, const uint32_t session_client_handle,
+                                              const libhal::rpc_packet &ipacket, std::shared_ptr<MuxSession> session,
+                                              libhal::rpc_packet &opacket);
+        void handle_use_incoming_master_uuids(const uint32_t code, const uint32_t session_client_handle,
+                                              const libhal::rpc_packet &ipacket, std::shared_ptr<MuxSession> session,
+                                              libhal::rpc_packet &opacket);
+        void handle_rpc_any(const uint32_t code, const uint32_t session_client_handle, const libhal::rpc_packet &ipacket,
+                            std::shared_ptr<MuxSession> session, libhal::rpc_packet &opacket);
+        void handle_rpc_all(const uint32_t code, const uint32_t session_client_handle, const libhal::rpc_packet &ipacket,
+                            std::shared_ptr<MuxSession> session, libhal::rpc_packet &opacket);
+        void handle_rpc_starthash(const uint32_t code, const uint32_t session_client_handle,
+                                  const libhal::rpc_packet &ipacket, std::shared_ptr<MuxSession> session,
+                                  libhal::rpc_packet &opacket);
+        void handle_rpc_hash(const uint32_t code, const uint32_t session_client_handle, const libhal::rpc_packet &ipacket,
+                             std::shared_ptr<MuxSession> session, libhal::rpc_packet &opacket);
+        void handle_rpc_endhash(const uint32_t code, const uint32_t session_client_handle, const libhal::rpc_packet &ipacket,
+                                std::shared_ptr<MuxSession> session, libhal::rpc_packet &opacket);
+        void handle_rpc_usecurrent(const uint32_t code, const uint32_t session_client_handle, const libhal::rpc_packet &ipacket,
+                                   std::shared_ptr<MuxSession> session, libhal::rpc_packet &opacket);
+        void handle_rpc_pkeyexport(const uint32_t code, const uint32_t session_client_handle, const libhal::rpc_packet &ipacket,
+                                   std::shared_ptr<MuxSession> session, libhal::rpc_packet &opacket);
+        void handle_rpc_pkeyopen(const uint32_t code, const uint32_t session_client_handle, const libhal::rpc_packet &ipacket,
+                                 std::shared_ptr<MuxSession> session, libhal::rpc_packet &opacket);
+        void handle_rpc_pkey(const uint32_t code, const uint32_t session_client_handle, const libhal::rpc_packet &ipacket,
+                             std::shared_ptr<MuxSession> session, libhal::rpc_packet &opacket);
+        void handle_rpc_pkeyload(const uint32_t code, const uint32_t session_client_handle, const libhal::rpc_packet &ipacket,
+                                 std::shared_ptr<MuxSession> session, libhal::rpc_packet &opacket);
+        void handle_rpc_pkeyimport(const uint32_t code, const uint32_t session_client_handle, const libhal::rpc_packet &ipacket,
+                                   std::shared_ptr<MuxSession> session, libhal::rpc_packet &opacket);
+        void handle_rpc_keygen(const uint32_t code, const uint32_t session_client_handle, const libhal::rpc_packet &ipacket,
+                               std::shared_ptr<MuxSession> session, libhal::rpc_packet &opacket);
+        void handle_rpc_pkeymatch(const uint32_t code, const uint32_t session_client_handle, const libhal::rpc_packet &ipacket,
+                                  std::shared_ptr<MuxSession> session, libhal::rpc_packet &opacket);
+        void handle_rpc_getdevice_ip(const uint32_t code, const uint32_t session_client_handle, const libhal::rpc_packet &ipacket,
+                                     std::shared_ptr<MuxSession> session, libhal::rpc_packet &opacket);
+        void handle_rpc_getdevice_state(const uint32_t code, const uint32_t session_client_handle, const libhal::rpc_packet &ipacket,
+                                        std::shared_ptr<MuxSession> session, libhal::rpc_packet &opacket);
 
-        rpc_action *callback_rpc_all(std::vector<libhal::rpc_packet> &reply_list);
-        rpc_action *callback_rpc_starthash(std::vector<libhal::rpc_packet> &reply_list);
-        rpc_action *callback_rpc_pkeyopen(std::vector<libhal::rpc_packet> &reply_list);
-        rpc_action *callback_rpc_close_deletekey(std::vector<libhal::rpc_packet> &reply_list);
-        rpc_action *callback_rpc_keygen(std::vector<libhal::rpc_packet> &reply_list);
-        rpc_action *callback_rpc_pkeymatch(std::vector<libhal::rpc_packet> &reply_list);
+        void callback_rpc_all(const std::vector<libhal::rpc_packet> &reply_list, libhal::rpc_packet &opacket);
+        void callback_rpc_starthash(const std::vector<libhal::rpc_packet> &reply_list, libhal::rpc_packet &opacket);
+        void callback_rpc_pkeyopen(const std::vector<libhal::rpc_packet> &reply_list, libhal::rpc_packet &opacket);
+        void callback_rpc_close_deletekey(const std::vector<libhal::rpc_packet> &reply_list, libhal::rpc_packet &opacket);
+        void callback_rpc_keygen(const std::vector<libhal::rpc_packet> &reply_list, libhal::rpc_packet &opacket);
+        void callback_rpc_pkeymatch(const std::vector<libhal::rpc_packet> &reply_list, libhal::rpc_packet &opacket);
 
         void create_function_table();
+        const int last_cryptech_rpc_index = RPC_FUNC_PKEY_GENERATE_HASHSIG;
+
+        const int first_dks_rpc_index = RPC_FUNC_CHECK_TAMPER;
+        const int last_dks_rpc_index = RPC_FUNC_USE_INCOMING_MASTER_UUIDS;
+
+        const int dks_rpc_modifier = (-first_dks_rpc_index + last_cryptech_rpc_index) + 1;
+
+        std::string ip_address;
 
 };
 
