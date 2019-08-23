@@ -134,6 +134,11 @@ class rpc_packet
             return hal_xdr_encode_int(&_bptr, _blimit, value);
         }
 
+        hal_error_t decode_start(const size_t pos, const uint8_t **ptr) const
+        {
+            *ptr = (const uint8_t *)&_buf[pos];
+        }
+
         hal_error_t decode_int(uint32_t *value, const uint8_t **ptr) const
         {
             if (*ptr == NULL) *ptr = (const uint8_t *)&_bptr;

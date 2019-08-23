@@ -408,97 +408,176 @@ void rpc_handler::handle_rpc_pkeyexport(const uint32_t code, const uint32_t sess
     }
 }
 
+bool rpc_handler::choose_rpc_from_master_uuid(uuids::uuid_t master_uuid, std::pair<int, uuids::uuid_t> &result)
+{
+    std::map<int, uuids::uuid_t> uuid_dict;
+    c_cache_object->get_devices(master_uuid, uuid_dict);
+
+    if (uuid_dict.size() == 0) return false;
+
+    // initialize to a high weight
+    int device_weight = large_weight;
+
+    for (auto it = uuid_dict.begin(); it != uuid_dict.end(); ++it)
+    {
+        // for now choose the device with the lowest weight
+        int new_device_weight = get_cryptech_device_weight(it->first);
+        if (new_device_weight < device_weight)
+        {
+            device_weight = new_device_weight;
+            result.first = it->first;
+            result.second = it->second;
+        }
+    }
+
+    return true;
+}
+
 void rpc_handler::handle_rpc_pkeyopen(const uint32_t code, const uint32_t session_client_handle, const libhal::rpc_packet &ipacket,
                                       std::shared_ptr<MuxSession> session, libhal::rpc_packet &opacket)
-{ /*
-    // pkcs11 session
-    session_param = unpacker.unpack_uint()
+{
+    // 0  - code
+    // 4  - client
+    // 8  - pkcs11_session
+    // 12 - uuid
+    const size_t pkcs11_session_pos = 8;
+    const size_t incoming_uuid_pos = 12;
+    uint32_t pkcs11_session;
+    uint8_t uuid_buffer[16];
+    size_t incoming_len;
+    uuids::uuid_t incoming_uuid;
+    uuids::uuid_t device_uuid;
+    uuids::uuid_t master_uuid;
+    const uint8_t *ptr;
 
-    // uuid
-    incoming_uuid = UUID(bytes = unpacker.unpack_bytes())
+    ipacket.decode_start(pkcs11_session_pos, &ptr);
 
-    // get the session to use
-    session = self.get_session(client)
+    // get the pkcs11 session
+    ipacket.decode_int(&pkcs11_session, &ptr);
+
+    // get the uuid
+    ipacket.decode_variable_opaque(uuid_buffer, &incoming_len, sizeof(uuid_buffer), &ptr);
+    incoming_uuid.fromBytes((char*)uuid_buffer);
 
     // what type of uuid are we getting?
-    if(session.incoming_uuids_are_device_uuids):
-        if(session.rpc_index < 0):
-            logger.info("handle_rpc_pkeyopen: using device uuid, but device not set")
-            return self.create_error_response(code, client, DKS_HALError.HAL_ERROR_IMPOSSIBLE)
+    if(session->incoming_uuids_are_device_uuids)
+    {
+        if(session->rpc_index < 0)
+        {
+#if DEBUG_LIBHAL
+            std::cout << "handle_rpc_pkeyopen: using device uuid, but device not set" << std::endl;
+#endif
+            opacket.create_error_response(code, session_client_handle, HAL_ERROR_IMPOSSIBLE);
+            return;
+        }
 
-        device_uuid = incoming_uuid
+        device_uuid = incoming_uuid;
 
-        session.key_op_data.rpc_index = session.rpc_index
-    else:
+        session->key_op_data.rpc_index = session->rpc_index;
+    }
+    else
+    {
         // find the device uuid from the master uuid
-        master_uuid = incoming_uuid
+        master_uuid = incoming_uuid;
 
-        if(session.rpc_index >= 0):
+        if(session->rpc_index >= 0)
+        {
             // just use the set rpc_index
-            session.key_op_data.rpc_index = session.rpc_index
+            session->key_op_data.rpc_index = session->rpc_index;
 
             // see if this uuid is on the alpha we are requesting
-            device_list = self.cache.get_alphas(master_uuid)
+            std::map<int, uuids::uuid_t> device_list;
+            c_cache_object->get_devices(master_uuid, device_list);
 
-            if(session.rpc_index not in device_list):
-                logger.info("handle_rpc_pkeyopen: session.rpc_index not in device_list")
-                return self.create_error_response(code, client, DKS_HALError.HAL_ERROR_KEY_NOT_FOUND)
+            if(device_list.find(session->rpc_index) == device_list.end())
+            {
+#if DEBUG_LIBHAL
+                std::cout << "handle_rpc_pkeyopen: session.rpc_index not in device_list" << std::endl;
+#endif
+                opacket.create_error_response(code, session_client_handle, HAL_ERROR_KEY_NOT_FOUND);
+            }
 
-            device_uuid = device_list[session.rpc_index]
-        else:
-            rpc_uuid_pair = self.choose_rpc_from_master_uuid(master_uuid)
-            if(rpc_uuid_pair is None):
-                logger.info("handle_rpc_pkeyopen: rpc_uuid_pair is None")
-                return self.create_error_response(code, client, DKS_HALError.HAL_ERROR_KEY_NOT_FOUND)
+            device_uuid = device_list[session->rpc_index];
+        }
+        else
+        {
+            std::pair<int, uuids::uuid_t> rpc_uuid_pair;
+            
+            if(choose_rpc_from_master_uuid(master_uuid, rpc_uuid_pair) == false)
+            {
+#if DEBUG_LIBHAL
+                std::cout << "handle_rpc_pkeyopen: rpc_uuid_pair is None" << std::endl;
+#endif
+                opacket.create_error_response(code, session_client_handle, HAL_ERROR_KEY_NOT_FOUND);
+            }
 
-            session.key_op_data.rpc_index = rpc_uuid_pair[0]
-            device_uuid = rpc_uuid_pair[1]
+            session->key_op_data.rpc_index = rpc_uuid_pair.first;
+            device_uuid = rpc_uuid_pair.second;
+        }
+    }
 
     // recreate with the actual uuid
-    session.current_request = RPCpkey_open.create(code, client, session_param, device_uuid)
+    libhal::rpc_packet packet_to_send;
+    packet_to_send.create(sizeof(code) + sizeof(session_client_handle) + sizeof(pkcs11_session) + sizeof(device_uuid) + 16);
+    packet_to_send.encode_int(code);
+    packet_to_send.encode_int(session_client_handle);
+    packet_to_send.encode_int(pkcs11_session);
+    packet_to_send.encode_variable_opaque(device_uuid.bytes, 16);
+    packet_to_send.shrink_to_fit();
 
     // save data about the key we are opening
-    session.key_op_data.device_uuid = device_uuid
+    session->key_op_data.device_uuid = device_uuid;
 
-    // uuid is used to select the RPC with the key and the handle is returned
-    return RPCAction(None, [self.rpc_list[session.key_op_data.rpc_index]], self.callback_rpc_pkeyopen)
-*/ }
+    std::shared_ptr<SafeQueue<libhal::rpc_packet>> myqueue = session->myqueue;
 
-void rpc_handler::callback_rpc_pkeyopen(const std::vector<libhal::rpc_packet> &reply_list, libhal::rpc_packet &opacket)
-{ /*
-    unpacker = self.get_response_unpacker(reply_list[0])
+    int rpc_index = session->key_op_data.rpc_index;
 
-    code = unpacker.unpack_uint()
-    client = unpacker.unpack_uint()
+    hal_error_t result = sendto_cryptech_device(packet_to_send, opacket, rpc_index, session_client_handle, code, myqueue);
+    if (result != HAL_OK)
+    {
+        opacket.create_error_response(code, session_client_handle, result);
+    }
 
-    // hashing only happens on one alpha
-    if(len(reply_list) != 1):
-        logger.info("callback_rpc_pkeyopen: len(reply_list) != 1")
-        return self.create_error_response(code, client, DKS_HALError.HAL_ERROR_RPC_TRANSPORT)
+    // process result
+    uint32_t oresult;
+    const uint8_t *ptr = NULL;
 
-    result = unpacker.unpack_uint()
+    // consume code
+    opacket.decode_int(&oresult, &ptr);
+    // consume client
+    opacket.decode_int(&oresult, &ptr);
+    // result
+    opacket.decode_int(&oresult, &ptr);      
 
-    if(code != RPC_FUNC_PKEY_OPEN):
-        logger.info("callback_rpc_pkeyopen: code != RPCFunc.RPC_FUNC_PKEY_OPEN")
-        return self.create_error_response(code, client, DKS_HALError.HAL_ERROR_RPC_TRANSPORT)
+    if(oresult != HAL_OK)
+    {
+#if DEBUG_LIBHAL
+        std::cout << "callback_rpc_pkeyopen: result != 0" << std::endl;
+#endif
+        opacket.create_error_response(code, session_client_handle, oresult);
+    }
 
-    // get the session
-    session = self.get_session(client)        
-
-    if(result != 0):
-        logger.info("callback_rpc_pkeyopen: result != 0")
-        return self.create_error_response(code, client, result)
-
-    session.key_op_data.handle = unpacker.unpack_uint()
+    opacket.decode_int(&session->key_op_data.handle, &ptr);
 
     // save the RPC to use for this handle
-    session.key_rpcs[session.key_op_data.handle] = KeyHandleDetails(session.key_op_data.rpc_index, session.key_op_data.device_uuid)
+    uint32_t handle = session->key_op_data.handle;
 
-    // inform the load balancer that we have an open pkey
-    self.update_device_weight(session.key_op_data.rpc_index, self.pkey_op_weight)
+    // save the RPC to use for this handle
+    if (session->key_rpcs.find(handle) == session->key_rpcs.end())
+    {
+        session->key_rpcs.insert(std::pair<uint32_t, KeyHandleDetails>(handle,
+                                                                       KeyHandleDetails(session->key_op_data.rpc_index,
+                                                                                        session->key_op_data.device_uuid)));
 
-    return RPCAction(reply_list[0], None, None)
-*/ }
+        update_device_weight(session->key_op_data.rpc_index, pkey_op_weight);
+    }
+    else
+    {
+        opacket.create_error_response(code, session_client_handle, HAL_ERROR_RPC_TRANSPORT);
+    }
+
+    opacket.reset_head();
+}
 
 void rpc_handler::handle_rpc_pkey(const uint32_t code, const uint32_t session_client_handle, const libhal::rpc_packet &ipacket,
                                   std::shared_ptr<MuxSession> session, libhal::rpc_packet &opacket)
@@ -976,6 +1055,14 @@ void rpc_handler::handle_rpc_getdevice_state(const uint32_t code, const uint32_t
     }
 
     opacket.shrink_to_fit();
+}
+
+void rpc_handler::update_device_weight(int cryptech_device, int amount)
+{
+    if (cryptech_device >= 0 && cryptech_device < device_count())
+    {
+        rpc_device_states[cryptech_device].inc_busy_count(amount);
+    }
 }
 
 void rpc_handler::create_function_table()
