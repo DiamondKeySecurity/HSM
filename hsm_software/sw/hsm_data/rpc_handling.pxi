@@ -563,7 +563,7 @@ class RPCPreprocessor:
 
     def handle_rpc_pkeyexport(self, code, client, unpacker, session):
         # make sure pkey export has been enabled. Always allow from internal non-ethernet sources
-        if (session.from_ethernet and
+        if (session.from_ethernet is False or
             self.settings.get_setting(HSMSettings.ENABLE_KEY_EXPORT) is False):
            return self.create_error_response(code, client, DKS_HALError.HAL_ERROR_FORBIDDEN)
 
