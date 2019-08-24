@@ -27,7 +27,6 @@
 #include "libhal/rpc_stream.h"
 #include "_hsm_cache.h"
 #include "_device_state.h"
-#include "_rpc_action.h"
 
 namespace diamond_hsm
 {

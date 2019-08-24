@@ -878,17 +878,23 @@ void rpc_handler::callback_rpc_keygen(const std::vector<libhal::rpc_packet> &rep
 
 void rpc_handler::handle_rpc_pkeymatch(const uint32_t code, const uint32_t session_client_handle, const libhal::rpc_packet &ipacket,
                                        std::shared_ptr<MuxSession> session, libhal::rpc_packet &opacket)
-{ /*
+{/* 
     // match on all rpcs and then combine results
     // incoming UUIDs are master table UUIDs
 
     // if the rpc_index has been set for the session, always use it
-    if(session.incoming_uuids_are_device_uuids):
-        if(session.rpc_index >= 0):
+    if(session.incoming_uuids_are_device_uuids)
+    {
+        if(session.rpc_index >= 0)
+        {
             return RPCAction(None, [self.rpc_list[session.rpc_index]], None)
-        else:
+        }
+        else
+        {
             logger.info("handle_rpc_pkeymatch: using device uuid, but device not set")
             return self.create_error_response(code, client, DKS_HALError.HAL_ERROR_IMPOSSIBLE)
+        }
+    }
 
     session.keymatch_details = KeyMatchDetails()
     
@@ -901,45 +907,63 @@ void rpc_handler::handle_rpc_pkeymatch(const uint32_t code, const uint32_t sessi
     // if uuid is none, search RPC 0
     // else search starting with the RPC that the uuid is on
 
-    if(session.keymatch_details.uuid == KeyMatchDetails.none_uuid):
-        if(session.rpc_index >= 0):
+    if(session.keymatch_details.uuid == KeyMatchDetails.none_uuid)
+    {
+        if(session.rpc_index >= 0)
+        {
             session.keymatch_details.rpc_index = session.rpc_index
-        else:
+        }
+        else
+        {
             session.keymatch_details.rpc_index = 0
-    else:
+        }
+    }
+    else
+    {
         // need to convert master_uuid to device_uuid
-        if(session.rpc_index >= 0):
+        if(session.rpc_index >= 0)
+        {
             device_list = session.cache.get_alphas(session.keymatch_details.uuid)
-            if (session.rpc_index not in device_list):
+            if (session.rpc_index not in device_list)
+            {
                 logger.info("handle_rpc_pkeyopen: session.rpc_index not in device_list")
                 return self.create_error_response(code, client, DKS_HALError.HAL_ERROR_KEY_NOT_FOUND)
+            }
 
             session.keymatch_details.rpc_index = session.rpc_index
 
             // need to update the command with the new UUID
             session.keymatch_details.uuid = device_list[session.rpc_index]
-        else:
+        }
+        else
+        {
             // find the rpc that this is on
             device_to_search = session.cache.get_alpha_lowest_index(session.keymatch_details.uuid)
-            if(device_to_search is None):
+            if(device_to_search is None)
+            {
                 return self.create_error_response(code, client, DKS_HALError.HAL_ERROR_RPC_TRANSPORT)
+            }
 
             session.keymatch_details.rpc_index = device_to_search[0]
 
             // need to update the command with the new UUID
             session.keymatch_details.uuid = device_to_search[1]
+        }
 
         session.current_request = session.keymatch_details.repack(code, client)
+    }
 
     // make sure the rpc_index was set
-    if(hasattr(session.keymatch_details, 'rpc_index') == False):
+    if(hasattr(session.keymatch_details, 'rpc_index') == False)
+    {
         return self.create_error_response(code, client, DKS_HALError.HAL_ERROR_RPC_TRANSPORT)
+    }
 
     return RPCAction(None, [self.rpc_list[session.keymatch_details.rpc_index]], self.callback_rpc_pkeymatch)
-*/ }
+*/}
 
 void rpc_handler::callback_rpc_pkeymatch(const std::vector<libhal::rpc_packet> &reply_list, libhal::rpc_packet &opacket)
-{ /*
+{/*
     reply = reply_list[0]
 
     logger.info("callback_rpc_pkeymatch")
@@ -1009,7 +1033,7 @@ void rpc_handler::callback_rpc_pkeymatch(const std::vector<libhal::rpc_packet> &
 
     // there may be more matching keys so generate another command
     return RPCAction(None, [self.rpc_list[session.keymatch_details.rpc_index]], self.callback_rpc_pkeymatch)
-*/ }
+*/}
 
 void rpc_handler::handle_rpc_getdevice_ip(const uint32_t code, const uint32_t session_client_handle, const libhal::rpc_packet &ipacket,
                                           std::shared_ptr<MuxSession> session, libhal::rpc_packet &opacket)
