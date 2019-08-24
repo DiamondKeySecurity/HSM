@@ -137,6 +137,7 @@ class rpc_packet
         hal_error_t decode_start(const size_t pos, const uint8_t **ptr) const
         {
             *ptr = (const uint8_t *)&_buf[pos];
+            return HAL_OK;
         }
 
         hal_error_t decode_int(uint32_t *value, const uint8_t **ptr) const

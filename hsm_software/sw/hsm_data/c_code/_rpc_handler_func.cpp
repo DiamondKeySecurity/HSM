@@ -36,9 +36,9 @@ void rpc_handler::handle_set_rpc(const uint32_t code, const uint32_t session_cli
     // 0 - code
     // 4 - client
     // 8 - rpc_index
-    uint32_t rpc_index;
+    int32_t rpc_index;
     const size_t rpc_index_pos = 8;
-    ipacket.decode_int_peak_at(&rpc_index, rpc_index_pos);
+    ipacket.decode_int_peak_at((uint32_t *)&rpc_index, rpc_index_pos);
 
     opacket.create(sizeof(uint32_t) * 3);
     // code
@@ -441,7 +441,6 @@ void rpc_handler::handle_rpc_pkeyopen(const uint32_t code, const uint32_t sessio
     // 8  - pkcs11_session
     // 12 - uuid
     const size_t pkcs11_session_pos = 8;
-    const size_t incoming_uuid_pos = 12;
     uint32_t pkcs11_session;
     uint8_t uuid_buffer[16];
     size_t incoming_len;
@@ -522,7 +521,7 @@ void rpc_handler::handle_rpc_pkeyopen(const uint32_t code, const uint32_t sessio
     packet_to_send.encode_int(code);
     packet_to_send.encode_int(session_client_handle);
     packet_to_send.encode_int(pkcs11_session);
-    packet_to_send.encode_variable_opaque(device_uuid.bytes, 16);
+    packet_to_send.encode_variable_opaque(device_uuid.bytes(), 16);
     packet_to_send.shrink_to_fit();
 
     // save data about the key we are opening
@@ -540,14 +539,14 @@ void rpc_handler::handle_rpc_pkeyopen(const uint32_t code, const uint32_t sessio
 
     // process result
     uint32_t oresult;
-    const uint8_t *ptr = NULL;
+    const uint8_t *optr = NULL;
 
     // consume code
-    opacket.decode_int(&oresult, &ptr);
+    opacket.decode_int(&oresult, &optr);
     // consume client
-    opacket.decode_int(&oresult, &ptr);
+    opacket.decode_int(&oresult, &optr);
     // result
-    opacket.decode_int(&oresult, &ptr);      
+    opacket.decode_int(&oresult, &optr);      
 
     if(oresult != HAL_OK)
     {
@@ -557,7 +556,7 @@ void rpc_handler::handle_rpc_pkeyopen(const uint32_t code, const uint32_t sessio
         opacket.create_error_response(code, session_client_handle, oresult);
     }
 
-    opacket.decode_int(&session->key_op_data.handle, &ptr);
+    opacket.decode_int(&session->key_op_data.handle, &optr);
 
     // save the RPC to use for this handle
     uint32_t handle = session->key_op_data.handle;
@@ -581,30 +580,64 @@ void rpc_handler::handle_rpc_pkeyopen(const uint32_t code, const uint32_t sessio
 
 void rpc_handler::handle_rpc_pkey(const uint32_t code, const uint32_t session_client_handle, const libhal::rpc_packet &ipacket,
                                   std::shared_ptr<MuxSession> session, libhal::rpc_packet &opacket)
-{ /*
+{
     // use handle to select RPC
-
+    // 0 - code
+    // 4 - client
+    // 8 - handle
     // get the handle of the hash operation
-    handle = unpacker.unpack_uint()
+    uint32_t handle;
+    const size_t handle_index_pos = 8;
+    ipacket.decode_int_peak_at(&handle, handle_index_pos);
 
     // this handle must be a key
-    if(handle not in session.key_rpcs):
-        logger.info("handle_rpc_pkey: handle not in session.key_rpcs")
-        return self.create_error_response(code, client, DKS_HALError.HAL_ERROR_BAD_ARGUMENTS)
+    if (session->key_rpcs.find(handle) == session->key_rpcs.end())
+    {
+#if DEBUG_LIBHAL
+        std::cout << "handle_rpc_pkey: handle not in session.key_rpcs" << std::endl;
+#endif
+        opacket.create_error_response(code, session_client_handle, HAL_ERROR_BAD_ARGUMENTS);
+        return;
+    }
 
-    rpc_index = session.key_rpcs[handle].rpc_index
-    device_uuid = session.key_rpcs[handle].uuid
+    int rpc_index = session->key_rpcs[handle].rpc_index;
 
-    // logger.info("Using pkey handle:%i RPC:%i", handle, rpc_index)
+    std::shared_ptr<SafeQueue<libhal::rpc_packet>> myqueue = session->myqueue;
 
-    session.key_op_data = KeyOperationData(rpc_index, handle, device_uuid)
+    hal_error_t result = sendto_cryptech_device(ipacket, opacket, rpc_index, session_client_handle, code, myqueue);
+    if (result != HAL_OK)
+    {
+        opacket.create_error_response(code, session_client_handle, result);
+    }
+    else if (code == RPC_FUNC_PKEY_DELETE || code == RPC_FUNC_PKEY_CLOSE)
+    {
+        // 0 - code
+        // 4 - client
+        // 8 - result
+        uint32_t oresult;
+        const size_t result_pos = 8;
 
-    if (code == RPC_FUNC_PKEY_DELETE or 
-        code == RPC_FUNC_PKEY_CLOSE):
-        return RPCAction(None, [self.rpc_list[rpc_index]], self.callback_rpc_close_deletekey)
-    else:
-        return RPCAction(None, [self.rpc_list[rpc_index]], None)
-*/ }
+        opacket.decode_int_peak_at(&oresult, result_pos);
+
+        if (oresult == HAL_OK)
+        {
+            if (code == RPC_FUNC_PKEY_DELETE)
+            {
+                // get the details about the key so we can delete from the cache
+                uuids::uuid_t uuid_to_remove = session->key_rpcs[handle].uuid;
+                rpc_index = session->key_rpcs[handle].rpc_index;
+                c_cache_object->remove_key_from_device_only(rpc_index, uuid_to_remove);
+            }
+
+            // clear data
+            auto handle_loc = session->key_rpcs.find(handle);
+            session->key_rpcs.erase(handle_loc);
+
+            // the key was closed so we are not working on anything now
+            session->key_op_data = KeyOperationData(-1, 0, uuids::uuid_none);
+        }
+    }
+}
 
 void rpc_handler::handle_rpc_pkeyload(const uint32_t code, const uint32_t session_client_handle, const libhal::rpc_packet &ipacket,
                                       std::shared_ptr<MuxSession> session, libhal::rpc_packet &opacket)
@@ -768,47 +801,6 @@ void rpc_handler::handle_rpc_keygen(const uint32_t code, const uint32_t session_
     self.update_device_weight(session.key_op_data.rpc_index, self.pkey_gen_weight)
 
     return RPCAction(None, [self.rpc_list[session.key_op_data.rpc_index]], self.callback_rpc_keygen)
-*/ }
-
-void rpc_handler::callback_rpc_close_deletekey(const std::vector<libhal::rpc_packet> &reply_list, libhal::rpc_packet &opacket)
-{ /*
-    unpacker = self.get_response_unpacker(reply_list[0])
-
-    code = unpacker.unpack_uint()
-    client = unpacker.unpack_uint()
-    result = unpacker.unpack_uint()     
-
-    if(result != DKS_HALError.HAL_OK):
-        logger.info("callback_rpc_closekey: result != 0")
-        return self.create_error_response(code, client, result)
-
-    // get the session
-    session = self.get_session(client)
-
-    // inform the load balancer that we have closed a key
-    self.update_device_weight(session.key_op_data.rpc_index, -self.pkey_op_weight)
-
-    handle = session.key_op_data.handle
-
-    // this handle must be a key
-    if(handle not in session.key_rpcs):
-        logger.info("callback_rpc_close_deletekey: handle not in session.key_rpcs")
-        return self.create_error_response(code, client, DKS_HALError.HAL_ERROR_BAD_ARGUMENTS)        
-
-    if (code == RPC_FUNC_PKEY_DELETE):
-        // get the details about the key so we can delete from the cache
-        keydetails = session.key_rpcs[handle]
-        uuid = keydetails.uuid
-        rpc_index = keydetails.rpc_index
-        session.cache.remove_key_from_alpha(rpc_index, uuid)
-
-    // clear data
-    session.key_rpcs.pop(handle, None)
-
-    // the key was closed so we are not working on anything now
-    session.key_op_data = KeyOperationData(None, None, None)
-
-    return RPCAction(reply_list[0], None, None)
 */ }
 
 void rpc_handler::callback_rpc_keygen(const std::vector<libhal::rpc_packet> &reply_list, libhal::rpc_packet &opacket)

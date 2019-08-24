@@ -57,6 +57,17 @@ class KeyHandleDetails
             this->uuid = uuid;
         }
 
+        KeyHandleDetails(const KeyHandleDetails &other)
+        {
+            rpc_index = other.rpc_index;
+            uuid = other.uuid;
+        }
+
+        KeyHandleDetails()
+        :rpc_index(-1)
+        {
+        }
+
         int rpc_index;
 
         uuids::uuid_t uuid;
@@ -263,7 +274,6 @@ class rpc_handler
         bool choose_rpc_from_master_uuid(uuids::uuid_t master_uuid, std::pair<int, uuids::uuid_t> &result);
         void update_device_weight(int cryptech_device, int amount);
 
-        void callback_rpc_close_deletekey(const std::vector<libhal::rpc_packet> &reply_list, libhal::rpc_packet &opacket);
         void callback_rpc_keygen(const std::vector<libhal::rpc_packet> &reply_list, libhal::rpc_packet &opacket);
         void callback_rpc_pkeymatch(const std::vector<libhal::rpc_packet> &reply_list, libhal::rpc_packet &opacket);
 

@@ -49,7 +49,6 @@ from cython.operator cimport dereference as deref, postincrement
 # cryptech_muxd has been renamed to cryptech/muxd.py
 import cryptech.muxd
 from cryptech.muxd import logger
-from cryptech.hsm import CrypTechDeviceState
 from cryptech.libhal import *
 from cryptech.cryptech_port import DKS_RPCFunc, DKS_HALKeyType, DKS_HALKeyFlag, DKS_HALError, DKS_HALUser, DKS_HALError, DKS_HSM
 from cryptech.tcpserver import TCPServer

@@ -158,7 +158,7 @@ public:
 		return _hash_code;
 	}
 
-	const uint8_t const *bytes() const
+	const uint8_t *bytes() const
 	{
 		return uuid;
 	}

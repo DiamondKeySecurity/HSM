@@ -43,7 +43,7 @@ import muxd
 
 from upload import ManagementPortSerial
 
-from hsm import HSMPortInfo, CtyArg
+from hsm import CtyArg
 
 class ProbeMultiIOStream(muxd.ProbeIOStream):
     """
