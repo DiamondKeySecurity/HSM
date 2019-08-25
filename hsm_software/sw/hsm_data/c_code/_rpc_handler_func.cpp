@@ -12,7 +12,7 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with this program; if not, If not, see <https://www.gnu.org/licenses/>.
-#define DEBUG_LIBHAL 1
+// #define DEBUG_LIBHAL 1
 
 #if DEBUG_LIBHAL
 #include <iostream>
@@ -642,7 +642,7 @@ void rpc_handler::handle_rpc_pkey(const uint32_t code, const uint32_t session_cl
 
 void rpc_handler::handle_rpc_pkeyload(const uint32_t code, const uint32_t session_client_handle, const libhal::rpc_packet &ipacket,
                                       std::shared_ptr<MuxSession> session, libhal::rpc_packet &opacket)
-{ /*
+{
     // use manually selected RPC and get returned uuid and handle
 
     // if the session rpc_index has not be set, this must getting the public key
@@ -651,20 +651,41 @@ void rpc_handler::handle_rpc_pkeyload(const uint32_t code, const uint32_t sessio
     //     rpc_index = self.choose_rpc() #session.key_op_data.rpc_index
 
     // select an RPC to use for this hashing operation
-    session.key_op_data.rpc_index = session.rpc_index if(session.rpc_index >= 0) else self.choose_rpc()
+    session->key_op_data.rpc_index = (session->rpc_index >= 0) ? session->rpc_index : choose_rpc();
 
-    logger.info("session.rpc_index == %i  session.key_op_data.rpc_index == %i",
-                                        session.rpc_index, session.key_op_data.rpc_index)
+#if DEBUG_LIBHAL
+        std::cout << "session.rpc_index == " << session->rpc_index <<
+                     "  session.key_op_data.rpc_index == " << session->key_op_data.rpc_index << std::endl;
+#endif
 
+    //             0 -- code
+    //             4 -- client
+    //             8 -- pkcs11 session
+    //            12 -- der
+    // 16 + der size -- flags
+    uint32_t der_size;
+    uint8_t  *der_buffer;
+    const size_t der_start_pos = 12;
+    size_t real_der_size;
+    uint32_t flags;
+    const uint8_t *ptr = NULL;
 
-    // consume pkcs11 session id
-    unpacker.unpack_uint()
+    // get the DER
+    ipacket.decode_start(der_start_pos, &ptr);
+    ipacket.decode_int_peak(&der_size);
+    der_buffer = new uint8_t[der_size];
+    std::unique_ptr<uint8_t> der_ptr(der_buffer);
 
-    // consume der
-    unpacker.unpack_bytes()
+    ipacket.decode_variable_opaque(der_buffer, &real_der_size, der_size, &ptr);
 
-    // get flags
-    session.flags = unpacker.unpack_uint()
+    if (real_der_size != der_size) 
+    {
+        opacket.create_error_response(code, session_client_handle, HAL_ERROR_BAD_ARGUMENTS);
+        return;
+    }
+
+    /*/ get flags
+    ipacket.decode_int(&flags, &ptr);
 
     if hasattr(session, 'pkey_type'):
         // treat as the public version of the last privte key generated as this is the standard usage
@@ -684,8 +705,8 @@ void rpc_handler::handle_rpc_pkeyload(const uint32_t code, const uint32_t sessio
     // inform the load balancer that we are doing an expensive key operation
     self.update_device_weight(session.key_op_data.rpc_index, self.pkey_gen_weight)
 
-    return RPCAction(None, [self.rpc_list[session.key_op_data.rpc_index]], self.callback_rpc_keygen)
-*/ }
+    return RPCAction(None, [self.rpc_list[session.key_op_data.rpc_index]], self.callback_rpc_keygen)*/
+}
 
 void rpc_handler::handle_rpc_pkeyimport(const uint32_t code, const uint32_t session_client_handle, const libhal::rpc_packet &ipacket,
                                         std::shared_ptr<MuxSession> session, libhal::rpc_packet &opacket)

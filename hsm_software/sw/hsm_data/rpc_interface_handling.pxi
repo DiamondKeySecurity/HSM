@@ -138,8 +138,11 @@ class rpc_interface_handling(object):
     def append_futures(self, futures):
         futures.append(self.rpc_output_loop())
 
+    def empty_call(self):
+        pass
+
     @tornado.gen.coroutine
     def rpc_output_loop(self):
         "Keep Tornado alive"
         while(True):
-            yield time.sleep(0.05)
+            yield self.empty_call()
