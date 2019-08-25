@@ -101,7 +101,6 @@ cdef class rpc_internal_handling(object):
         return out_reply
 
     def is_rpc_locked(self):
-        return False
         return ((deref(self.rpc_preprocessor).is_hsm_locked()) or
                 (not self.is_mkm_set))
 
@@ -123,10 +122,10 @@ class rpc_interface_handling(object):
         self.internal_handler.unlock_hsm()
 
     def device_count(self):
-        self.internal_handler.device_count()
+        return self.internal_handler.device_count()
 
     def get_current_rpc(self):
-        self.internal_handler.get_current_rpc()
+        return self.internal_handler.get_current_rpc()
 
     def set_current_rpc(self, index):
         self.internal_handler.set_current_rpc(index)
