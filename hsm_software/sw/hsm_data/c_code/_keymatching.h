@@ -39,7 +39,7 @@ class KeyAttribute
             delete [] bytes;
         }
 
-        hal_error_t unpack(const libhal::rpc_packet &ipacket, uint8_t **ptr)
+        hal_error_t unpack(const libhal::rpc_packet &ipacket, const uint8_t **ptr)
         {
             ipacket.decode_int(&key, ptr);
             ipacket.decode_int_peak(&bytes_len);
@@ -50,12 +50,14 @@ class KeyAttribute
             ipacket.decode_variable_opaque(bytes, &actual_len, bytes_len, ptr);
 
             if (actual_len != bytes_len) return HAL_ERROR_BAD_ATTRIBUTE_LENGTH;
+            return HAL_OK;
         }
 
         hal_error_t pack(libhal::rpc_packet opacket) const
         {
             opacket.encode_int(key);
             opacket.encode_variable_opaque(bytes, bytes_len);
+            return HAL_OK;
         }
 
         uint32_t key;
@@ -126,7 +128,7 @@ class KeyMatchDetails
         {
             const size_t pkcs11_session_pos = 8;
 
-            uint8_t *ptr = NULL;
+            const uint8_t *ptr = NULL;
             // skip code and client
             ipacket.decode_start(pkcs11_session_pos, &ptr);
 
@@ -212,6 +214,8 @@ class KeyMatchDetails
             opacket.encode_variable_opaque(uuid.bytes(), 16);
 
             opacket.shrink_to_fit();
+
+            return HAL_OK;
         }
 
         int rpc_index;

@@ -65,6 +65,16 @@ class rpc_packet
             other._size = 0;
         }
 
+        rpc_packet(const rpc_packet &other)
+        {
+            *this = other;
+        }
+
+        ~rpc_packet()
+        {
+            destroy();
+        }
+
         rpc_packet & operator= ( rpc_packet && other)
         {
             _size = other._size;
@@ -80,7 +90,7 @@ class rpc_packet
             return *this;
         }
 
-        rpc_packet(const rpc_packet &other)
+        rpc_packet & operator= ( const rpc_packet & other)
         {
 #if DEBUG_LIBHAL
             std::cout << "rpc packet copy" << std::endl;
@@ -92,11 +102,8 @@ class rpc_packet
             _blimit = _bptr + _size;
 
             memcpy(_buf, other._buf, _size);
-        }
-
-        ~rpc_packet()
-        {
-            destroy();
+            
+            return *this;
         }
 
         void create(size_t len)

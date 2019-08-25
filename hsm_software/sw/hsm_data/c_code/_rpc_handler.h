@@ -274,7 +274,6 @@ class rpc_handler
         void update_device_weight(int cryptech_device, int amount);
 
         void callback_rpc_keygen(const std::vector<libhal::rpc_packet> &reply_list, libhal::rpc_packet &opacket);
-        void callback_rpc_pkeymatch(const std::vector<libhal::rpc_packet> &reply_list, libhal::rpc_packet &opacket);
 
         void create_function_table();
         const int last_cryptech_rpc_index = RPC_FUNC_PKEY_GENERATE_HASHSIG;

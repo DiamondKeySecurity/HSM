@@ -19,6 +19,7 @@
 #endif
 
 #include "_rpc_handler.h"
+#include "_keymatching.h"
 
 extern "C"
 { 
@@ -878,162 +879,163 @@ void rpc_handler::callback_rpc_keygen(const std::vector<libhal::rpc_packet> &rep
 
 void rpc_handler::handle_rpc_pkeymatch(const uint32_t code, const uint32_t session_client_handle, const libhal::rpc_packet &ipacket,
                                        std::shared_ptr<MuxSession> session, libhal::rpc_packet &opacket)
-{/* 
+{
     // match on all rpcs and then combine results
     // incoming UUIDs are master table UUIDs
 
     // if the rpc_index has been set for the session, always use it
-    if(session.incoming_uuids_are_device_uuids)
+    if(session->incoming_uuids_are_device_uuids)
     {
-        if(session.rpc_index >= 0)
-        {
-            return RPCAction(None, [self.rpc_list[session.rpc_index]], None)
-        }
-        else
-        {
-            logger.info("handle_rpc_pkeymatch: using device uuid, but device not set")
-            return self.create_error_response(code, client, DKS_HALError.HAL_ERROR_IMPOSSIBLE)
-        }
+        handle_rpc_usecurrent(code, session_client_handle, ipacket, session, opacket);
+        return;
     }
 
-    session.keymatch_details = KeyMatchDetails()
+    // unpack
+    KeyMatchDetails keymatch_details;
+    keymatch_details.unpack(ipacket);
     
-    // unpack and store key match attributes
-    session.keymatch_details.unpack(unpacker)
-
-    logger.info("pkey_match: result_max = %i, uuid = %s",
-                session.keymatch_details.result_max, session.keymatch_details.uuid)
-
+#if DEBUG_LIBHAL
+    std::cout << "pkey_match: result_max = " << keymatch_details.result_max << ", uuid = " << (std::string)keymatch_details.uuid << std::endl;
+#endif
     // if uuid is none, search RPC 0
     // else search starting with the RPC that the uuid is on
 
-    if(session.keymatch_details.uuid == KeyMatchDetails.none_uuid)
+    libhal::rpc_packet command_to_send;
+
+    if(keymatch_details.uuid == uuids::uuid_none)
     {
-        if(session.rpc_index >= 0)
+        if(session->rpc_index >= 0)
         {
-            session.keymatch_details.rpc_index = session.rpc_index
+            keymatch_details.rpc_index = session->rpc_index;
         }
         else
         {
-            session.keymatch_details.rpc_index = 0
+            keymatch_details.rpc_index = 0;
         }
+        command_to_send = ipacket;
     }
     else
     {
         // need to convert master_uuid to device_uuid
-        if(session.rpc_index >= 0)
+        if(session->rpc_index >= 0)
         {
-            device_list = session.cache.get_alphas(session.keymatch_details.uuid)
-            if (session.rpc_index not in device_list)
+            std::map<int, uuids::uuid_t> device_list;
+            c_cache_object->get_devices(keymatch_details.uuid, device_list);
+            if (device_list.find(session->rpc_index) == device_list.end())
             {
-                logger.info("handle_rpc_pkeyopen: session.rpc_index not in device_list")
-                return self.create_error_response(code, client, DKS_HALError.HAL_ERROR_KEY_NOT_FOUND)
+#if DEBUG_LIBHAL
+                std::cout << "handle_rpc_pkeyopen: session.rpc_index not in device_list" << std::endl;
+#endif
+                opacket.create_error_response(code, session_client_handle, HAL_ERROR_KEY_NOT_FOUND);
+                return;
             }
 
-            session.keymatch_details.rpc_index = session.rpc_index
+            keymatch_details.rpc_index = session->rpc_index;
 
             // need to update the command with the new UUID
-            session.keymatch_details.uuid = device_list[session.rpc_index]
+            keymatch_details.uuid = device_list[session->rpc_index];
         }
         else
         {
             // find the rpc that this is on
-            device_to_search = session.cache.get_alpha_lowest_index(session.keymatch_details.uuid)
-            if(device_to_search is None)
+             std::pair<int, uuids::uuid_t> device_to_search;
+            if(false == c_cache_object->get_device_lowest_index(keymatch_details.uuid, device_to_search))
             {
-                return self.create_error_response(code, client, DKS_HALError.HAL_ERROR_RPC_TRANSPORT)
+                opacket.create_error_response(code, session_client_handle, HAL_ERROR_RPC_TRANSPORT);
+                return;
             }
 
-            session.keymatch_details.rpc_index = device_to_search[0]
+            keymatch_details.rpc_index = device_to_search.first;
 
             // need to update the command with the new UUID
-            session.keymatch_details.uuid = device_to_search[1]
+            keymatch_details.uuid = device_to_search.second;
         }
 
-        session.current_request = session.keymatch_details.repack(code, client)
+        keymatch_details.repack(code, session_client_handle, command_to_send);
     }
 
-    // make sure the rpc_index was set
-    if(hasattr(session.keymatch_details, 'rpc_index') == False)
+    std::shared_ptr<SafeQueue<libhal::rpc_packet>> myqueue = session->myqueue;
+
+    KeyMatchResult match_result;
+
+    do
     {
-        return self.create_error_response(code, client, DKS_HALError.HAL_ERROR_RPC_TRANSPORT)
-    }
+        int rpc_index = keymatch_details.rpc_index;
 
-    return RPCAction(None, [self.rpc_list[session.keymatch_details.rpc_index]], self.callback_rpc_pkeymatch)
-*/}
+        hal_error_t result = sendto_cryptech_device(ipacket, opacket, rpc_index, session_client_handle, code, myqueue);
+        if (result != HAL_OK)
+        {
+            opacket.create_error_response(code, session_client_handle, result);
+            return;
+        }
 
-void rpc_handler::callback_rpc_pkeymatch(const std::vector<libhal::rpc_packet> &reply_list, libhal::rpc_packet &opacket)
-{/*
-    reply = reply_list[0]
+        // process result
+        uint32_t oresult;
+        uint32_t pkcs11_session;
+        uint32_t result_count;
+        const uint8_t *ptr = NULL;
 
-    logger.info("callback_rpc_pkeymatch")
+        // consume code
+        opacket.decode_int(&oresult, &ptr);
+        // consume client
+        opacket.decode_int(&oresult, &ptr);
+        // result
+        opacket.decode_int(&oresult, &ptr);
+        // pkcs11 session
+        opacket.decode_int(&pkcs11_session, &ptr);
+        // pkcs11 session
+        opacket.decode_int(&result_count, &ptr);
 
-    unpacker = self.get_response_unpacker(reply)
+        if(oresult != HAL_OK)
+            return;
 
-    code = unpacker.unpack_uint()
-    client = unpacker.unpack_uint()
-    result = unpacker.unpack_uint()
+        match_result.code = code;
+        match_result.client = session_client_handle;
+        match_result.result = oresult;
+        match_result.pkcs11_session = pkcs11_session;
 
-    // this should have been called on exactly one alpha
-    if(len(reply_list) != 1):
-        logger.info("callback_rpc_pkeymatch: len(reply_list) != 1")
-        return self.create_error_response(code, client, DKS_HALError.HAL_ERROR_RPC_TRANSPORT)
+#if DEBUG_LIBHAL
+        std::cout << "Matching found " << result_count << " keys" << std::endl;
+#endif
+        for (uint32_t i = 0; i < result_count; ++i)
+        {
+            uuids::uuid_t incoming_uuid;
+            uint8_t uuid_buffer[16];
+            size_t incoming_len;
+            opacket.decode_variable_opaque(uuid_buffer, &incoming_len, sizeof(uuid_buffer), &ptr);
+            incoming_uuid.fromBytes((char*)uuid_buffer);
 
+            // convert device UUID to master UUID and if uuid is
+            // also on a device with a lowee index, don't add
+            uuids::uuid_t master_uuid = c_cache_object->get_master_uuid(rpc_index, incoming_uuid);
+            if (master_uuid != uuids::uuid_none)
+            {
+                int lowest_index = c_cache_object->get_master_uuid_lowest_index(master_uuid);
+                if (lowest_index == rpc_index)
+                {
+                    match_result.uuid_list.push_back(master_uuid);
+                }
+            }
+        }
 
-    // get the session
-    session = self.get_session(client)        
+        int next_rpc = rpc_index + 1;
 
-    if (code != RPC_FUNC_PKEY_MATCH):
-        logger.info("callback_rpc_pkeymatch: code != RPCFunc.RPC_FUNC_PKEY_MATCH")
-        return self.create_error_response(code, client, DKS_HALError.HAL_ERROR_RPC_TRANSPORT)
+        if (match_result.uuid_list.size() >= keymatch_details.result_max ||
+            next_rpc >= device_count())
+        {
+            // we've either reach the max or we've searched all devices
+            match_result.build_result_packet(keymatch_details.result_max, opacket);
 
-    if(result != 0):
-        logger.info("callback_rpc_pkeymatch: result != 0")
-        return self.create_error_response(code, client, result)
+            return;
+        }
 
-    session.keymatch_details.result.code = code
-    session.keymatch_details.result.client = client
-    session.keymatch_details.result.result = result
+        // we're searching a new alpha so start from 0
+        keymatch_details.rpc_index = next_rpc;
+        keymatch_details.uuid = uuids::uuid_none;
 
-    // get the pkcs#11 session
-    session.keymatch_details.result.session = unpacker.unpack_uint()
-
-    // get the count
-    n = unpacker.unpack_uint()
-
-    rpc_index = session.keymatch_details.rpc_index
-
-    logger.info("Matching found %i keys", n)
-
-    for i in xrange(n):
-        u = UUID(bytes = unpacker.unpack_bytes())
-
-        // convert device UUID to master UUID and if uuid is
-        // also on a device with a lowee index, don't add
-        master_uuid = session.cache.get_master_uuid(rpc_index, u)
-        if (master_uuid is not None):
-            lowest_index = session.cache.get_master_uuid_lowest_index(master_uuid)
-            if(lowest_index == rpc_index):
-                session.keymatch_details.result.uuid_list.append(master_uuid)
-
-    next_rpc = rpc_index + 1
-
-    if (len(session.keymatch_details.result.uuid_list) >= session.keymatch_details.result_max or
-        next_rpc >= len(self.rpc_list)):
-        // we've either reach the max or we've searched all devices
-        result_action = RPCAction(session.keymatch_details.result.build_result_packet(session.keymatch_details.result_max), None, None)
-        session.keymatch_details = None
-
-        return result_action
-
-    // we're searching a new alpha so start from 0
-    session.keymatch_details.rpc_index = next_rpc
-    session.keymatch_details.uuid = KeyMatchDetails.none_uuid
-    session.current_request = session.keymatch_details.repack(code, client)
-
-    // there may be more matching keys so generate another command
-    return RPCAction(None, [self.rpc_list[session.keymatch_details.rpc_index]], self.callback_rpc_pkeymatch)
-*/}
+        keymatch_details.repack(code, session_client_handle, command_to_send);
+    } while (true);
+}
 
 void rpc_handler::handle_rpc_getdevice_ip(const uint32_t code, const uint32_t session_client_handle, const libhal::rpc_packet &ipacket,
                                           std::shared_ptr<MuxSession> session, libhal::rpc_packet &opacket)
