@@ -85,8 +85,9 @@ class hsm_cache
 		// adds a newly found key to the cache. will add to the alpha table and the master table
 		// if param_masterListID is None, a new UUID will be generated otherwise, this will
 		// be added as a duplicate to a key on another alpha
-		uuids::uuid_t add_key_to_device(int device_index, uuids::uuid_t device_uuid, unsigned int keytype,
-			unsigned int flags, uuids::uuid_t param_masterListID, bool auto_backup);
+		uuids::uuid_t add_key_to_device(int device_index, uuids::uuid_t device_uuid, unsigned int keytype = 0,
+	                                    unsigned int flags = 0, uuids::uuid_t param_masterListID = uuids::uuid_none,
+	                                    bool auto_backup = true);
 
 		bool remove_key_from_device_only(int device_index, uuids::uuid_t device_uuid);
 

@@ -12,7 +12,7 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with this program; if not, If not, see <https://www.gnu.org/licenses/>.
-// #define DEBUG_LIBHAL 1
+#define DEBUG_LIBHAL 1
 
 #if DEBUG_LIBHAL
 #include <iostream>
@@ -720,7 +720,7 @@ void rpc_handler::handle_rpc_pkeyload_import_gen(const uint32_t code, const uint
         // process result
         uint32_t oresult;
         uint32_t pkcs11_session;
-        uint32_t result_count;
+        uint32_t handle;
         const uint8_t *ptr = NULL;
 
         // consume code
@@ -736,7 +736,9 @@ void rpc_handler::handle_rpc_pkeyload_import_gen(const uint32_t code, const uint
             return;
 
         // get the handle
-        opacket.decode_int(&session->key_op_data.handle, &ptr);
+        opacket.decode_int(&handle, &ptr);
+
+        session->key_op_data.handle = handle;
 
         uint8_t uuid_buffer[16];
         size_t incoming_len;
@@ -749,38 +751,94 @@ void rpc_handler::handle_rpc_pkeyload_import_gen(const uint32_t code, const uint
             opacket.create_error_response(code, session_client_handle, HAL_ERROR_RPC_TRANSPORT);
             return;
         }
-
+        else
+        {
+            session->key_op_data.device_uuid = device_uuid;
+        }        
 
         // save the RPC to use for this handle
-        session.key_rpcs[session.key_op_data.handle] = KeyHandleDetails(session.key_op_data.rpc_index, session.key_op_data.device_uuid)
+        if (session->key_rpcs.find(handle) == session->key_rpcs.end())
+        {
+            session->key_rpcs.insert(std::pair<uint32_t, KeyHandleDetails>(handle,
+                                                                        KeyHandleDetails(session->key_op_data.rpc_index,
+                                                                                         session->key_op_data.device_uuid)));
+
+            update_device_weight(session->key_op_data.rpc_index, pkey_op_weight);
+        }
+        else
+        {
+            opacket.create_error_response(code, session_client_handle, HAL_ERROR_RPC_TRANSPORT);
+            return;
+        }
+
+        // get the type
+        hal_key_type_t key_type = rpc_handler::get_pkey_type(session_client_handle, myqueue, hal_pkey_handle_t { handle });
+
+        // get the flags
+        hal_key_flags_t key_flags = rpc_handler::get_pkey_flags(session_client_handle, myqueue, hal_pkey_handle_t { handle });
+
+        // get curve
+        hal_curve_name_t key_curve = HAL_CURVE_NONE;
+        if (key_type == HAL_KEY_TYPE_EC_PRIVATE || key_type == HAL_KEY_TYPE_EC_PUBLIC)
+        {
+            key_curve = rpc_handler::get_pkey_curve(session_client_handle, myqueue, hal_pkey_handle_t { handle });
+        }
+
 
         // add new key to cache
-        logger.info("Key generated and added to cache RPC:%i UUID:%s Type:%i Flags:%i",
-                                            session.key_op_data.rpc_index, session.key_op_data.device_uuid, session.pkey_type, session.flags)
-
-
-        // save the device uuid internally
-        session.key_op_data.device_uuid = device_uuid
+#if DEBUG_LIBHAL
+        std::cout << "Key generated and added to cache RPC:" << session->key_op_data.rpc_index <<
+                     "  UUID: " << (std::string)session->key_op_data.device_uuid <<
+                     "  Type: " << key_type <<
+                     "  Flags: " << key_flags << std::endl;
+#endif
 
         // unless we're caching and using master_uuids, return the device uuid
-        outgoing_uuid = device_uuid
+        uuids::uuid_t outgoing_uuid = device_uuid;
 
-        if (session.cache_generated_keys):
-            master_uuid = session.cache.add_key_to_alpha(session.key_op_data.rpc_index,
+        if (session->cache_generated_keys)
+        {
+            uuids::uuid_t master_uuid = c_cache_object->add_key_to_device(session->key_op_data.rpc_index,
                                                             device_uuid,
-                                                            session.pkey_type,
-                                                            session.flags)
+                                                            key_type,
+                                                            key_flags);
 
-            if (not session.incoming_uuids_are_device_uuids):
+            if (session->incoming_uuids_are_device_uuids == false)
+            {
                 // the master_uuid will always be returned to ethernet connections
-                outgoing_uuid = master_uuid
+                outgoing_uuid = master_uuid;
+            }
+        }
 
         // generate reply with the outgoing uuid
-        reply = RPCKeygen_result.create(code, client, result,
-                                        session.key_op_data.handle,
-                                        outgoing_uuid)
+        opacket.create(HAL_RPC_MAX_PKT_SIZE);
+        opacket.encode_int(code);
+        opacket.encode_int(session_client_handle);
+        opacket.encode_int(oresult);
+        opacket.encode_int(handle);
+        opacket.encode_variable_opaque(outgoing_uuid.bytes(), 16);
+        opacket.shrink_to_fit();
     }
-}    
+}
+
+hal_key_type_t rpc_handler::get_pkey_type(const uint32_t session_client_handle, std::shared_ptr<SafeQueue<libhal::rpc_packet>> myqueue,
+                                          const hal_pkey_handle_t handle)
+{
+    return HAL_KEY_TYPE_NONE;
+}
+
+hal_curve_name_t rpc_handler::get_pkey_curve(const uint32_t session_client_handle, std::shared_ptr<SafeQueue<libhal::rpc_packet>> myqueue,
+                                             const hal_pkey_handle_t handle)
+{
+    return HAL_CURVE_NONE;
+}
+
+hal_key_flags_t rpc_handler::get_pkey_flags(const uint32_t session_client_handle, std::shared_ptr<SafeQueue<libhal::rpc_packet>> myqueue,
+                                            const hal_pkey_handle_t handle)
+{
+    return 0;
+}
+
 
 void rpc_handler::handle_rpc_pkeymatch(const uint32_t code, const uint32_t session_client_handle, const libhal::rpc_packet &ipacket,
                                        std::shared_ptr<MuxSession> session, libhal::rpc_packet &opacket)

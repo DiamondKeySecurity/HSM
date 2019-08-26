@@ -72,9 +72,9 @@ int hsm_cache::get_master_uuid_lowest_index(uuids::uuid_t master_uuid)
 // adds a newly found key to the cache. will add to the alpha table and the master table
 // if param_masterListID is None, a new UUID will be generated otherwise, this will
 // be added as a duplicate to a key on another alpha
-uuids::uuid_t hsm_cache::add_key_to_device(int device_index, uuids::uuid_t device_uuid, unsigned int keytype = 0,
-	unsigned int flags = 0, uuids::uuid_t param_masterListID = uuids::uuid_none,
-	bool auto_backup = true)
+uuids::uuid_t hsm_cache::add_key_to_device(int device_index, uuids::uuid_t device_uuid, unsigned int keytype,
+	                                       unsigned int flags, uuids::uuid_t param_masterListID,
+	                                       bool auto_backup)
 {
 	if (!validate_device_index(device_index)) return uuids::uuid_none;
 
