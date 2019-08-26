@@ -26,6 +26,7 @@ extern "C"
 #include "libhal/hal.h"
 #include "libhal/hal_internal.h"
 }
+#include "libhal/rpc_client.h"
 
 namespace diamond_hsm
 {
@@ -773,16 +774,25 @@ void rpc_handler::handle_rpc_pkeyload_import_gen(const uint32_t code, const uint
         }
 
         // get the type
-        hal_key_type_t key_type = rpc_handler::get_pkey_type(session_client_handle, myqueue, hal_pkey_handle_t { handle });
+        hal_key_type_t key_type = rpc_handler::get_pkey_type(session_client_handle,
+                                                             myqueue,
+                                                             hal_pkey_handle_t { handle },
+                                                             rpc_index);
 
         // get the flags
-        hal_key_flags_t key_flags = rpc_handler::get_pkey_flags(session_client_handle, myqueue, hal_pkey_handle_t { handle });
+        hal_key_flags_t key_flags = rpc_handler::get_pkey_flags(session_client_handle,
+                                                                myqueue,
+                                                                hal_pkey_handle_t { handle },
+                                                                rpc_index);
 
         // get curve
         hal_curve_name_t key_curve = HAL_CURVE_NONE;
         if (key_type == HAL_KEY_TYPE_EC_PRIVATE || key_type == HAL_KEY_TYPE_EC_PUBLIC)
         {
-            key_curve = rpc_handler::get_pkey_curve(session_client_handle, myqueue, hal_pkey_handle_t { handle });
+            key_curve = rpc_handler::get_pkey_curve(session_client_handle,
+                                                    myqueue,
+                                                    hal_pkey_handle_t { handle },
+                                                    rpc_index);
         }
 
 
@@ -823,21 +833,78 @@ void rpc_handler::handle_rpc_pkeyload_import_gen(const uint32_t code, const uint
 }
 
 hal_key_type_t rpc_handler::get_pkey_type(const uint32_t session_client_handle, std::shared_ptr<SafeQueue<libhal::rpc_packet>> myqueue,
-                                          const hal_pkey_handle_t handle)
+                                          const hal_pkey_handle_t handle, const int rpc_index)
 {
-    return HAL_KEY_TYPE_NONE;
+    libhal::rpc_packet *opacket;
+    libhal::rpc_packet result_packet;
+    
+    if(libhal::pkey_remote_get_key_type(&opacket, hal_client_handle_t {session_client_handle}, handle) != HAL_OK)
+    {
+        return HAL_KEY_TYPE_NONE;
+    }
+
+    std::unique_ptr<libhal::rpc_packet> packet_ptr(opacket);
+    hal_error_t result = sendto_cryptech_device(*packet_ptr,
+                                                 result_packet,
+                                                 rpc_index,
+                                                 session_client_handle,
+                                                 RPC_FUNC_PKEY_GET_KEY_TYPE,
+                                                 myqueue);
+
+    uint32_t value;
+    result_packet.decode_int_peak_at(&value, 3*4);    
+
+    return (hal_key_type_t)value;
 }
 
 hal_curve_name_t rpc_handler::get_pkey_curve(const uint32_t session_client_handle, std::shared_ptr<SafeQueue<libhal::rpc_packet>> myqueue,
-                                             const hal_pkey_handle_t handle)
+                                             const hal_pkey_handle_t handle, const int rpc_index)
 {
-    return HAL_CURVE_NONE;
+    libhal::rpc_packet *opacket;
+    libhal::rpc_packet result_packet;
+    
+    if(libhal::pkey_remote_get_key_curve(&opacket, hal_client_handle_t {session_client_handle}, handle) != HAL_OK)
+    {
+        return HAL_CURVE_NONE;
+    }
+
+    std::unique_ptr<libhal::rpc_packet> packet_ptr(opacket);
+    hal_error_t result = sendto_cryptech_device(*packet_ptr,
+                                                 result_packet,
+                                                 rpc_index,
+                                                 session_client_handle,
+                                                 RPC_FUNC_PKEY_GET_KEY_CURVE,
+                                                 myqueue);
+
+    uint32_t value;
+    result_packet.decode_int_peak_at(&value, 3*4);    
+
+    return (hal_curve_name_t)value;
 }
 
 hal_key_flags_t rpc_handler::get_pkey_flags(const uint32_t session_client_handle, std::shared_ptr<SafeQueue<libhal::rpc_packet>> myqueue,
-                                            const hal_pkey_handle_t handle)
+                                            const hal_pkey_handle_t handle, const int rpc_index)
 {
-    return 0;
+    libhal::rpc_packet *opacket;
+    libhal::rpc_packet result_packet;
+    
+    if(libhal::pkey_remote_get_key_flags(&opacket, hal_client_handle_t {session_client_handle}, handle) != HAL_OK)
+    {
+        return 0;
+    }
+
+    std::unique_ptr<libhal::rpc_packet> packet_ptr(opacket);
+    hal_error_t result = sendto_cryptech_device(*packet_ptr,
+                                                 result_packet,
+                                                 rpc_index,
+                                                 session_client_handle,
+                                                 RPC_FUNC_PKEY_GET_KEY_FLAGS,
+                                                 myqueue);
+
+    uint32_t value;
+    result_packet.decode_int_peak_at(&value, 3*4);    
+
+    return (hal_key_flags_t)value;
 }
 
 

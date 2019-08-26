@@ -276,9 +276,9 @@ class rpc_handler
         void handle_rpc_getdevice_state(const uint32_t code, const uint32_t session_client_handle, const libhal::rpc_packet &ipacket,
                                         std::shared_ptr<MuxSession> session, libhal::rpc_packet &opacket);
 
-        hal_key_type_t get_pkey_type(const uint32_t session_client_handle, std::shared_ptr<SafeQueue<libhal::rpc_packet>> myqueue, const hal_pkey_handle_t handle);
-        hal_curve_name_t get_pkey_curve(const uint32_t session_client_handle, std::shared_ptr<SafeQueue<libhal::rpc_packet>> myqueue, const hal_pkey_handle_t handle);
-        hal_key_flags_t get_pkey_flags(const uint32_t session_client_handle, std::shared_ptr<SafeQueue<libhal::rpc_packet>> myqueue, const hal_pkey_handle_t handle);
+        hal_key_type_t get_pkey_type(const uint32_t session_client_handle, std::shared_ptr<SafeQueue<libhal::rpc_packet>> myqueue, const hal_pkey_handle_t handle, const int rpc_index);
+        hal_curve_name_t get_pkey_curve(const uint32_t session_client_handle, std::shared_ptr<SafeQueue<libhal::rpc_packet>> myqueue, const hal_pkey_handle_t handle, const int rpc_index);
+        hal_key_flags_t get_pkey_flags(const uint32_t session_client_handle, std::shared_ptr<SafeQueue<libhal::rpc_packet>> myqueue, const hal_pkey_handle_t handle, const int rpc_index);
 
         bool choose_rpc_from_master_uuid(uuids::uuid_t master_uuid, std::pair<int, uuids::uuid_t> &result);
         void update_device_weight(int cryptech_device, int amount);
