@@ -53,6 +53,10 @@ void rpc_handler::set_cache_object(hsm_cache *c_cache_object)
 void rpc_handler::unlock_hsm()
 {
     hsm_locked = false;
+    for (auto it = rpc_device_states.begin(); it < rpc_device_states.end(); ++it)
+    {
+        it->unlock_port();
+    }
 }
 
 bool rpc_handler::is_hsm_locked() const

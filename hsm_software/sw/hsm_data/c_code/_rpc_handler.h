@@ -195,7 +195,7 @@ class rpc_handler
         int get_cryptech_device_weight(int device_index)
         {
             int weight = -1;
-            if (device_index > 0 && device_index < device_count())
+            if (device_index >= 0 && device_index < device_count())
             {
                 weight = rpc_device_states[device_index].get_busy_factor();
             }

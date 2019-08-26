@@ -22,7 +22,7 @@ from cryptech.cty_connection import HSM_BINARY_FILE
 
 from enum import Enum
 
-HSM_SOFTWARE_VERSION = '19.08.26.cython31'
+HSM_SOFTWARE_VERSION = '19.08.26.cython33'
 
 # this is the version of the firmware that's built into the current release
 BUILTIN_FIRMWARE_VERSION = HSM_BINARY_FILE

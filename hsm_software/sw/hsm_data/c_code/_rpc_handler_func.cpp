@@ -220,7 +220,7 @@ void rpc_handler::handle_rpc_all(const uint32_t code, const uint32_t session_cli
     }
     else
     {
-        last_rpc = device_count();
+        last_rpc = device_count()-1;
     }
 
     uint32_t error_found = HAL_OK;
@@ -236,7 +236,13 @@ void rpc_handler::handle_rpc_all(const uint32_t code, const uint32_t session_cli
         {
             uint32_t error;
             opacket.decode_int_peak_at(&error, 8);
-            if (error != HAL_OK) error_found = error;
+            if (error != HAL_OK)
+            {
+                error_found = error;
+#if DEBUG_LIBHAL
+                std::cout << "login error " << error_found << std::endl;
+#endif
+            }
         }
     }
 
@@ -244,6 +250,9 @@ void rpc_handler::handle_rpc_all(const uint32_t code, const uint32_t session_cli
     if (error_found != HAL_OK)
     {
         opacket.create_error_response(code, session_client_handle, error_found);
+#if DEBUG_LIBHAL
+        std::cout << "exit login error " << error_found << std::endl;
+#endif
     }
 }
 
