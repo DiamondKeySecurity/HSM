@@ -409,7 +409,7 @@ void rpc_handler::handle_rpc_pkeyexport(const uint32_t code, const uint32_t sess
                                         std::shared_ptr<MuxSession> session, libhal::rpc_packet &opacket)
 {
     // make sure pkey export has been enabled. Always allow from internal non-ethernet sources
-    if (session->from_ethernet == false || session->enable_exportable_private_keys == false)
+    if (session->from_ethernet == false && session->enable_exportable_private_keys == false)
     {
         opacket.create_error_response(code, session_client_handle, HAL_ERROR_FORBIDDEN);
     }
