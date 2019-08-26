@@ -30,7 +30,7 @@ namespace diamond_hsm
 {
 
 rpc_handler::rpc_handler(const char *ipaddress)
-:hsm_locked(true), c_cache_object(NULL), next_any_device(0), next_any_device_uses(0), function_table(NULL)
+:current_rpc(-1), hsm_locked(true), c_cache_object(NULL), next_any_device(0), next_any_device_uses(0), function_table(NULL)
 {
     // FOR DEBUGGINH
     hsm_locked = false;
@@ -67,11 +67,12 @@ int rpc_handler::device_count()
 
 int rpc_handler::get_current_rpc()
 {
-    return 0;
+    return current_rpc;
 }
 
 void rpc_handler::set_current_rpc(int index)
 {
+    current_rpc = index;
 }
 
 hal_error_t rpc_handler::sendto_cryptech_device(const libhal::rpc_packet &ipacket,
@@ -248,7 +249,7 @@ void rpc_handler::create_session(uint32_t handle, bool from_ethernet, bool enabl
     {
         std::unique_lock<std::mutex> session_lock(session_mutex);
 
-        this->sessions[handle] = std::make_shared<MuxSession>(get_current_rpc(),/*cache*/ from_ethernet, enable_exportable_private_keys);
+        this->sessions[handle] = std::make_shared<MuxSession>(get_current_rpc(), from_ethernet, enable_exportable_private_keys);
     }
 
     std::shared_ptr<MuxSession> session = sessions[handle];

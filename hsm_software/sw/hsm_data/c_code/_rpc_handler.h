@@ -121,7 +121,7 @@ class MuxSession
 
         // dictionary mapping of hash rpc indexes by the hash handle
         std::unordered_map<uint32_t, uint32_t> hash_rpcs;
-        
+
         // dictionary mapping of key rpc indexes by the key handle
         std::unordered_map<uint32_t, KeyHandleDetails> key_rpcs;
 
@@ -203,6 +203,8 @@ class rpc_handler
             if (weight < 0) return large_weight;
             else return weight;
         }
+
+        int current_rpc;
 
         // list of the connected RPC devices
         std::vector<libhal::rpc_serial_stream> rpc_list;

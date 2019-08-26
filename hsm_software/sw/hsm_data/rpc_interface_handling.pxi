@@ -48,16 +48,16 @@ cdef class rpc_internal_handling(object):
         return self.settings.get_setting(HSMSettings.MASTERKEY_SET) == True
 
     def unlock_hsm(self):
-        deref(self.rpc_preprocessor).unlock_hsm()
+        self.rpc_preprocessor.unlock_hsm()
 
     def device_count(self):
-        return deref(self.rpc_preprocessor).device_count()
+        return self.rpc_preprocessor.device_count()
 
     def get_current_rpc(self):
-        return deref(self.rpc_preprocessor).get_current_rpc()
+        return self.rpc_preprocessor.get_current_rpc()
 
     def set_current_rpc(self, int index):
-        deref(self.rpc_preprocessor).set_current_rpc(index)
+        self.rpc_preprocessor.set_current_rpc(index)
 
     def on_tamper_event(self, object tamper_object):
         new_tamper_state = tamper_object.get_tamper_state()
@@ -92,7 +92,7 @@ cdef class rpc_internal_handling(object):
 
         # send to C++ code to process
         with nogil:
-            deref(self.rpc_preprocessor).process_incoming_rpc(ipacket, client, opacket)
+            self.rpc_preprocessor.process_incoming_rpc(ipacket, client, opacket)
 
         # convert result back for Python
         reply_buffer_encoded_len = opacket.encodeToSlip(reply_buffer_encoded, 16384)
@@ -101,17 +101,17 @@ cdef class rpc_internal_handling(object):
         return out_reply
 
     def is_rpc_locked(self):
-        return ((deref(self.rpc_preprocessor).is_hsm_locked()) or
+        return ((self.rpc_preprocessor.is_hsm_locked()) or
                 (not self.is_mkm_set))
 
     def create_session(self, int handle, bint from_ethernet, bint enable_exportable_private_keys):
-        deref(self.rpc_preprocessor).create_session(handle, from_ethernet, enable_exportable_private_keys)
+        self.rpc_preprocessor.create_session(handle, from_ethernet, enable_exportable_private_keys)
 
     def delete_session(self, int handle):
-        deref(self.rpc_preprocessor).delete_session(handle)
+        self.rpc_preprocessor.delete_session(handle)
 
 cdef _internal_set_cache_variable_rpc_(rpc_internal_handling o, hsm_cache.hsm_cache *c_cache_object):
-    deref(o.rpc_preprocessor).set_cache_object(c_cache_object)
+    o.rpc_preprocessor.set_cache_object(c_cache_object)
 
 class rpc_interface_handling(object):
     """ Limitted Python interface to the rpc handler"""
@@ -125,10 +125,23 @@ class rpc_interface_handling(object):
         return self.internal_handler.device_count()
 
     def get_current_rpc(self):
-        return self.internal_handler.get_current_rpc()
+        cdef int current_rpc
+        current_rpc = self.internal_handler.get_current_rpc()
+        if(current_rpc < 0):
+            return "auto"
+        elif (self.device_count() > current_rpc):
+            return "RPC%i"%current_rpc
+        else:
+            return "INVALID RPC"
 
     def set_current_rpc(self, index):
-        self.internal_handler.set_current_rpc(index)
+        if(isinstance(index, (int, )) is False):
+            return "Invalid index. The index must be a valid RPC index."
+        elif (index > self.device_count()):
+            return "Index out of range. The index must be a valid RPC index."
+        else:
+            self.internal_handler.set_current_rpc(index)
+            return "RPC is now: " + self.get_current_rpc()
 
     def get_names(self):
         cdef int i
