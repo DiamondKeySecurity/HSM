@@ -714,6 +714,7 @@ void rpc_handler::handle_rpc_pkeyload_import_gen(const uint32_t code, const uint
     if (result != HAL_OK)
     {
         opacket.create_error_response(code, session_client_handle, result);
+        return;
     }
     else
     {
@@ -729,11 +730,11 @@ void rpc_handler::handle_rpc_pkeyload_import_gen(const uint32_t code, const uint
         opacket.decode_int(&oresult, &ptr);
         // result
         opacket.decode_int(&oresult, &ptr);
-        // pkcs11 session
-        opacket.decode_int(&pkcs11_session, &ptr);
 
         if (oresult != HAL_OK)
+        {
             return;
+        }
 
         // get the handle
         opacket.decode_int(&handle, &ptr);
