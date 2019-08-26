@@ -31,6 +31,14 @@
 namespace diamond_hsm
 {
 
+class KeyGenData
+{
+    public:
+        hal_key_type_t key_type = HAL_KEY_TYPE_NONE;
+        hal_key_flags_t key_flags = 0;
+        hal_curve_name_t key_curve = HAL_CURVE_NONE;
+};
+
 class KeyOperationData
 {
     public:
@@ -119,6 +127,8 @@ class MuxSession
 
         // parameters for the current key operation
         KeyOperationData key_op_data;
+
+        KeyGenData key_gen_data;
 
         // should exportable private keys be used for this session?
         bool enable_exportable_private_keys;
@@ -257,12 +267,8 @@ class rpc_handler
                                  std::shared_ptr<MuxSession> session, libhal::rpc_packet &opacket);
         void handle_rpc_pkey(const uint32_t code, const uint32_t session_client_handle, const libhal::rpc_packet &ipacket,
                              std::shared_ptr<MuxSession> session, libhal::rpc_packet &opacket);
-        void handle_rpc_pkeyload(const uint32_t code, const uint32_t session_client_handle, const libhal::rpc_packet &ipacket,
+        void handle_rpc_pkeyload_import_gen(const uint32_t code, const uint32_t session_client_handle, const libhal::rpc_packet &ipacket,
                                  std::shared_ptr<MuxSession> session, libhal::rpc_packet &opacket);
-        void handle_rpc_pkeyimport(const uint32_t code, const uint32_t session_client_handle, const libhal::rpc_packet &ipacket,
-                                   std::shared_ptr<MuxSession> session, libhal::rpc_packet &opacket);
-        void handle_rpc_keygen(const uint32_t code, const uint32_t session_client_handle, const libhal::rpc_packet &ipacket,
-                               std::shared_ptr<MuxSession> session, libhal::rpc_packet &opacket);
         void handle_rpc_pkeymatch(const uint32_t code, const uint32_t session_client_handle, const libhal::rpc_packet &ipacket,
                                   std::shared_ptr<MuxSession> session, libhal::rpc_packet &opacket);
         void handle_rpc_getdevice_ip(const uint32_t code, const uint32_t session_client_handle, const libhal::rpc_packet &ipacket,
@@ -272,8 +278,6 @@ class rpc_handler
 
         bool choose_rpc_from_master_uuid(uuids::uuid_t master_uuid, std::pair<int, uuids::uuid_t> &result);
         void update_device_weight(int cryptech_device, int amount);
-
-        void callback_rpc_keygen(const std::vector<libhal::rpc_packet> &reply_list, libhal::rpc_packet &opacket);
 
         void create_function_table();
         const int last_cryptech_rpc_index = RPC_FUNC_PKEY_GENERATE_HASHSIG;

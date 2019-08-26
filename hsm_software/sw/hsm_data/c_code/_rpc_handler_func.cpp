@@ -630,6 +630,8 @@ void rpc_handler::handle_rpc_pkey(const uint32_t code, const uint32_t session_cl
                 c_cache_object->remove_key_from_device_only(rpc_index, uuid_to_remove);
             }
 
+            update_device_weight(session->key_op_data.rpc_index, -pkey_op_weight);
+
             // clear data
             auto handle_loc = session->key_rpcs.find(handle);
             session->key_rpcs.erase(handle_loc);
@@ -640,263 +642,145 @@ void rpc_handler::handle_rpc_pkey(const uint32_t code, const uint32_t session_cl
     }
 }
 
-void rpc_handler::handle_rpc_pkeyload(const uint32_t code, const uint32_t session_client_handle, const libhal::rpc_packet &ipacket,
-                                      std::shared_ptr<MuxSession> session, libhal::rpc_packet &opacket)
+void rpc_handler::handle_rpc_pkeyload_import_gen(const uint32_t code, const uint32_t session_client_handle,
+                                                 const libhal::rpc_packet &ipacket,
+                                                 std::shared_ptr<MuxSession> session, libhal::rpc_packet &opacket)
 {
     // use manually selected RPC and get returned uuid and handle
 
-    // if the session rpc_index has not be set, this must getting the public key
-    // rpc_index = session.rpc_index
-    // if(rpc_index < 0):
-    //     rpc_index = self.choose_rpc() #session.key_op_data.rpc_index
-
-    // select an RPC to use for this hashing operation
+    // select an RPC to use for this operation
     session->key_op_data.rpc_index = (session->rpc_index >= 0) ? session->rpc_index : choose_rpc();
 
 #if DEBUG_LIBHAL
         std::cout << "session.rpc_index == " << session->rpc_index <<
                      "  session.key_op_data.rpc_index == " << session->key_op_data.rpc_index << std::endl;
 #endif
-
-    //             0 -- code
-    //             4 -- client
-    //             8 -- pkcs11 session
-    //            12 -- der
-    // 16 + der size -- flags
-    uint32_t der_size;
-    uint8_t  *der_buffer;
-    const size_t der_start_pos = 12;
-    size_t real_der_size;
-    uint32_t flags;
-    const uint8_t *ptr = NULL;
-
-    // get the DER
-    ipacket.decode_start(der_start_pos, &ptr);
-    ipacket.decode_int_peak(&der_size);
-    der_buffer = new uint8_t[der_size];
-    std::unique_ptr<uint8_t> der_ptr(der_buffer);
-
-    ipacket.decode_variable_opaque(der_buffer, &real_der_size, der_size, &ptr);
-
-    if (real_der_size != der_size) 
+    size_t flag_location = 0;
+    if (code == RPC_FUNC_PKEY_GENERATE_EC)
     {
-        opacket.create_error_response(code, session_client_handle, HAL_ERROR_BAD_ARGUMENTS);
-        return;
+        flag_location = 16;
+    }
+    else if (code == RPC_FUNC_PKEY_GENERATE_HASHSIG)
+    {
+        flag_location = 24;
+    }
+    else if (code == RPC_FUNC_PKEY_GENERATE_RSA)
+    {
+        //  0 - code
+        //  4 - client
+        //  8 - pkcs11 session
+        // 12 - key len
+        // 16 - exponent (variable)
+        //  ? - flag
+        const size_t exponent_pos = 16;
+        uint32_t exp_len;
+        ipacket.decode_int_peak_at(&exp_len, exponent_pos);
+        int exp_padding = (4 - exp_len % 4) % 4;
+        flag_location = 20 + exp_len + exp_padding;
     }
 
-    /*/ get flags
-    ipacket.decode_int(&flags, &ptr);
+    libhal::rpc_packet packet_to_send(ipacket);
 
-    if hasattr(session, 'pkey_type'):
-        // treat as the public version of the last privte key generated as this is the standard usage
-        if(session.pkey_type == DKS_HALKeyType.HAL_KEY_TYPE_RSA_PRIVATE and
-            session.flags & DKS_HALKeyFlag.HAL_KEY_FLAG_PUBLIC):
-            session.pkey_type = DKS_HALKeyType.HAL_KEY_TYPE_RSA_PUBLIC
-        elif(session.pkey_type == DKS_HALKeyType.HAL_KEY_TYPE_EC_PRIVATE and
-            session.flags & DKS_HALKeyFlag.HAL_KEY_FLAG_PUBLIC):
-            session.pkey_type = DKS_HALKeyType.HAL_KEY_TYPE_EC_PUBLIC
-        elif(session.pkey_type == DKS_HALKeyType.HAL_KEY_TYPE_HASHSIG_PRIVATE and
-            session.flags & DKS_HALKeyFlag.HAL_KEY_FLAG_PUBLIC):
-            session.pkey_type = DKS_HALKeyType.HAL_KEY_TYPE_HASHSIG_PUBLIC
-    else:
-        session.pkey_type = DKS_HALKeyType.HAL_KEY_TYPE_NONE
-        session.curve = 0
+    // update flag if needed for key gen
+    if (flag_location != 0)
+    {
+        uint32_t flags;
+        ipacket.decode_int_peak_at(&flags, flag_location);
 
-    // inform the load balancer that we are doing an expensive key operation
-    self.update_device_weight(session.key_op_data.rpc_index, self.pkey_gen_weight)
+        if ((session->enable_exportable_private_keys == true) &&
+            (flags & HAL_KEY_FLAG_USAGE_KEYENCIPHERMENT) == 0 &&
+            (flags & HAL_KEY_FLAG_USAGE_DATAENCIPHERMENT) == 0)
+        {
 
-    return RPCAction(None, [self.rpc_list[session.key_op_data.rpc_index]], self.callback_rpc_keygen)*/
-}
+            uint32_t new_flag = flags | HAL_KEY_FLAG_EXPORTABLE;
 
-void rpc_handler::handle_rpc_pkeyimport(const uint32_t code, const uint32_t session_client_handle, const libhal::rpc_packet &ipacket,
-                                        std::shared_ptr<MuxSession> session, libhal::rpc_packet &opacket)
-{ /*
-    // use manually selected RPC and get returned uuid and handle
-
-    // if the session rpc_index has not be set, this must getting the public key
-    // rpc_index = session.rpc_index
-    // if(rpc_index < 0):
-    //     rpc_index = self.choose_rpc() #session.key_op_data.rpc_index
-
-    // select an RPC to use for this hashing operation
-    session.key_op_data.rpc_index = session.rpc_index if(session.rpc_index >= 0) else self.choose_rpc()
-
-    logger.info("session.rpc_index == %i  session.key_op_data.rpc_index == %i",
-                                        session.rpc_index, session.key_op_data.rpc_index)
-
-
-    // consume pkcs11 session id
-    unpacker.unpack_uint()
-
-    // consume kekek
-    unpacker.unpack_uint()
-
-    // consume pkcs8
-    unpacker.unpack_bytes()
-
-    // consume kek
-    unpacker.unpack_bytes()
-
-    // get flags
-    session.flags = unpacker.unpack_uint()
-
-    if hasattr(session, 'pkey_type'):
-        // treat as the public version of the last privte key generated as this is the standard usage
-        if(session.pkey_type == DKS_HALKeyType.HAL_KEY_TYPE_RSA_PRIVATE and
-            session.flags & DKS_HALKeyFlag.HAL_KEY_FLAG_PUBLIC):
-            session.pkey_type = DKS_HALKeyType.HAL_KEY_TYPE_RSA_PUBLIC
-        elif(session.pkey_type == DKS_HALKeyType.HAL_KEY_TYPE_EC_PRIVATE and
-            session.flags & DKS_HALKeyFlag.HAL_KEY_FLAG_PUBLIC):
-            session.pkey_type = DKS_HALKeyType.HAL_KEY_TYPE_EC_PUBLIC
-        elif(session.pkey_type == DKS_HALKeyType.HAL_KEY_TYPE_HASHSIG_PRIVATE and
-            session.flags & DKS_HALKeyFlag.HAL_KEY_FLAG_PUBLIC):
-            session.pkey_type = DKS_HALKeyType.HAL_KEY_TYPE_HASHSIG_PUBLIC
-    else:
-        session.pkey_type = DKS_HALKeyType.HAL_KEY_TYPE_NONE
-        session.curve = 0
+            packet_to_send.encode_int_at(new_flag, flag_location);
+        }
+    }
 
     // inform the load balancer that we are doing an expensive key operation
-    self.update_device_weight(session.key_op_data.rpc_index, self.pkey_gen_weight)
+    update_device_weight(session->key_op_data.rpc_index, pkey_gen_weight);
 
-    return RPCAction(None, [self.rpc_list[session.key_op_data.rpc_index]], self.callback_rpc_keygen)
-*/ }
+    // after generation, ask the HSM for the key type and flags
+    std::shared_ptr<SafeQueue<libhal::rpc_packet>> myqueue = session->myqueue;
 
-void rpc_handler::handle_rpc_keygen(const uint32_t code, const uint32_t session_client_handle, const libhal::rpc_packet &ipacket,
-                                    std::shared_ptr<MuxSession> session, libhal::rpc_packet &opacket)
-{ /*
-    // A key has been generated. Returns uuid and handle
+    int rpc_index = session->key_op_data.rpc_index;
 
-    // consume pkcs11 session id
-    unpacker.unpack_uint()
-
-    // save the key settings
-    if (code == RPC_FUNC_PKEY_GENERATE_RSA):
-        session.pkey_type = DKS_HALKeyType.HAL_KEY_TYPE_RSA_PRIVATE
-        
-        // consume keylen
-        unpacker.unpack_uint()
-
-        // get the exponent because we need the size
-        exponent = unpacker.unpack_bytes()
-
-        // get the location of the flags so we can change if needed
-        exp_len = len(exponent)
-        exp_padding = (4 - exp_len % 4) % 4
-        flag_location = 20 + exp_len + exp_padding
-
-    elif (code == RPC_FUNC_PKEY_GENERATE_EC):
-        session.pkey_type = DKS_HALKeyType.HAL_KEY_TYPE_EC_PRIVATE
-
-        // get the location of the flags so we can change if needed
-        flag_location = 16
-    elif (code == RPC_FUNC_PKEY_GENERATE_HASHSIG):
-        session.pkey_type = DKS_HALKeyType.HAL_KEY_TYPE_HASHSIG_PRIVATE
-
-        // get the location of the flags so we can change if needed
-        flag_location = 24
-
-    // get the flags
-    session.flags = rpc_get_int(session.current_request, flag_location)
-
-    // check to see if the rpc has been setup to allow exportable private keys
-    if ((session.enable_exportable_private_keys == True) and
-        (session.flags & DKS_HALKeyFlag.HAL_KEY_FLAG_USAGE_KEYENCIPHERMENT) == 0 and
-        (session.flags & DKS_HALKeyFlag.HAL_KEY_FLAG_USAGE_DATAENCIPHERMENT) == 0):
-
-        new_flag = session.flags | DKS_HALKeyFlag.HAL_KEY_FLAG_EXPORTABLE
-
-        session.current_request = rpc_set_int(session.current_request, new_flag, flag_location)
-
-        // sanity check. Make sure we get back what we just set
-        session.flags = rpc_get_int(session.current_request, flag_location)
-
-
-    logger.info("Key Gen Flags: 0x%X"%session.flags)
-
-    // select an RPC to use for this hashing operation
-    session.key_op_data.rpc_index = session.rpc_index if(session.rpc_index >= 0) else self.choose_rpc()
-
-    logger.info("session.rpc_index == %i  session.key_op_data.rpc_index == %i",
-                                        session.rpc_index, session.key_op_data.rpc_index)
-
-    // inform the load balancer that we are doing an expensive key operation
-    self.update_device_weight(session.key_op_data.rpc_index, self.pkey_gen_weight)
-
-    return RPCAction(None, [self.rpc_list[session.key_op_data.rpc_index]], self.callback_rpc_keygen)
-*/ }
-
-void rpc_handler::callback_rpc_keygen(const std::vector<libhal::rpc_packet> &reply_list, libhal::rpc_packet &opacket)
-{ /*
-    unpacker = self.get_response_unpacker(reply_list[0])
-
-    code = unpacker.unpack_uint()
-    client = unpacker.unpack_uint()
-    result = unpacker.unpack_uint()
-
-    // get the session
-    session = self.get_session(client)        
+    hal_error_t result = sendto_cryptech_device(packet_to_send, opacket, rpc_index, session_client_handle, code, myqueue);
 
     // inform the load balancer that we are no longer doing an expensive operation
-    self.update_device_weight(session.key_op_data.rpc_index, -self.pkey_gen_weight)
+    update_device_weight(session->key_op_data.rpc_index, -pkey_gen_weight);
 
-    // keygen only happens on one alpha
-    if(len(reply_list) != 1):
-        logger.info("callback_rpc_keygen: len(reply_list) != 1")
-        return self.create_error_response(code, client, DKS_HALError.HAL_ERROR_RPC_TRANSPORT)
+    if (result != HAL_OK)
+    {
+        opacket.create_error_response(code, session_client_handle, result);
+    }
+    else
+    {
+        // process result
+        uint32_t oresult;
+        uint32_t pkcs11_session;
+        uint32_t result_count;
+        const uint8_t *ptr = NULL;
 
-    if (code != RPC_FUNC_PKEY_GENERATE_EC and
-        code != RPC_FUNC_PKEY_GENERATE_RSA and
-        code != RPC_FUNC_PKEY_LOAD and
-        code != RPC_FUNC_PKEY_IMPORT and
-        code != RPC_FUNC_PKEY_GENERATE_HASHSIG):
-        logger.info("callback_rpc_keygen: incorrect code received")
-        return self.create_error_response(code, client, DKS_HALError.HAL_ERROR_RPC_TRANSPORT)
+        // consume code
+        opacket.decode_int(&oresult, &ptr);
+        // consume client
+        opacket.decode_int(&oresult, &ptr);
+        // result
+        opacket.decode_int(&oresult, &ptr);
+        // pkcs11 session
+        opacket.decode_int(&pkcs11_session, &ptr);
 
-    if(result != DKS_HALError.HAL_OK):
-        logger.info("callback_rpc_keygen: result != 0")
-        return self.create_error_response(code, client, result)
+        if (oresult != HAL_OK)
+            return;
 
-    // inform the load balancer that we have an open pkey
-    // keygen automatically opens the key
-    self.update_device_weight(session.key_op_data.rpc_index, self.pkey_op_weight)
+        // get the handle
+        opacket.decode_int(&session->key_op_data.handle, &ptr);
 
-    // get the handle
-    session.key_op_data.handle = unpacker.unpack_uint()
+        uint8_t uuid_buffer[16];
+        size_t incoming_len;
+        uuids::uuid_t device_uuid;
+        opacket.decode_variable_opaque(uuid_buffer, &incoming_len, sizeof(uuid_buffer), &ptr);
+        device_uuid.fromBytes((char*)uuid_buffer);
 
-    // get the new uuid
-    device_uuid = UUID(bytes = unpacker.unpack_bytes())
-
-    // save the RPC to use for this handle
-    session.key_rpcs[session.key_op_data.handle] = KeyHandleDetails(session.key_op_data.rpc_index, session.key_op_data.device_uuid)
-
-    // add new key to cache
-    logger.info("Key generated and added to cache RPC:%i UUID:%s Type:%i Flags:%i",
-                                        session.key_op_data.rpc_index, session.key_op_data.device_uuid, session.pkey_type, session.flags)
+        if (incoming_len != sizeof(uuid_buffer))
+        {
+            opacket.create_error_response(code, session_client_handle, HAL_ERROR_RPC_TRANSPORT);
+            return;
+        }
 
 
-    // save the device uuid internally
-    session.key_op_data.device_uuid = device_uuid
+        // save the RPC to use for this handle
+        session.key_rpcs[session.key_op_data.handle] = KeyHandleDetails(session.key_op_data.rpc_index, session.key_op_data.device_uuid)
 
-    // unless we're caching and using master_uuids, return the device uuid
-    outgoing_uuid = device_uuid
+        // add new key to cache
+        logger.info("Key generated and added to cache RPC:%i UUID:%s Type:%i Flags:%i",
+                                            session.key_op_data.rpc_index, session.key_op_data.device_uuid, session.pkey_type, session.flags)
 
-    if (session.cache_generated_keys):
-        master_uuid = session.cache.add_key_to_alpha(session.key_op_data.rpc_index,
-                                                        device_uuid,
-                                                        session.pkey_type,
-                                                        session.flags)
 
-        if (not session.incoming_uuids_are_device_uuids):
-            // the master_uuid will always be returned to ethernet connections
-            outgoing_uuid = master_uuid
+        // save the device uuid internally
+        session.key_op_data.device_uuid = device_uuid
 
-    // generate reply with the outgoing uuid
-    reply = RPCKeygen_result.create(code, client, result,
-                                    session.key_op_data.handle,
-                                    outgoing_uuid)
+        // unless we're caching and using master_uuids, return the device uuid
+        outgoing_uuid = device_uuid
 
-    return RPCAction(reply, None, None)
-*/ }    
+        if (session.cache_generated_keys):
+            master_uuid = session.cache.add_key_to_alpha(session.key_op_data.rpc_index,
+                                                            device_uuid,
+                                                            session.pkey_type,
+                                                            session.flags)
+
+            if (not session.incoming_uuids_are_device_uuids):
+                // the master_uuid will always be returned to ethernet connections
+                outgoing_uuid = master_uuid
+
+        // generate reply with the outgoing uuid
+        reply = RPCKeygen_result.create(code, client, result,
+                                        session.key_op_data.handle,
+                                        outgoing_uuid)
+    }
+}    
 
 void rpc_handler::handle_rpc_pkeymatch(const uint32_t code, const uint32_t session_client_handle, const libhal::rpc_packet &ipacket,
                                        std::shared_ptr<MuxSession> session, libhal::rpc_packet &opacket)
@@ -1004,7 +888,7 @@ void rpc_handler::handle_rpc_pkeymatch(const uint32_t code, const uint32_t sessi
         opacket.decode_int(&oresult, &ptr);
         // pkcs11 session
         opacket.decode_int(&pkcs11_session, &ptr);
-        // pkcs11 session
+        // result count
         opacket.decode_int(&result_count, &ptr);
 
         if(oresult != HAL_OK)
@@ -1122,10 +1006,10 @@ void rpc_handler::create_function_table()
     function_table[RPC_FUNC_HASH_INITIALIZE] = &diamond_hsm::rpc_handler::handle_rpc_starthash;
     function_table[RPC_FUNC_HASH_UPDATE] = &diamond_hsm::rpc_handler::handle_rpc_hash;
     function_table[RPC_FUNC_HASH_FINALIZE] = &diamond_hsm::rpc_handler::handle_rpc_endhash;
-    function_table[RPC_FUNC_PKEY_LOAD] = &diamond_hsm::rpc_handler::handle_rpc_pkeyload;
+    function_table[RPC_FUNC_PKEY_LOAD] = &diamond_hsm::rpc_handler::handle_rpc_pkeyload_import_gen;
     function_table[RPC_FUNC_PKEY_OPEN] = &diamond_hsm::rpc_handler::handle_rpc_pkeyopen;
-    function_table[RPC_FUNC_PKEY_GENERATE_RSA] = &diamond_hsm::rpc_handler::handle_rpc_keygen;
-    function_table[RPC_FUNC_PKEY_GENERATE_EC] = &diamond_hsm::rpc_handler::handle_rpc_keygen;
+    function_table[RPC_FUNC_PKEY_GENERATE_RSA] = &diamond_hsm::rpc_handler::handle_rpc_pkeyload_import_gen;
+    function_table[RPC_FUNC_PKEY_GENERATE_EC] = &diamond_hsm::rpc_handler::handle_rpc_pkeyload_import_gen;
     function_table[RPC_FUNC_PKEY_CLOSE] = &diamond_hsm::rpc_handler::handle_rpc_pkey;
     function_table[RPC_FUNC_PKEY_DELETE] = &diamond_hsm::rpc_handler::handle_rpc_pkey;
     function_table[RPC_FUNC_PKEY_GET_KEY_TYPE] = &diamond_hsm::rpc_handler::handle_rpc_pkey;
@@ -1139,8 +1023,8 @@ void rpc_handler::create_function_table()
     function_table[RPC_FUNC_PKEY_SET_ATTRIBUTES] = &diamond_hsm::rpc_handler::handle_rpc_pkey;
     function_table[RPC_FUNC_PKEY_GET_ATTRIBUTES] = &diamond_hsm::rpc_handler::handle_rpc_pkey;
     function_table[RPC_FUNC_PKEY_EXPORT] = &diamond_hsm::rpc_handler::handle_rpc_pkeyexport;
-    function_table[RPC_FUNC_PKEY_IMPORT] = &diamond_hsm::rpc_handler::handle_rpc_pkeyimport;
-    function_table[RPC_FUNC_PKEY_GENERATE_HASHSIG] = &diamond_hsm::rpc_handler::handle_rpc_keygen;
+    function_table[RPC_FUNC_PKEY_IMPORT] = &diamond_hsm::rpc_handler::handle_rpc_pkeyload_import_gen;
+    function_table[RPC_FUNC_PKEY_GENERATE_HASHSIG] = &diamond_hsm::rpc_handler::handle_rpc_pkeyload_import_gen;
 
     // add modifier because there's a gap
     function_table[RPC_FUNC_CHECK_TAMPER+dks_rpc_modifier] = &diamond_hsm::rpc_handler::handle_rpc_usecurrent;
