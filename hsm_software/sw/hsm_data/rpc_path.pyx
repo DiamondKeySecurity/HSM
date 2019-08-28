@@ -80,7 +80,6 @@ include "rpc_interface_cache.pxi"
 
 include "rpc_builder.pxi"
 include "rpc_interface_handling.pxi"
-include "rpc_handling.pxi"
 
 include "rpc_interface_sync.pxi"
 include "sync.pxi"
