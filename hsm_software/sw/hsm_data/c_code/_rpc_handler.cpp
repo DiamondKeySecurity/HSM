@@ -156,8 +156,14 @@ int rpc_handler::choose_rpc()
         if (next_any_device != device_index)
         {
             int new_device_weight = get_cryptech_device_weight(device_index);
-            if (new_device_weight < device_weight)
+            if ((new_device_weight+5) < device_weight)
             {
+#if DEBUG_LIBHAL
+                std::cout << " next_any_device == " << next_any_device;
+                std::cout << " device_index == " << device_index;
+                std::cout << " device_weight == " << device_weight;
+                std::cout << " new_device_weight == " << new_device_weight << std::endl;
+#endif
                 device_weight = new_device_weight;
                 next_any_device = device_index;
 
