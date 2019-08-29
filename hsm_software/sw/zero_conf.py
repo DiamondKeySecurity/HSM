@@ -25,12 +25,22 @@ class HSMZeroConfSetup(object):
         self.zeroconf = None
         self.registered = False
 
+        caps = ""
+
+        try:
+            with open("/etc/diamond-hsm/caps", "rt") as fp:
+                for line in fp:
+                    caps = "%s %s"%(caps, line.strip("\r\n"))
+        except:
+            pass
+
         desc = {'serial'   : serial,
                 'host'     : 'dks-hsm',
                 'type'     : 'Diamond HSM Prototype',
                 'firmware' : firmware_version,
                 'sd'       : sd_version,
-                'IP'       : ip_addr }
+                'IP'       : ip_addr,
+                'caps'     : caps }
 
         self.service_info = ServiceInfo("_dks-hsm-cty._tcp.local.",
                                         "%s._dks-hsm-cty._tcp.local."%serial,
