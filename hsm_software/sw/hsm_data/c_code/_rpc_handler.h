@@ -22,11 +22,13 @@
 #include <mutex>
 #include <atomic>
 #include <limits>
+#include <memory>
 #include "_uuid.hpp"
 #include "libhal/rpc_packet.h"
 #include "libhal/rpc_stream.h"
 #include "_hsm_cache.h"
 #include "_device_state.h"
+#include "keydb/keydb.h"
 
 namespace diamond_hsm
 {
@@ -294,6 +296,8 @@ class rpc_handler
         const int dks_rpc_modifier = (-first_dks_rpc_index + last_cryptech_rpc_index) + 1;
 
         std::string ip_address;
+
+        std::unique_ptr<keydb::keydb> key_database;
 
 };
 

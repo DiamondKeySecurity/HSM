@@ -45,6 +45,9 @@ def find_pyx(path='.'):
 
                 extension = Extension(name=extension_name,
                                       sources=sources,
+                                      include_dirs=['/usr/include/mysql'],
+                                      library_dirs=['/usr/local/mysql/lib'],
+                                      libraries=['mysqlclient','mysqlcppconn'],
                                       extra_compile_args=['-lstdc++', "-std=c++17", '-lpthread'],
                                       language="c++")
                 extensions.append(extension)

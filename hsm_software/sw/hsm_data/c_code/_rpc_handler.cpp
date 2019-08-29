@@ -19,6 +19,7 @@
 #endif
 
 #include "_rpc_handler.h"
+#include "keydb/migrations/migration_manager.h"
 
 extern "C"
 {
@@ -32,10 +33,11 @@ namespace diamond_hsm
 rpc_handler::rpc_handler(const char *ipaddress)
 :current_rpc(-1), hsm_locked(true), c_cache_object(NULL), next_any_device(0), next_any_device_uses(0), function_table(NULL)
 {
-    // FOR DEBUGGINH
-    hsm_locked = false;
+    hsm_locked = true;
 
     this->ip_address = ipaddress;
+
+    key_database.reset(new keydb::keydb("tcp://127.0.0.1:3306", "root", "p@ssw0rd", "rootdomain"));
 
     create_function_table();
 }

@@ -7,6 +7,8 @@ build/
 !c_code/*.c
 !c_code/libhal/*.cpp
 !c_code/libhal/*.c
+!c_code/keydb/*.cpp
+!c_code/keydb/*.c
 c_code/libhal_lite/*.a
 *.o
 *.out
