@@ -16,8 +16,10 @@
 
 cdef class rpc_path_object(object):
     cdef hsm_cache.hsm_cache *c_cache_object
+    cdef keydb.keydb *c_keydb_object
     cdef rpc_internal_handling rpc_preprocessor
     cdef object cache
+    cdef object keydb
     cdef object rpc_server
     cdef object rpc_secondary_listener
     cdef object synchronizer
@@ -37,10 +39,15 @@ cdef class rpc_path_object(object):
         self.cache = rpc_interface_cache()
         _internal_set_cache_variable_(self.cache, self.c_cache_object)
 
+        self.keydb = rpc_interface_keydb(cache_folder)
+        _internal_set_keydb_variable_(self.keydb, self.c_keydb_object)
+        self.keydb.connect()
+
     def __cinit__(self, int num_rpc_devices, bytes cache_folder):
         # start the cache
         print "creating cache"
         self.c_cache_object = new hsm_cache.hsm_cache(num_rpc_devices, cache_folder)
+        self.c_keydb_object = new keydb.keydb()
 
     def __dealloc__(self):
         self.cleanup()
@@ -48,7 +55,9 @@ cdef class rpc_path_object(object):
     def cleanup(self):
         print "deleting cache"
         del self.c_cache_object
+        del self.c_keydb_object
         self.c_cache_object = NULL
+        self.c_keydb_object = NULL
 
     def create_rpc_objects(self, rpc_list, settings, netiface, ssl_options, RPC_IP_PORT):
         # start the load balancer
@@ -56,6 +65,7 @@ cdef class rpc_path_object(object):
         self.external_rpc_handler = rpc_interface_handling(self.rpc_preprocessor)
 
         _internal_set_cache_variable_rpc_(self.rpc_preprocessor, self.c_cache_object)
+        _internal_set_keydb_variable_rpc_(self.rpc_preprocessor, self.c_keydb_object)
 
         # OLD self.rpc_preprocessor = RPCPreprocessor(rpc_list, self.cache, settings, netiface)
 
@@ -89,6 +99,9 @@ cdef class rpc_path_object(object):
 
     def get_interface_cache(self):
         return self.cache
+
+    def get_interface_keydb(self):
+        return self.keydb
 
     def get_interface_handling(self):
         return self.external_rpc_handler

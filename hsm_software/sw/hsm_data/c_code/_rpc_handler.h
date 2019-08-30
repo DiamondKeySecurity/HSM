@@ -29,6 +29,7 @@
 #include "_hsm_cache.h"
 #include "_device_state.h"
 #include "keydb/keydb.h"
+#include "keydb/keydb_con.h"
 
 namespace diamond_hsm
 {
@@ -82,12 +83,29 @@ class KeyHandleDetails
         uuids::uuid_t uuid;
 };
 
+enum KeyDBSetting
+{
+    key_match_not_set = 0,
+    // key matching hasn't been set. 'KEY_MATCH_ON_CRYPTECH_DEVICE' assumed.
+    key_match_on_crypTech_device = 2,
+    // key matching is done by the CrypTech device
+    // attributes are stored on the CrypTech device
+    key_match_in_domain_db = 3,
+    // key matching is done in the domain db using SQL
+    // attributes are stored in the domain db
+    key_match_in_domain_db_dual_storage = 4,
+    // key matching is done in the domain db using SQL
+    // attributes are stored on the CrypTech device and in the domain db
+};
+
 class MuxSession
 {
     public:
         // Simple class for defining the state of a
         // connection to the load balancer
-        MuxSession(int _rpc_index, /*cache*/ bool _from_ethernet, bool _enable_exportable_private_keys)
+        MuxSession(int _rpc_index,
+                   bool _from_ethernet,
+                   bool _enable_exportable_private_keys)
         :from_ethernet(_from_ethernet),
          cache_generated_keys(true),
          incoming_uuids_are_device_uuids(false),
@@ -137,6 +155,9 @@ class MuxSession
 
         // queue to retrieve packet from stream
         std::shared_ptr<SafeQueue<libhal::rpc_packet>> myqueue;
+
+        // key database to use for this connection
+        std::shared_ptr<keydb::keydb_con> keydb_connection;
 };
 
 class rpc_handler;
@@ -170,6 +191,8 @@ class rpc_handler
 
         // sets the cache object
         void set_cache_object(hsm_cache *c_cache_object);
+
+        void set_keydb_object(keydb::keydb *c_keydb_object);
 
         // processes an incoming packet
         void process_incoming_rpc(const libhal::rpc_packet &ipacket, const int client, libhal::rpc_packet &opacket);
@@ -297,8 +320,7 @@ class rpc_handler
 
         std::string ip_address;
 
-        std::unique_ptr<keydb::keydb> key_database;
-
+        keydb::keydb *key_database;
 };
 
 }

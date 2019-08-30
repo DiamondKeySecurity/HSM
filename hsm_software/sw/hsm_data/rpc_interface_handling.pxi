@@ -113,6 +113,9 @@ cdef class rpc_internal_handling(object):
 cdef _internal_set_cache_variable_rpc_(rpc_internal_handling o, hsm_cache.hsm_cache *c_cache_object):
     o.rpc_preprocessor.set_cache_object(c_cache_object)
 
+cdef _internal_set_keydb_variable_rpc_(rpc_internal_handling o, keydb.keydb *c_keydb_object):
+    o.rpc_preprocessor.set_keydb_object(c_keydb_object)
+
 class rpc_interface_handling(object):
     """ Limitted Python interface to the rpc handler"""
     def __init__(self, internal_handler):

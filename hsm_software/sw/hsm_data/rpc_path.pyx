@@ -71,11 +71,13 @@ cimport inc_atomic_int
 cimport safe_queue
 cimport libhal
 cimport rpc_handler
+cimport keydb
 
 include "pfunix_hsm.pxi"
 
 include "rpc_tcp_server.pxi"
 
+include "rpc_interface_keydb.pxi"
 include "rpc_interface_cache.pxi"
 
 include "rpc_builder.pxi"

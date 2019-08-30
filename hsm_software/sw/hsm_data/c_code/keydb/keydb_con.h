@@ -12,40 +12,26 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with this program; if not, If not, see <https://www.gnu.org/licenses/>.
-#ifndef KEYDB_HEADER
-#define KEYDB_HEADER
+#ifndef KEYDB_CON_HEADER
+#define KEYDB_CON_HEADER
 
 #include <string>
-#include <cppconn/driver.h>
+#include <memory>
 
-#include "keydb_con.h"
+#include <cppconn/driver.h>
 
 namespace diamond_hsm
 {
 namespace keydb
 {
 
-class keydb
+class keydb_con
 {
     public:
-        keydb();
-
-        bool connect(const int keydb_setting_flags,
-                     const char *dbhostaddr,
-                     const char *keydb_settings_path,
-                     const char *dbuser,
-                     const char *dbpw);
-
-        keydb_con *getDBCon();
+        keydb_con(std::shared_ptr<::sql::Connection> con);
 
     private:
-        std::string get_updated_setting(const char *name, const char *updated_value, const char *settings_file);
-
-        std::string schema;
-        std::string dbaddress;
-        std::string user;
-        std::string pw;
-
+        std::shared_ptr<::sql::Connection> con;
 };
 
 }

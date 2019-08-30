@@ -17,12 +17,14 @@ from libcpp.vector cimport vector
 from libcpp.string cimport string
 from libc.stdint cimport uint32_t
 from hsm_cache cimport hsm_cache
+from keydb cimport keydb
 
 cdef extern from "c_code/_rpc_handler.h" namespace "diamond_hsm" nogil:
     cdef cppclass rpc_handler:
-        rpc_handler(const char *ip_address)
+        rpc_handler(const char *ipaddress)
         void unlock_hsm()
         void set_cache_object(hsm_cache *c_cache_object)
+        void set_keydb_object(keydb *c_cache_object)
         int device_count()
         int get_current_rpc()
         void set_current_rpc(int index)

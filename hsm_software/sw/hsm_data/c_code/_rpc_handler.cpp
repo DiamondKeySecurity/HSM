@@ -34,10 +34,8 @@ rpc_handler::rpc_handler(const char *ipaddress)
 :current_rpc(-1), hsm_locked(true), c_cache_object(NULL), next_any_device(0), next_any_device_uses(0), function_table(NULL)
 {
     hsm_locked = true;
-
+ 
     this->ip_address = ipaddress;
-
-    key_database.reset(new keydb::keydb("tcp://127.0.0.1:3306", "root", "p@ssw0rd", "rootdomain"));
 
     create_function_table();
 }
@@ -50,6 +48,11 @@ rpc_handler::~rpc_handler()
 void rpc_handler::set_cache_object(hsm_cache *c_cache_object)
 {
     this->c_cache_object = c_cache_object;
+}
+
+void rpc_handler::set_keydb_object(keydb::keydb *c_keydb_object)
+{
+    this->key_database = c_keydb_object;
 }
 
 void rpc_handler::unlock_hsm()

@@ -33,6 +33,19 @@ CTY_IP_PORT = 8081
 WEB_PORT    = 80
 SSH_PORT    = 2200
 
+class KeyDBSetting(str, Enum):
+    KEY_MATCH_NOT_SET = "key_match_not_set"
+    # key matching hasn't been set. 'KEY_MATCH_ON_CRYPTECH_DEVICE' assumed.
+    KEY_MATCH_ON_CRYPTECH_DEVICE = "key_match_on_crypTech_device"
+    # key matching is done by the CrypTech device
+    # attributes are stored on the CrypTech device
+    KEY_MATCH_IN_DOMAIN_DB = "key_match_in_domain_db"
+    # key matching is done in the domain db using SQL
+    # attributes are stored in the domain db
+    KEY_MATCH_IN_DOMAIN_DB_DUAL_STORAGE = "key_match_in_domain_db_dual_storage"
+    # key matching is done in the domain db using SQL
+    #attributes are stored on the CrypTech device and in the domain db
+
 class HSMSettings(str, Enum):
     """Enum where members are also (and must be) strs"""
     ENABLE_EXPORTABLE_PRIVATE_KEYS = 'ENABLE_EXPORTABLE_PRIVATE_KEYS'
@@ -65,6 +78,9 @@ class HSMSettings(str, Enum):
     HSM_AUTHORIZATION_SETUP  = 'HSM_AUTHORIZATION_SETUP'
 
     ALLOW_SSH                = 'ALLOW_SSH'
+
+    KEY_DB_SETTING           = 'KEY_DB_SETTING'
+    STORE_DB_PW              = 'STORE_DB_PW'
 
 # Changes to hardware settings to apply after a firmware update
 HARDWARE_MAPPING = {
@@ -100,6 +116,8 @@ class Settings(object):
         self.__check_security_settings()
 
         self.__check_hardware_settings()
+
+        self.__check_key_db_settings()
 
         if (gpio_available is not None):
             if (not gpio_available):
@@ -240,6 +258,11 @@ class Settings(object):
             # we weren't out-of-date. See if that's still true
             if(not self.hardware_firmware_match() or not self.hardware_tamper_match()):
                 self.set_setting(HSMSettings.FIRMWARE_OUT_OF_DATE, True)
+
+    def __check_key_db_settings(self):
+        """Not thread-safe. Should only be called from __init__"""
+        if (HSMSettings.KEY_DB_SETTING not in self.dictionary):
+            self.dictionary[HSMSettings.KEY_DB_SETTING] = KeyDBSetting.KEY_MATCH_NOT_SET
 
     def __update_hardware_settings(self):
         """Not thread-safe. Should only be called from __init__"""

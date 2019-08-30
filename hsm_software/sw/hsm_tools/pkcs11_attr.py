@@ -463,6 +463,40 @@ class CKA(IntEnum):
         # return a list that doesn't have the elements we have explicitly stated to not include
         return [x.value for x in all_elements if (x not in exclude and x not in optional)]
 
+    @classmethod
+    def keydb_attributes(cls):
+        return [cls.CKA_CLASS,
+                cls.CKA_TOKEN,
+                cls.CKA_PRIVATE,
+                cls.CKA_LABEL,
+                cls.CKA_SERIAL_NUMBER,
+                cls.CKA_OWNER,
+                cls.CKA_ATTR_TYPES,
+                cls.CKA_TRUSTED,
+                cls.CKA_KEY_TYPE,
+                cls.CKA_SUBJECT,
+                cls.CKA_ID,
+                cls.CKA_SENSITIVE,
+                cls.CKA_ENCRYPT,
+                cls.CKA_DECRYPT,
+                cls.CKA_WRAP,
+                cls.CKA_UNWRAP,
+                cls.CKA_SIGN,
+                cls.CKA_SIGN_RECOVER,
+                cls.CKA_VERIFY,
+                cls.CKA_VERIFY_RECOVER,
+                cls.CKA_DERIVE,
+                cls.CKA_MODULUS,
+                cls.CKA_MODULUS_BITS,
+                cls.CKA_PUBLIC_EXPONENT,
+                cls.CKA_EXTRACTABLE,
+                cls.CKA_LOCAL,
+                cls.CKA_MODIFIABLE,
+                cls.CKA_COPYABLE,
+                cls.CKA_DESTROYABLE,
+                cls.CKA_EC_PARAMS,
+                cls.CKA_EC_POINT,
+                cls.CKA_WRAP_WITH_TRUSTED]
 
 # The defines the attributes common to all objects.
 # Attribute             Data Type              Meaning
