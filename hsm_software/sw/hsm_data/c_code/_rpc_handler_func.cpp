@@ -577,7 +577,8 @@ void rpc_handler::handle_rpc_pkeyopen(const uint32_t code, const uint32_t sessio
     {
         session->key_rpcs.insert(std::pair<uint32_t, KeyHandleDetails>(handle,
                                                                        KeyHandleDetails(session->key_op_data.rpc_index,
-                                                                                        session->key_op_data.device_uuid)));
+                                                                                        session->key_op_data.device_uuid,
+                                                                                        master_uuid)));
 
         update_device_weight(session->key_op_data.rpc_index, pkey_op_weight);
     }
@@ -615,6 +616,12 @@ void rpc_handler::handle_rpc_pkey(const uint32_t code, const uint32_t session_cl
 
     std::shared_ptr<SafeQueue<libhal::rpc_packet>> myqueue = session->myqueue;
 
+    if (code == RPC_FUNC_PKEY_SET_ATTRIBUTES)
+    {
+        session->keydb_connection->parse_set_keyattribute_packet(session->key_rpcs[handle].master_uuid,
+                                                                 ipacket);
+    }
+
     hal_error_t result = sendto_cryptech_device(ipacket, opacket, rpc_index, session_client_handle, code, myqueue);
     if (result != HAL_OK)
     {
@@ -635,7 +642,7 @@ void rpc_handler::handle_rpc_pkey(const uint32_t code, const uint32_t session_cl
             if (code == RPC_FUNC_PKEY_DELETE)
             {
                 // get the details about the key so we can delete from the cache
-                uuids::uuid_t uuid_to_remove = session->key_rpcs[handle].uuid;
+                uuids::uuid_t uuid_to_remove = session->key_rpcs[handle].device_uuid;
                 rpc_index = session->key_rpcs[handle].rpc_index;
                 c_cache_object->remove_key_from_device_only(rpc_index, uuid_to_remove);
             }
@@ -789,7 +796,8 @@ void rpc_handler::handle_rpc_pkeyload_import_gen(const uint32_t code, const uint
         {
             session->key_rpcs.insert(std::pair<uint32_t, KeyHandleDetails>(handle,
                                                                         KeyHandleDetails(session->key_op_data.rpc_index,
-                                                                                         session->key_op_data.device_uuid)));
+                                                                                         session->key_op_data.device_uuid,
+                                                                                         uuids::uuid_none)));
 
             update_device_weight(session->key_op_data.rpc_index, pkey_op_weight);
         }
@@ -839,6 +847,8 @@ void rpc_handler::handle_rpc_pkeyload_import_gen(const uint32_t code, const uint
                                                                           device_uuid,
                                                                           key_type,
                                                                           key_flags);
+
+            session->key_rpcs[handle].master_uuid = master_uuid;
 
             if (session->incoming_uuids_are_device_uuids == false)
             {

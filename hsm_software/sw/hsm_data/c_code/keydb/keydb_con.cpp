@@ -108,7 +108,19 @@ hal_error_t keydb_con::get_key_id(const uuids::uuid_t master_uuid, uint32_t &id)
     }
 
     return HAL_OK;
-    
+}
+
+hal_error_t keydb_con::parse_set_keyattribute_packet(const uuids::uuid_t master_uuid, const libhal::rpc_packet &ipacket)
+{
+        // attributes must be fed to the keydb
+        // 0 - code
+        // 4 - client
+        // 8 - key handle
+        // 12 - num attributes
+        // 16 - 1st attribute
+        // attributes are
+        //     0 - type
+        //     4 - variable data
 }
 
 }

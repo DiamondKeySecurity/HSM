@@ -61,16 +61,14 @@ class KeyHandleDetails
 {
     public:
         // Information on the key that a handle points to
-        KeyHandleDetails(int rpc_index, uuids::uuid_t uuid)
+        KeyHandleDetails(int rpc_index, uuids::uuid_t device_uuid, uuids::uuid_t master_uuid)
+        :rpc_index(rpc_index), device_uuid(device_uuid), master_uuid(master_uuid)
         {
-            this->rpc_index = rpc_index;
-            this->uuid = uuid;
         }
 
         KeyHandleDetails(const KeyHandleDetails &other)
+        :rpc_index(other.rpc_index), device_uuid(other.device_uuid), master_uuid(other.master_uuid)
         {
-            rpc_index = other.rpc_index;
-            uuid = other.uuid;
         }
 
         KeyHandleDetails()
@@ -80,7 +78,9 @@ class KeyHandleDetails
 
         int rpc_index;
 
-        uuids::uuid_t uuid;
+        uuids::uuid_t device_uuid;
+
+        uuids::uuid_t master_uuid;
 };
 
 enum KeyDBSetting

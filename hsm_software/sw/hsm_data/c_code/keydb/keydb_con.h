@@ -21,6 +21,7 @@
 #include <cppconn/driver.h>
 
 #include "../libhal/hal.h"
+#include "../libhal/rpc_packet.h"
 #include "../_uuid.hpp"
 
 namespace diamond_hsm
@@ -38,6 +39,8 @@ class keydb_con
         hal_error_t add_key(const uuids::uuid_t master_uuid, const uint32_t key_type, const uint32_t key_flags, const uint32_t curve);
 
         hal_error_t get_key_id(const uuids::uuid_t master_uuid, uint32_t &id);
+
+        hal_error_t parse_set_keyattribute_packet(const uuids::uuid_t master_uuid, const libhal::rpc_packet &ipacket);
 
     private:
         std::shared_ptr<::sql::Connection> con;
