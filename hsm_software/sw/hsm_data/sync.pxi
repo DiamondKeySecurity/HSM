@@ -47,13 +47,15 @@ cdef class Synchronizer(PFUNIX_HSM):
     cdef bint __initialized__
     cdef object cache
     cdef object command_queue
+    cdef object settings
 
-    def __init__(self, sockname, cache):
+    def __init__(self, sockname, cache, settings):
         """
         """
         super(Synchronizer, self).__init__(sockname)
         self.__initialized__ = False
         self.cache = cache
+        self.settings = settings
         self.command_queue = Queue()
 
     @property
