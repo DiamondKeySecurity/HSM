@@ -207,20 +207,6 @@ void rpc_handler::process_incoming_rpc(const libhal::rpc_packet &ipacket, int cl
         // set back to caller client handle
         opacket.encode_int_at(incoming_client_handle, 4);
         opacket.reset_head();
-// #if DEBUG_LIBHAL
-//         std::cout << "sending" << std::endl;
-// #endif
-//         hal_error_t result = sendto_cryptech_device(ipacket, opacket, 0, client, code, myqueue);
-//         if (result != HAL_OK)
-//         {
-//             opacket.create_error_response(code, incoming_client_handle, result);
-//         }
-//         else
-//         {
-//             // set back to caller client handle
-//             opacket.encode_int_at(incoming_client_handle, 4);
-//             opacket.reset_head();
-//         }
     }
     else
     {

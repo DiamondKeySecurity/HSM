@@ -12,7 +12,7 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with this program; if not, If not, see <https://www.gnu.org/licenses/>.
-// #define DEBUG_LIBHAL 1
+#define DEBUG_LIBHAL 1
 
 #if DEBUG_LIBHAL
 #include <iostream>
@@ -688,6 +688,19 @@ void rpc_handler::handle_rpc_pkeyload_import_gen(const uint32_t code, const uint
         int exp_padding = (4 - exp_len % 4) % 4;
         flag_location = 20 + exp_len + exp_padding;
     }
+    else if (code == RPC_FUNC_PKEY_LOAD)
+    {
+        //  0 - code
+        //  4 - client
+        //  8 - pkcs11 session
+        // 12 - der
+        //  ? - flags
+        const size_t der_pos = 12;
+        uint32_t der_len;
+        ipacket.decode_int_peak_at(&der_len, der_pos);
+        int der_padding = (4 - der_len % 4) % 4;
+        flag_location = (der_pos + 4) + der_len + der_padding;
+    }
 
     libhal::rpc_packet packet_to_send(ipacket);
 
@@ -697,14 +710,18 @@ void rpc_handler::handle_rpc_pkeyload_import_gen(const uint32_t code, const uint
         uint32_t flags;
         ipacket.decode_int_peak_at(&flags, flag_location);
 
-        if ((session->enable_exportable_private_keys == true) &&
-            (flags & HAL_KEY_FLAG_USAGE_KEYENCIPHERMENT) == 0 &&
-            (flags & HAL_KEY_FLAG_USAGE_DATAENCIPHERMENT) == 0)
+        if ((flags & HAL_KEY_FLAG_PUBLIC) == 0)
         {
+            // private only
+            if ((session->enable_exportable_private_keys == true) &&
+                (flags & HAL_KEY_FLAG_USAGE_KEYENCIPHERMENT) == 0 &&
+                (flags & HAL_KEY_FLAG_USAGE_DATAENCIPHERMENT) == 0)
+            {
 
-            uint32_t new_flag = flags | HAL_KEY_FLAG_EXPORTABLE;
+                uint32_t new_flag = flags | HAL_KEY_FLAG_EXPORTABLE;
 
-            packet_to_send.encode_int_at(new_flag, flag_location);
+                packet_to_send.encode_int_at(new_flag, flag_location);
+            }
         }
     }
 
@@ -819,15 +836,28 @@ void rpc_handler::handle_rpc_pkeyload_import_gen(const uint32_t code, const uint
         if (session->cache_generated_keys)
         {
             uuids::uuid_t master_uuid = c_cache_object->add_key_to_device(session->key_op_data.rpc_index,
-                                                            device_uuid,
-                                                            key_type,
-                                                            key_flags);
+                                                                          device_uuid,
+                                                                          key_type,
+                                                                          key_flags);
 
             if (session->incoming_uuids_are_device_uuids == false)
             {
                 // the master_uuid will always be returned to ethernet connections
                 outgoing_uuid = master_uuid;
             }
+
+            // add to keydb
+            session->keydb_connection->add_key(master_uuid, key_type, key_flags, key_curve);
+
+            uint32_t id;
+            session->keydb_connection->get_key_id(master_uuid, id);
+#if DEBUG_LIBHAL
+            std::cout << "Keydb index == " << id << std::endl;
+#endif
+
+            // if using external
+                // if public pkey_load, send DER from parameter
+                // if private, do a pkey_export
         }
 
         // generate reply with the outgoing uuid

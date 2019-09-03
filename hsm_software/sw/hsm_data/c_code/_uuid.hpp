@@ -21,6 +21,7 @@
 #include <memory.h>
 #include <time.h>
 #include <string>
+#include <vector>
 
 namespace uuids
 {
@@ -161,6 +162,16 @@ public:
 	const uint8_t *bytes() const
 	{
 		return uuid;
+	}
+
+	void get_bytes_vector(std::vector<unsigned char> &convertedID) const
+	{
+		convertedID.clear();
+		
+		for (int i = 0; i < 16; ++i)
+		{
+			convertedID.push_back(uuid[i]);
+		}
 	}
 
 private:

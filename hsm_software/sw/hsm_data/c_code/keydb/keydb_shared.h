@@ -29,6 +29,8 @@ enum KeyDBTypes
     KeyDBType_Boolean,
     KeyDBType_UUID,
     KeyDBType_Text,
+    KeyDBType_TextB64,
+    KeyDBType_Binary,
 };
 
 class keydb_shared
@@ -74,13 +76,13 @@ class keydb_shared
             db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000001, KeyDBType_Boolean));
             db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000002, KeyDBType_Boolean));
             db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000003, KeyDBType_Text));
-            db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000082, KeyDBType_Text));
-            db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000084, KeyDBType_Text));
-            db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000085, KeyDBType_Text));
+            db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000082, KeyDBType_Binary));
+            db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000084, KeyDBType_Binary));
+            db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000085, KeyDBType_Binary));
             db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000086, KeyDBType_Boolean));
             db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000100, KeyDBType_Int));
-            db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000101, KeyDBType_Text));
-            db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000102, KeyDBType_Text));
+            db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000101, KeyDBType_Binary));
+            db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000102, KeyDBType_Binary));
             db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000103, KeyDBType_Boolean));
             db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000104, KeyDBType_Boolean));
             db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000105, KeyDBType_Boolean));
@@ -91,15 +93,15 @@ class keydb_shared
             db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x0000010A, KeyDBType_Boolean));
             db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x0000010B, KeyDBType_Boolean));
             db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x0000010C, KeyDBType_Boolean));
-            db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000120, KeyDBType_Text));
-            db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000121, KeyDBType_Text));
-            db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000122, KeyDBType_Text));
+            db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000120, KeyDBType_Binary));
+            db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000121, KeyDBType_Binary));
+            db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000122, KeyDBType_Binary));
             db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000162, KeyDBType_Boolean));
             db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000170, KeyDBType_Boolean));
             db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000171, KeyDBType_Boolean));
             db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000172, KeyDBType_Boolean));
-            db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000180, KeyDBType_Text));
-            db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000181, KeyDBType_Text));
+            db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000180, KeyDBType_Binary));
+            db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000181, KeyDBType_Binary));
             db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000210, KeyDBType_Boolean));
         }
 

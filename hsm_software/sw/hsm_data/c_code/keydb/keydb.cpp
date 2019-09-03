@@ -83,6 +83,7 @@ keydb_con *keydb::getDBCon()
 
     // create a new db connection
     std::shared_ptr<sql::Connection> con(driver->connect(dbaddress, user, pw));
+    con->setSchema(schema);
 
     return new keydb_con(con, this);
 }
