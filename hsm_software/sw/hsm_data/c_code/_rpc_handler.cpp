@@ -264,7 +264,10 @@ void rpc_handler::create_session(uint32_t handle, bool from_ethernet, bool enabl
     {
         std::unique_lock<std::mutex> session_lock(session_mutex);
 
-        this->sessions[handle] = std::make_shared<MuxSession>(get_current_rpc(), from_ethernet, enable_exportable_private_keys);
+        this->sessions[handle] = std::make_shared<MuxSession>(get_current_rpc(),
+                                                              from_ethernet,
+                                                              enable_exportable_private_keys,
+                                                              key_database->getDBCon());
     }
 
     std::shared_ptr<MuxSession> session = sessions[handle];

@@ -105,7 +105,8 @@ class MuxSession
         // connection to the load balancer
         MuxSession(int _rpc_index,
                    bool _from_ethernet,
-                   bool _enable_exportable_private_keys)
+                   bool _enable_exportable_private_keys,
+                   keydb::keydb_con *keydbcon)
         :from_ethernet(_from_ethernet),
          cache_generated_keys(true),
          incoming_uuids_are_device_uuids(false),
@@ -114,7 +115,8 @@ class MuxSession
          cur_hashing_index(0),
          key_op_data(-1, 0, uuids::uuid_none),
          enable_exportable_private_keys(_enable_exportable_private_keys),
-         myqueue(new SafeQueue<libhal::rpc_packet>())
+         myqueue(new SafeQueue<libhal::rpc_packet>()),
+         keydb_connection(keydbcon)
         {
         }
 
@@ -157,7 +159,7 @@ class MuxSession
         std::shared_ptr<SafeQueue<libhal::rpc_packet>> myqueue;
 
         // key database to use for this connection
-        std::shared_ptr<keydb::keydb_con> keydb_connection;
+        std::unique_ptr<keydb::keydb_con> keydb_connection;
 };
 
 class rpc_handler;

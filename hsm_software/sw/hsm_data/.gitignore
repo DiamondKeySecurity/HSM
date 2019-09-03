@@ -9,6 +9,8 @@ build/
 !c_code/libhal/*.c
 !c_code/keydb/*.cpp
 !c_code/keydb/*.c
+!c_code/keydb/migrations/*.c
+!c_code/keydb/migrations/*.cpp
 c_code/libhal_lite/*.a
 *.o
 *.out

@@ -25,6 +25,7 @@ namespace keydb
 {
 
 keydb_con::keydb_con(std::shared_ptr<::sql::Connection> con)
+:con(con)
 {
 }
 
