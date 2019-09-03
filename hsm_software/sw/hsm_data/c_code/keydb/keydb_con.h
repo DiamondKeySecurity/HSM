@@ -25,13 +25,17 @@ namespace diamond_hsm
 namespace keydb
 {
 
+class keydb_shared;
+
 class keydb_con
 {
     public:
-        keydb_con(std::shared_ptr<::sql::Connection> con);
+        keydb_con(std::shared_ptr<::sql::Connection> con, const keydb_shared *shared_data);
 
     private:
         std::shared_ptr<::sql::Connection> con;
+
+        const keydb_shared *shared_data;
 };
 
 }

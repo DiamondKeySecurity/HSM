@@ -84,7 +84,7 @@ keydb_con *keydb::getDBCon()
     // create a new db connection
     std::shared_ptr<sql::Connection> con(driver->connect(dbaddress, user, pw));
 
-    return new keydb_con(con);
+    return new keydb_con(con, this);
 }
 
 std::string keydb::get_updated_setting(const char *name, const char *updated_value, const char *settings_file)

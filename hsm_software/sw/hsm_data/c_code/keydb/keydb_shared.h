@@ -23,46 +23,84 @@ namespace diamond_hsm
 namespace keydb
 {
 
+enum KeyDBTypes
+{
+    KeyDBType_Int,
+    KeyDBType_Boolean,
+    KeyDBType_UUID,
+    KeyDBType_Text,
+};
+
 class keydb_shared
 {
     public:
         keydb_shared()
         {
-            pkcs11attr_to_dbkey.insert(std::pait<uint32_t, std::string>());
+            // add mapping so we can take an incoming pkcs11 attribute and map it to SQL
+            pkcs11attr_to_dbkey.insert(std::pair<uint32_t, std::string>(0x00000000, "CKA_CLASS"));
+            pkcs11attr_to_dbkey.insert(std::pair<uint32_t, std::string>(0x00000001, "CKA_TOKEN"));
+            pkcs11attr_to_dbkey.insert(std::pair<uint32_t, std::string>(0x00000002, "CKA_PRIVATE"));
+            pkcs11attr_to_dbkey.insert(std::pair<uint32_t, std::string>(0x00000003, "CKA_LABEL"));
+            pkcs11attr_to_dbkey.insert(std::pair<uint32_t, std::string>(0x00000082, "CKA_SERIAL_NUMBER"));
+            pkcs11attr_to_dbkey.insert(std::pair<uint32_t, std::string>(0x00000084, "CKA_OWNER"));
+            pkcs11attr_to_dbkey.insert(std::pair<uint32_t, std::string>(0x00000085, "CKA_ATTR_TYPES"));
+            pkcs11attr_to_dbkey.insert(std::pair<uint32_t, std::string>(0x00000086, "CKA_TRUSTED"));
+            pkcs11attr_to_dbkey.insert(std::pair<uint32_t, std::string>(0x00000100, "CKA_KEY_TYPE"));
+            pkcs11attr_to_dbkey.insert(std::pair<uint32_t, std::string>(0x00000101, "CKA_SUBJECT"));
+            pkcs11attr_to_dbkey.insert(std::pair<uint32_t, std::string>(0x00000102, "CKA_ID"));
+            pkcs11attr_to_dbkey.insert(std::pair<uint32_t, std::string>(0x00000103, "CKA_SENSITIVE"));
+            pkcs11attr_to_dbkey.insert(std::pair<uint32_t, std::string>(0x00000104, "CKA_ENCRYPT"));
+            pkcs11attr_to_dbkey.insert(std::pair<uint32_t, std::string>(0x00000105, "CKA_DECRYPT"));
+            pkcs11attr_to_dbkey.insert(std::pair<uint32_t, std::string>(0x00000106, "CKA_WRAP"));
+            pkcs11attr_to_dbkey.insert(std::pair<uint32_t, std::string>(0x00000107, "CKA_UNWRAP"));
+            pkcs11attr_to_dbkey.insert(std::pair<uint32_t, std::string>(0x00000108, "CKA_SIGN"));
+            pkcs11attr_to_dbkey.insert(std::pair<uint32_t, std::string>(0x00000109, "CKA_SIGN_RECOVER"));
+            pkcs11attr_to_dbkey.insert(std::pair<uint32_t, std::string>(0x0000010A, "CKA_VERIFY"));
+            pkcs11attr_to_dbkey.insert(std::pair<uint32_t, std::string>(0x0000010B, "CKA_VERIFY_RECOVER"));
+            pkcs11attr_to_dbkey.insert(std::pair<uint32_t, std::string>(0x0000010C, "CKA_DERIVE"));
+            pkcs11attr_to_dbkey.insert(std::pair<uint32_t, std::string>(0x00000120, "CKA_MODULUS"));
+            pkcs11attr_to_dbkey.insert(std::pair<uint32_t, std::string>(0x00000121, "CKA_MODULUS_BITS"));
+            pkcs11attr_to_dbkey.insert(std::pair<uint32_t, std::string>(0x00000122, "CKA_PUBLIC_EXPONENT"));
+            pkcs11attr_to_dbkey.insert(std::pair<uint32_t, std::string>(0x00000162, "CKA_EXTRACTABLE"));
+            pkcs11attr_to_dbkey.insert(std::pair<uint32_t, std::string>(0x00000170, "CKA_MODIFIABLE"));
+            pkcs11attr_to_dbkey.insert(std::pair<uint32_t, std::string>(0x00000171, "CKA_COPYABLE"));
+            pkcs11attr_to_dbkey.insert(std::pair<uint32_t, std::string>(0x00000172, "CKA_DESTROYABLE"));
+            pkcs11attr_to_dbkey.insert(std::pair<uint32_t, std::string>(0x00000180, "CKA_EC_PARAMS"));
+            pkcs11attr_to_dbkey.insert(std::pair<uint32_t, std::string>(0x00000181, "CKA_EC_POINT"));
+            pkcs11attr_to_dbkey.insert(std::pair<uint32_t, std::string>(0x00000210, "CKA_WRAP_WITH_TRUSTED"));
 
-        CKA_CLASS,
-        CKA_TOKEN,
-        CKA_PRIVATE,
-        CKA_LABEL,
-        CKA_SERIAL_NUMBER,
-                cls.CKA_OWNER,
-                cls.CKA_ATTR_TYPES,
-                cls.CKA_TRUSTED,
-                cls.CKA_KEY_TYPE,
-                cls.CKA_SUBJECT,
-                cls.CKA_ID,
-                cls.CKA_SENSITIVE,
-                cls.CKA_ENCRYPT,
-                cls.CKA_DECRYPT,
-                cls.CKA_WRAP,
-                cls.CKA_UNWRAP,
-                cls.CKA_SIGN,
-                cls.CKA_SIGN_RECOVER,
-                cls.CKA_VERIFY,
-                cls.CKA_VERIFY_RECOVER,
-                cls.CKA_DERIVE,
-                cls.CKA_MODULUS,
-                cls.CKA_MODULUS_BITS,
-                cls.CKA_PUBLIC_EXPONENT,
-                cls.CKA_EXTRACTABLE,
-                cls.CKA_LOCAL,
-                cls.CKA_MODIFIABLE,
-                cls.CKA_COPYABLE,
-                cls.CKA_DESTROYABLE,
-                cls.CKA_EC_PARAMS,
-                cls.CKA_EC_POINT,
-                cls.CKA_WRAP_WITH_TRUSTED]
-
+            // add mapping so we can take an incoming pkcs11 attribute and map it to SQL data type
+            db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000000, KeyDBType_Int));
+            db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000001, KeyDBType_Boolean));
+            db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000002, KeyDBType_Boolean));
+            db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000003, KeyDBType_Text));
+            db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000082, KeyDBType_Text));
+            db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000084, KeyDBType_Text));
+            db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000085, KeyDBType_Text));
+            db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000086, KeyDBType_Boolean));
+            db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000100, KeyDBType_Int));
+            db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000101, KeyDBType_Text));
+            db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000102, KeyDBType_Text));
+            db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000103, KeyDBType_Boolean));
+            db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000104, KeyDBType_Boolean));
+            db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000105, KeyDBType_Boolean));
+            db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000106, KeyDBType_Boolean));
+            db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000107, KeyDBType_Boolean));
+            db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000108, KeyDBType_Boolean));
+            db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000109, KeyDBType_Boolean));
+            db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x0000010A, KeyDBType_Boolean));
+            db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x0000010B, KeyDBType_Boolean));
+            db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x0000010C, KeyDBType_Boolean));
+            db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000120, KeyDBType_Text));
+            db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000121, KeyDBType_Text));
+            db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000122, KeyDBType_Text));
+            db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000162, KeyDBType_Boolean));
+            db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000170, KeyDBType_Boolean));
+            db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000171, KeyDBType_Boolean));
+            db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000172, KeyDBType_Boolean));
+            db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000180, KeyDBType_Text));
+            db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000181, KeyDBType_Text));
+            db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000210, KeyDBType_Boolean));
         }
 
         const std::map<uint32_t, std::string> &get_pkcs11attr_to_dbkey() const
@@ -70,8 +108,14 @@ class keydb_shared
             return pkcs11attr_to_dbkey;
         }
 
+        const std::map<uint32_t, KeyDBTypes> &get_db_attr_types() const
+        {
+            return db_attr_types;
+        }
+
     private:
         std::map<uint32_t, std::string> pkcs11attr_to_dbkey;
+        std::map<uint32_t, KeyDBTypes> db_attr_types;
 };
 
 }

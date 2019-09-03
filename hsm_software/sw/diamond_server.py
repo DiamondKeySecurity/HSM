@@ -324,7 +324,7 @@ def main():
     if(len(cty_list) > 0 and len(rpc_list) > 0):
         # Synchronizer -----------------------------------
         # connect to the secondary socket for mirroring
-        rpc_path.create_synchronizer(args.rpc_socket)
+        rpc_path.create_synchronizer(args.rpc_socket, settings)
 
         # Tamper -----------------------------------------
         # initialize the tamper system

@@ -29,7 +29,7 @@ namespace diamond_hsm
 namespace keydb
 {
 
-void _201906130_InitialMigration::up(std::shared_ptr<sql::Connection> con) const
+void _201908270_InitialMigration::up(std::shared_ptr<sql::Connection> con) const
 // commands to alter and create tables for this version
 {
     std::unique_ptr<sql::Statement> stmt;

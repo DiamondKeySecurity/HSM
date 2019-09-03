@@ -12,44 +12,42 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with this program; if not, If not, see <https://www.gnu.org/licenses/>.
-#ifndef KEYDB_HEADER
-#define KEYDB_HEADER
 
+#include "_201909030_Migration.h"
 #include <string>
-#include <cppconn/driver.h>
 
-#include "keydb_shared.h"
-#include "keydb_con.h"
+#include "mysql_connection.h"
+
+#include <cppconn/driver.h>
+#include <cppconn/exception.h>
+#include <cppconn/resultset.h>
+#include <cppconn/statement.h>
+
 
 namespace diamond_hsm
 {
 namespace keydb
 {
 
-class keydb : keydb_shared
+void _201909030_Migration::up(std::shared_ptr<sql::Connection> con) const
+// commands to alter and create tables for this version
 {
-    public:
-        keydb();
+    std::unique_ptr<sql::Statement> stmt;
+    std::unique_ptr<sql::ResultSet> res;
 
-        bool connect(const int keydb_setting_flags,
-                     const char *dbhostaddr,
-                     const char *keydb_settings_path,
-                     const char *dbuser,
-                     const char *dbpw);
+    char sql_table_statement1[] =
+"ALTER TABLE domainkeys \
+ADD CKA_COPYABLE BOOLEAN NOT NULL DEFAULT FALSE;";
 
-        keydb_con *getDBCon();
+    char sql_table_statement2[] =
+"ALTER TABLE domainkeys \
+ADD CKA_DESTROYABLE BOOLEAN NOT NULL DEFAULT TRUE;";
 
-    private:
-        std::string get_updated_setting(const char *name, const char *updated_value, const char *settings_file);
-
-        std::string schema;
-        std::string dbaddress;
-        std::string user;
-        std::string pw;
-
-};
+    stmt.reset(con->createStatement());
+    stmt->execute(sql_table_statement1);
+    stmt->execute(sql_table_statement2);
+}
 
 }
 
 }
-#endif

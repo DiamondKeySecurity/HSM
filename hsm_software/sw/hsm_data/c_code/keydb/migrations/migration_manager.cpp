@@ -18,6 +18,7 @@
 
 #include "migration_manager.h"
 #include "_201908270_InitialMigration.h"
+#include "_201909030_Migration.h"
 
 #include "mysql_connection.h"
 
@@ -34,7 +35,8 @@ namespace keydb
 
 MigrationManager::MigrationManager()
 {
-    migrations.push_back(std::move(std::unique_ptr<Migration>(new _201906130_InitialMigration())));
+    migrations.push_back(std::move(std::unique_ptr<Migration>(new _201908270_InitialMigration())));
+    migrations.push_back(std::move(std::unique_ptr<Migration>(new _201909030_Migration())));
 }
 
 int MigrationManager::update(std::shared_ptr<sql::Connection> con, std::string schema)
@@ -63,12 +65,14 @@ int MigrationManager::update(std::shared_ptr<sql::Connection> con, std::string s
         while (res->next())
         {
             version = res->getInt(1);
+            std::cout << "Current DB Version: " << version << std::endl;
         }
 
         // we need to add migrations
         for (auto it = migrations.begin(); it < migrations.end(); ++it)
         {
             last_migration_version = (*it)->version();
+            std::cout << "Migration version: " << last_migration_version << std::endl;
             if (version < last_migration_version)
                 (*it)->up(con);
         }

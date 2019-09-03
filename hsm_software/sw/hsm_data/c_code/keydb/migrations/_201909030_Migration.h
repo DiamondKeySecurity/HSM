@@ -13,8 +13,8 @@
 // You should have received a copy of the GNU General Public License
 // along with this program; if not, If not, see <https://www.gnu.org/licenses/>.
 
-#ifndef _201908270_InitialMigration_H
-#define _201908270_InitialMigration_H
+#ifndef _201909030_Migration_H
+#define _201909030_Migration_H
 
 #include "migration.h"
 
@@ -58,6 +58,8 @@ CREATE TABLE domainkeys
   CKA_WRAP_WITH_TRUSTED BOOLEAN       DEFAULT FALSE,
   CKA_EC_PARAMS         VARCHAR(256)  DEFAULT NULL,
   CKA_EC_POINT          VARCHAR(256)  DEFAULT NULL,
+  CKA_COPYABLE          BOOLEAN       DEFAULT FALSE,
+  CKA_DESTROYABLE       BOOLEAN       DEFAULT TRUE,
   PRIMARY KEY (id)
 );
  ---------------------------- */
@@ -70,14 +72,14 @@ namespace diamond_hsm
 namespace keydb
 {
 
-class _201908270_InitialMigration: public Migration
+class _201909030_Migration: public Migration
 {
     public:
         int version() const
         // Returns integer version of this migration
         {
-          // 2019-06-13-0
-          return 201908270;
+          // 2019-09-03-0
+          return 201909030;
         }
 
         virtual void up(std::shared_ptr<sql::Connection> con) const;

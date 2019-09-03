@@ -490,7 +490,6 @@ class CKA(IntEnum):
                 cls.CKA_MODULUS_BITS,
                 cls.CKA_PUBLIC_EXPONENT,
                 cls.CKA_EXTRACTABLE,
-                cls.CKA_LOCAL,
                 cls.CKA_MODIFIABLE,
                 cls.CKA_COPYABLE,
                 cls.CKA_DESTROYABLE,

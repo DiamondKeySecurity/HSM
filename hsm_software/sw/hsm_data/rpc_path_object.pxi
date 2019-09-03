@@ -78,8 +78,8 @@ cdef class rpc_path_object(object):
                                                               internal_rpc_socket,
                                                               internal_rpc_socket_mode)
 
-    def create_synchronizer(self, internal_rpc_socket):
-        self.synchronizer = Synchronizer(internal_rpc_socket, self.cache)
+    def create_synchronizer(self, internal_rpc_socket, settings):
+        self.synchronizer = Synchronizer(internal_rpc_socket, self.cache, settings)
 
         # start the mirrorer
         self.synchronizer.start()

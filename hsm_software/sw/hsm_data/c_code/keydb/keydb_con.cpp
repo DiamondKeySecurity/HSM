@@ -17,15 +17,15 @@
 #include <cppconn/driver.h>
 
 #include "keydb_con.h"
-
+#include "keydb_shared.h"
 
 namespace diamond_hsm
 {
 namespace keydb
 {
 
-keydb_con::keydb_con(std::shared_ptr<::sql::Connection> con)
-:con(con)
+keydb_con::keydb_con(std::shared_ptr<::sql::Connection> con, const keydb_shared *shared_data)
+:con(con), shared_data(shared_data)
 {
 }
 
