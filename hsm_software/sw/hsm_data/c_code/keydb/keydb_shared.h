@@ -70,6 +70,11 @@ class keydb_shared
             pkcs11attr_to_dbkey.insert(std::pair<uint32_t, std::string>(0x00000180, "CKA_EC_PARAMS"));
             pkcs11attr_to_dbkey.insert(std::pair<uint32_t, std::string>(0x00000181, "CKA_EC_POINT"));
             pkcs11attr_to_dbkey.insert(std::pair<uint32_t, std::string>(0x00000210, "CKA_WRAP_WITH_TRUSTED"));
+            pkcs11attr_to_dbkey.insert(std::pair<uint32_t, std::string>(0x00000110, "CKA_START_DATE"));
+            pkcs11attr_to_dbkey.insert(std::pair<uint32_t, std::string>(0x00000111, "CKA_END_DATE"));
+            pkcs11attr_to_dbkey.insert(std::pair<uint32_t, std::string>(0x00000163, "CKA_LOCAL"));
+            pkcs11attr_to_dbkey.insert(std::pair<uint32_t, std::string>(0x00000166, "CKA_KEY_GEN_MECHANISM"));
+
 
             // add mapping so we can take an incoming pkcs11 attribute and map it to SQL data type
             db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000000, KeyDBType_Int));
@@ -103,6 +108,10 @@ class keydb_shared
             db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000180, KeyDBType_Binary));
             db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000181, KeyDBType_Binary));
             db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000210, KeyDBType_Boolean));
+            db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000110, KeyDBType_Text));
+            db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000111, KeyDBType_Text));
+            db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000163, KeyDBType_Boolean));
+            db_attr_types.insert(std::pair<uint32_t, KeyDBTypes>(0x00000166, KeyDBType_Int));
         }
 
         const std::map<uint32_t, std::string> &get_pkcs11attr_to_dbkey() const

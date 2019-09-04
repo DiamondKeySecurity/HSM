@@ -164,6 +164,11 @@ hal_error_t keydb_con::parse_set_keyattribute_packet(const uuids::uuid_t master_
 
                 sql_expression += it->second + " = ?";
             }
+            else
+            {
+                std::cout << "uncached attribute: " << type << std::endl;
+            }
+            
 
             attributes_and_loc.insert(std::pair<uint32_t, uint32_t>(type, ipacket.getpos(ptr)));
 

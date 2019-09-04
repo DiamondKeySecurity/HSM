@@ -495,7 +495,14 @@ class CKA(IntEnum):
                 cls.CKA_DESTROYABLE,
                 cls.CKA_EC_PARAMS,
                 cls.CKA_EC_POINT,
-                cls.CKA_WRAP_WITH_TRUSTED]
+                cls.CKA_WRAP_WITH_TRUSTED,
+                cls.CKA_COPYABLE,
+                cls.CKA_DESTROYABLE,
+                cls.CKA_START_DATE,
+                cls.CKA_END_DATE,
+                cls.CKA_KEY_GEN_MECHANISM,
+                cls.CKA_LOCAL
+                ]
 
 # The defines the attributes common to all objects.
 # Attribute             Data Type              Meaning

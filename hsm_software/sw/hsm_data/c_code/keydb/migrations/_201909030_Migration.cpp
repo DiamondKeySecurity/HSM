@@ -35,17 +35,17 @@ void _201909030_Migration::up(std::shared_ptr<sql::Connection> con) const
     std::unique_ptr<sql::Statement> stmt;
     std::unique_ptr<sql::ResultSet> res;
 
-    char sql_table_statement1[] =
-"ALTER TABLE domainkeys \
-ADD CKA_COPYABLE BOOLEAN NOT NULL DEFAULT FALSE;";
-
-    char sql_table_statement2[] =
-"ALTER TABLE domainkeys \
-ADD CKA_DESTROYABLE BOOLEAN NOT NULL DEFAULT TRUE;";
+    char sql_table_statement[] =
+"ALTER TABLE domainkeys ADD \
+CKA_COPYABLE BOOLEAN NOT NULL DEFAULT FALSE, \
+CKA_DESTROYABLE BOOLEAN NOT NULL DEFAULT TRUE, \
+CKA_START_DATE VARCHAR(8) DEFAULT NULL, \
+CKA_END_DATE VARCHAR(8) DEFAULT NULL, \
+CKA_KEY_GEN_MECHANISM INT DEFAULT 0, \
+CKA_LOCAL BOOLEAN DEFAULT FALSE;";
 
     stmt.reset(con->createStatement());
-    stmt->execute(sql_table_statement1);
-    stmt->execute(sql_table_statement2);
+    stmt->execute(sql_table_statement);
 }
 
 }
