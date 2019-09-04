@@ -130,19 +130,11 @@ hal_error_t keydb_con::parse_set_keyattribute_packet(const uuids::uuid_t master_
     // the attributes in the packet and the location of the variable data
     std::map<uint32_t, uint32_t> attributes_and_loc;
 
-    ipacket.decode_int_peak_at(&num_attributes, 0);
-    std::cout << "ID == " << num_attributes << std::endl;
-
-    ipacket.decode_int_peak_at(&num_attributes, num_attr_pos);
-    std::cout << "PEAK SIZE == " << num_attributes << std::endl;
-
     // go to num attribute position
     ipacket.decode_start(num_attr_pos, &ptr);
 
     // get the number of attributes
     ipacket.decode_int(&num_attributes, &ptr);
-
-    std::cout << "num_attributes " << num_attributes << std::endl;
 
     if (num_attributes > 0 && num_attributes < 100)
     {
