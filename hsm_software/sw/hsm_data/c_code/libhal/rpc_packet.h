@@ -79,7 +79,7 @@ class rpc_packet
         {
             _size = other._size;
             _buf = other._buf;
-            _bptr =  other._buf;
+            _bptr =  other._bptr;
             _blimit = other._blimit;
 
             other._buf = NULL;
@@ -149,13 +149,14 @@ class rpc_packet
 
         hal_error_t decode_int(uint32_t *value, const uint8_t **ptr) const
         {
-            if (*ptr == NULL) *ptr = (const uint8_t *)&_bptr;
-            return hal_xdr_decode_int((const uint8_t **)&_bptr, _blimit, value);
+            if (*ptr == NULL) *ptr = _buf;
+            return hal_xdr_decode_int(ptr, _blimit, value);
         }
 
-        hal_error_t decode_int_peak(uint32_t *value) const
+        hal_error_t decode_int_peak(uint32_t *value, const uint8_t **ptr) const
         {
-            return hal_xdr_decode_int_peek((const uint8_t **)&_bptr, _blimit, value);
+            if (*ptr == NULL) *ptr = _buf;
+            return hal_xdr_decode_int_peek(ptr, _blimit, value);
         }
 
         hal_error_t decode_int_peak_at(uint32_t *value, size_t pos) const
@@ -177,8 +178,8 @@ class rpc_packet
 
         hal_error_t decode_fixed_opaque(uint8_t * const value, const size_t len, const uint8_t **ptr) const
         {
-            if (*ptr == NULL) *ptr = (const uint8_t *)&_bptr;
-            return hal_xdr_decode_fixed_opaque((const uint8_t **)&_bptr, _blimit, value, len);
+            if (*ptr == NULL) *ptr = _buf;
+            return hal_xdr_decode_fixed_opaque(ptr, _blimit, value, len);
         }
 
         hal_error_t encode_variable_opaque(const uint8_t * const value, const size_t len)
@@ -188,13 +189,18 @@ class rpc_packet
 
         hal_error_t decode_variable_opaque(uint8_t * const value, size_t * const len, const size_t len_max, const uint8_t **ptr) const
         {
-            if (*ptr == NULL) *ptr = (const uint8_t *)&_bptr;
-            return hal_xdr_decode_variable_opaque((const uint8_t **)&_bptr, _blimit, value, len, len_max);
+            if (*ptr == NULL) *ptr = _buf;
+            return hal_xdr_decode_variable_opaque(ptr, _blimit, value, len, len_max);
         }
 
         void reset_head()
         {
             _bptr = _buf;
+        }
+
+        uint32_t getpos(const uint8_t *ptr) const
+        {
+            return ptr - _buf;
         }
 
     private:

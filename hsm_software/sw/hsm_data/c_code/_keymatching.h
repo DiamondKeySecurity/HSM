@@ -42,7 +42,7 @@ class KeyAttribute
         hal_error_t unpack(const libhal::rpc_packet &ipacket, const uint8_t **ptr)
         {
             ipacket.decode_int(&key, ptr);
-            ipacket.decode_int_peak(&bytes_len);
+            ipacket.decode_int_peak(&bytes_len, ptr);
 
             size_t actual_len;
 
