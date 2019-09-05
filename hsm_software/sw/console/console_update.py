@@ -95,8 +95,8 @@ def dks_do_HSM_update(console_object, pin, username):
         mgmt_code = MGMTCodes.MGMTCODE_RECEIVEHSM_UPDATE.value
         # setup a file transfer object
         ft = FileTransfer(mgmt_code=mgmt_code,
+                          tmpfs = console_object.tmpfs,
                           requested_file_path=console_object.request_file_path,
-                          uploads_dir=console_object.args.uploads,
                           restart_file=console_object.args.restart,
                           public_key=console_object.args.hsmpublickey,
                           finished_callback=dks_hsm_update_finished,
@@ -104,9 +104,11 @@ def dks_do_HSM_update(console_object, pin, username):
                           data_context=console_object)
 
         console_object.file_transfer = ft
-        # tell dks_setup_console that it can send the data now
-        msg = "%s:RECV:%s\r" % (mgmt_code, console_object.request_file_path)
-        console_object.cty_direct_call(msg)
+
+        ft.start(console_object)
+
+        # the file transfer object will signal what to do
+        return True
     except Exception as e:
         console_object.cty_direct_call('\nThere was an error while receiving the'
                                        ' update.\r\n\r\n%s' % e.message)
@@ -210,10 +212,10 @@ def add_update_commands(console_object):
                             usage=' - Updates the FPGA cores on the'
                             ' CrypTech devices.',
                             callback=dks_update_cryptech_fpga)
-    # cryptech_node.add_child('tamper', num_args=0,
-    #                         usage=' - Updates the tamper firmware on the'
-    #                         ' CrypTech devices.',
-    #                         callback=dks_update_cryptech_tamper)
+    cryptech_node.add_child('tamper', num_args=0,
+                            usage=' - Updates the tamper firmware on the'
+                            ' CrypTech devices.',
+                            callback=dks_update_cryptech_tamper)
 
     update_node.add_child('HSM', num_args=1,
                           usage='<path to file> - Updates the HSM'

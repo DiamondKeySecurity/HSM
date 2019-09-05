@@ -181,6 +181,7 @@ class LEDContainer(object):
         self.tamper_led = LED(red_gpio =  5, green_gpio =  6)
         self.system_led = LED(red_gpio = 26, green_gpio = 19)
         self.tamper_detected = ThreadSafeVariable(False)
+        self.current_led_function = None
 
     def led_determine_network_adapter(self):
         if(self.tamper_detected.value is not True):
@@ -192,6 +193,8 @@ class LEDContainer(object):
 
             self.system_led.blink()
             self.tamper_led.on()
+
+            self.current_led_function = "led_determine_network_adapter"
 
 
     def led_probe_for_cryptech(self):
@@ -205,6 +208,8 @@ class LEDContainer(object):
             self.system_led.blink()
             self.tamper_led.blink()
 
+            self.current_led_function = "led_probe_for_cryptech"
+
     def led_start_tcp_servers(self):
         if(self.tamper_detected.value is not True):
             self.system_led.off()
@@ -215,6 +220,8 @@ class LEDContainer(object):
 
             self.system_led.blink()
             self.tamper_led.blink()
+
+            self.current_led_function = "led_start_tcp_servers"
 
     def led_ready(self):
         if(self.tamper_detected.value is not True):
@@ -227,6 +234,8 @@ class LEDContainer(object):
             self.system_led.on()
             self.tamper_led.on()
 
+            self.current_led_function = "led_ready"
+
     def led_error_cryptech_failure(self):
         if(self.tamper_detected.value is not True):
             self.system_led.off()
@@ -237,6 +246,8 @@ class LEDContainer(object):
 
             self.system_led.blink()
             self.tamper_led.on()
+
+            self.current_led_function = "led_error_cryptech_failure"
 
     def led_error_cryptech_partial_failure(self):
         if(self.tamper_detected.value is not True):
@@ -249,6 +260,8 @@ class LEDContainer(object):
             self.system_led.blink()
             self.tamper_led.on()
 
+            self.current_led_function = "led_error_cryptech_partial_failure"
+
     def led_error_login_failure(self):
         if(self.tamper_detected.value is not True):
             self.system_led.off()
@@ -259,6 +272,8 @@ class LEDContainer(object):
 
             self.system_led.blink()
             self.tamper_led.on()
+
+            self.current_led_function = "led_error_login_failure"
 
     def led_error_login_partialfailure(self):
         if(self.tamper_detected.value is not True):
@@ -271,6 +286,8 @@ class LEDContainer(object):
             self.system_led.blink()
             self.tamper_led.on()
 
+            self.current_led_function = "led_error_login_partialfailure"
+
     def led_error_tamper(self):
         self.system_led.off()
         self.tamper_led.off()
@@ -281,6 +298,13 @@ class LEDContainer(object):
         self.system_led.blink()
         self.tamper_led.blink()
 
+    def led_pretamper(self):
+        if(self.current_led_function is None):
+            self.current_led_function = "led_probe_for_cryptech"
+
+        if (hasattr(self, self.current_led_function)):
+            getattr(self, self.current_led_function)()
+
     def on_tamper_notify(self, tamper_object):
         print 'LED GOT A TAMPER'        
         if(self.tamper_detected.value != tamper_object.get_tamper_state()):
@@ -289,7 +313,7 @@ class LEDContainer(object):
             if(self.tamper_detected.value):
                 self.led_error_tamper()
             else:
-                self.led_probe_for_cryptech()
+                self.led_pretamper()
 
 
     def test(self):

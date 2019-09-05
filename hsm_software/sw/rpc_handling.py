@@ -107,7 +107,7 @@ class MuxSession:
 
 class RPCPreprocessor:
     """Able to load balance between multiple rpcs"""
-    def __init__(self, rpc_list, cache, settings, netiface, tamper):
+    def __init__(self, rpc_list, cache, settings, netiface):
         self.cache = cache
         self.settings = settings
         self.rpc_list = rpc_list
@@ -122,7 +122,6 @@ class RPCPreprocessor:
         self.netiface = netiface
         self.hsm_locked = True
         self.debug = False
-        self.tamper = tamper
         self.tamper_detected = ThreadSafeVariable(False)
 
         # used by load balancing heuristic
@@ -137,8 +136,6 @@ class RPCPreprocessor:
         self.next_any_device = 0
         self.next_any_device_uses = 0
         self.choose_any_thread_lock = threading.Lock()
-
-        tamper.add_observer(self.on_tamper_event)
 
     def device_count(self):
         return len(self.rpc_list)
@@ -310,7 +307,7 @@ class RPCPreprocessor:
         session.current_request = decoded_request
 
         # check to see if there's an ongoing tamper event
-        if (self.tamper.get_tamper_state() and session.from_ethernet):
+        if (self.tamper_detected.value and session.from_ethernet):
             return self.create_error_response(code, client,
                                               DKS_HALError.HAL_ERROR_TAMPER)
 
@@ -574,10 +571,12 @@ class RPCPreprocessor:
             logger.info("handle_rpc_hash: handle not in session.hash_rpcs")
             return self.create_error_response(code, client, DKS_HALError.HAL_ERROR_BAD_ARGUMENTS)
 
+        rpc_index = session.hash_rpcs[handle]
+
         # the handle no longer needs to be in the dictionary
         del session.hash_rpcs.pop[handle]
 
-        return RPCAction(None, [self.rpc_list[session.rpc_index]], None)
+        return RPCAction(None, [self.rpc_list[rpc_index]], None)
 
     def handle_rpc_usecurrent(self, code, client, unpacker, session):
         """The manually selected RPC must be used"""
@@ -589,7 +588,7 @@ class RPCPreprocessor:
 
     def handle_rpc_pkeyexport(self, code, client, unpacker, session):
         # make sure pkey export has been enabled. Always allow from internal non-ethernet sources
-        if (session.from_ethernet and
+        if (session.from_ethernet is False and
             self.settings.get_setting(HSMSettings.ENABLE_KEY_EXPORT) is False):
            return self.create_error_response(code, client, DKS_HALError.HAL_ERROR_FORBIDDEN)
 
@@ -1170,5 +1169,6 @@ class RPCPreprocessor:
         self.function_table[DKS_RPCFunc.RPC_FUNC_SET_RPC_DEVICE] = self.handle_set_rpc
         self.function_table[DKS_RPCFunc.RPC_FUNC_ENABLE_CACHE_KEYGEN] = self.handle_enable_cache_keygen
         self.function_table[DKS_RPCFunc.RPC_FUNC_DISABLE_CACHE_KEYGEN] = self.handle_disable_cache_keygen
+        self.function_table[DKS_RPCFunc.RPC_FUNC_CHECK_TAMPER] = self.handle_rpc_usecurrent
         self.function_table[DKS_RPCFunc.RPC_FUNC_USE_INCOMING_DEVICE_UUIDS] = self.handle_use_incoming_device_uuids
         self.function_table[DKS_RPCFunc.RPC_FUNC_USE_INCOMING_MASTER_UUIDS] = self.handle_use_incoming_master_uuids

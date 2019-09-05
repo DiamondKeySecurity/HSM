@@ -15,6 +15,7 @@
 # along with this program; if not, If not, see <https://www.gnu.org/licenses/>.
 
 import os
+import os.path
 
 import time
 
@@ -26,6 +27,10 @@ from stoppable_thread import stoppable_thread
 from statusobject import StatusObject, SetStatus
 
 from hsm import UploadArgs
+
+HSM_BINARY_FILE        = "hsm-190821a.bin"
+BOOTLOADER_BINARY_FILE = "bootloader.bin"
+FPGA_BITSTREAM_FILE    = "alpha_fmc.bit"
 
 class CTYError(IntEnum):
     CTY_OK = 0,
@@ -317,7 +322,7 @@ class CTYConnection(StatusObject):
         ready_state = self.check_ready()
         if(ready_state is not CTYError.CTY_OK): return ready_state
 
-        name = self.binary_path + "/alpha_fmc.bit"
+        name = os.path.join(self.binary_path, FPGA_BITSTREAM_FILE)
         upload_args = UploadArgs(fpga = True, pin = PIN, username=username)
 
         if (cty_index is None):
@@ -331,7 +336,7 @@ class CTYConnection(StatusObject):
         ready_state = self.check_ready()
         if(ready_state is not CTYError.CTY_OK): return ready_state
 
-        name = self.binary_path + "/bootloader.bin"
+        name = os.path.join(self.binary_path, BOOTLOADER_BINARY_FILE)
         upload_args = UploadArgs(bootloader = True, pin = PIN, username=username)
 
         if (cty_index is None):
@@ -345,7 +350,7 @@ class CTYConnection(StatusObject):
         ready_state = self.check_ready()
         if(ready_state is not CTYError.CTY_OK): return ready_state
 
-        name = self.binary_path + "/hsm.bin"
+        name = os.path.join(self.binary_path, HSM_BINARY_FILE)
         upload_args = UploadArgs(firmware = True, pin = PIN, username=username)
 
         if (cty_index is None):
@@ -359,8 +364,9 @@ class CTYConnection(StatusObject):
         ready_state = self.check_ready()
         if(ready_state is not CTYError.CTY_OK): return ready_state
 
-        return CTYError.CTY_OK
-        # return self._do_upload(self.binary_path + "/hsm.bin", UploadArgs(firmware = True, pin = PIN))
+        return self._do_upload(self.binary_path + "/tamper.bin",
+                               UploadArgs(tamper = True, pin = PIN, username=username),
+                               cty_index)
 
     def check_ready(self):
         # make sure we're actually connected to an alpha
@@ -370,6 +376,24 @@ class CTYConnection(StatusObject):
         if(not self.is_logged_in): return CTYError.CTY_NOT_LOGGED_IN
 
         return CTYError.CTY_OK
+
+    def check_tamper_config_status(self, cty_index):
+        if (cty_index < 0 or cty_index >= self.cty_count):
+            # device not found
+            return None
+
+        cmd = 'tamper config status\r'
+
+        hsm_cty = self.cty_list[cty_index]
+
+        cty_output = self.send_raw(cmd, hsm_cty.serial, 3)
+        print cty_output
+
+        # check for the proper value
+        if ('Config value is 85' in cty_output):
+            return True
+        else:
+            return False
 
     def check_fpga(self, cty_index):
         if (cty_index < 0 or cty_index >= self.cty_count):
@@ -469,9 +493,9 @@ class CTYConnection(StatusObject):
                 hsm_cty = self.cty_list[index]
 
                 with WaitFeedback.Start(self.feedback):
-                    self.feedback("Opening Binary  ")
+                    self.feedback("Opening Binary  \r\n")
                     src = open(name, "r") # open the file here because send_file closes it
-                    self.feedback("Binary Opened  ")
+                    self.feedback("Binary Opened  \r\n")
                     size = os.fstat(src.fileno()).st_size
 
                     dst = hsm_cty.serial
@@ -479,6 +503,7 @@ class CTYConnection(StatusObject):
                     args.fpga = upload_args.fpga
                     args.firmware = upload_args.firmware
                     args.bootloader = upload_args.bootloader
+                    args.tamper = upload_args.tamper
                     args.pin = upload_args.pin
                     self.feedback("Uploading Binary  ")
                     if(send_file(src, size, args, dst) == False):
