@@ -428,7 +428,7 @@ hal_error_t keydb_con::parse_get_keyattribute_packet(const uuids::uuid_t master_
         }
     }
 
-    sql_expression += "FROM domainkeys WHERE uuid=?;";
+    sql_expression += " FROM domainkeys WHERE uuid=?;";
     std::cout << sql_expression << std::endl;
 
     try
@@ -468,101 +468,121 @@ hal_error_t keydb_con::parse_get_keyattribute_packet(const uuids::uuid_t master_
         return HAL_ERROR_RPC_PROTOCOL_ERROR;
     }
 
-    // read back and build the result
-    int index = 0;
-    for (auto it = cached_attributes.begin(); it < cached_attributes.end(); ++it)
+    if(res->next())
     {
-        ++index;
-
-        uint32_t type = *it;
-
-        // save the type
-        opacket.encode_int(type);
-
-        auto type_it = shared_data->get_db_attr_types().find(type);
-        if (type_it != shared_data->get_db_attr_types().end() || res->isNull(index))
+        // read back and build the result
+        int index = 0;
+        for (auto it = cached_attributes.begin(); it < cached_attributes.end(); ++it)
         {
-            KeyDBTypes datatype = type_it->second;
-            switch (datatype)
+            ++index;
+
+            uint32_t type = *it;
+
+            // save the type
+            opacket.encode_int(type);
+
+            auto type_it = shared_data->get_db_attr_types().find(type);
+            if (type_it != shared_data->get_db_attr_types().end() || res->isNull(index))
             {
-                case KeyDBType_Int:
-                    if (buffer_len == 0)
-                    {
-                        opacket.encode_int(sizeof(uint32_t));
-                    }
-                    else
-                    {
-                        if (remaining < sizeof(uint32_t)) return HAL_ERROR_RPC_PACKET_OVERFLOW;
-                        else remaining -= sizeof(uint32_t);
-
-                        uint32_t value = (uint32_t)res->getInt(index);
-                        opacket.encode_variable_opaque((const uint8_t *)&value, sizeof(uint32_t));
-                    }
-                    break;
-                case KeyDBType_Boolean:
-                    if (buffer_len == 0)
-                    {
-                        opacket.encode_int(sizeof(uint8_t));
-                    }
-                    else
-                    {
-                        if (remaining < sizeof(uint8_t)) return HAL_ERROR_RPC_PACKET_OVERFLOW;
-                        else remaining -= sizeof(uint8_t);
-
-                        uint8_t value = res->getBoolean(index);
-                        opacket.encode_variable_opaque((const uint8_t *)&value, sizeof(uint8_t));
-                    }
-                    
-                    break;
-                case KeyDBType_Text:
-                    {
-                        std::string text = res->getString(index);
-
-                        if(buffer_len == 0)
+                KeyDBTypes datatype = type_it->second;
+                switch (datatype)
+                {
+                    case KeyDBType_Int:
+                        if (buffer_len == 0)
                         {
-                            opacket.encode_int(text.size());
+                            opacket.encode_int(sizeof(uint32_t));
                         }
                         else
                         {
-                            if (remaining < text.size()) return HAL_ERROR_RPC_PACKET_OVERFLOW;
-                            else remaining -= text.size();
+                            if (remaining < sizeof(uint32_t)) return HAL_ERROR_RPC_PACKET_OVERFLOW;
+                            else remaining -= sizeof(uint32_t);
 
-                            opacket.encode_variable_opaque((const uint8_t *)text.c_str(), text.size());
+                            uint32_t value = (uint32_t)res->getInt(index);
+                            opacket.encode_variable_opaque((const uint8_t *)&value, sizeof(uint32_t));
+
+                            std::cout << type << ": INT == " << value << std::endl;
+                        }
+                        break;
+                    case KeyDBType_Boolean:
+                        if (buffer_len == 0)
+                        {
+                            opacket.encode_int(sizeof(uint8_t));
+                        }
+                        else
+                        {
+                            if (remaining < sizeof(uint8_t)) return HAL_ERROR_RPC_PACKET_OVERFLOW;
+                            else remaining -= sizeof(uint8_t);
+
+                            uint8_t value = res->getBoolean(index);
+                            opacket.encode_variable_opaque((const uint8_t *)&value, sizeof(uint8_t));
+
+                            std::cout << type << ": BOOL == " << value << std::endl;
                         }
                         
-                    }
-                    break;
-                case KeyDBType_Binary:
-                    {
-                        std::istream *blob_stream = res->getBlob(index);
-                        blob_stream->seekg(std::ios::end);
-                        int blob_size = blob_stream->tellg();
-                        blob_stream->seekg(std::ios::beg);
-
-                        if(buffer_len == 0)
+                        break;
+                    case KeyDBType_Text:
                         {
-                            opacket.encode_int(blob_size);
+                            std::string text = res->getString(index);
+
+                            if(buffer_len == 0)
+                            {
+                                opacket.encode_int(text.size());
+                            }
+                            else
+                            {
+                                if (remaining < text.size()) return HAL_ERROR_RPC_PACKET_OVERFLOW;
+                                else remaining -= text.size();
+
+                                opacket.encode_variable_opaque((const uint8_t *)text.c_str(), text.size());
+
+                                std::cout << type << ": BOOL == " << text << std::endl;
+                            }
+                            
                         }
-                        else
+                        break;
+                    case KeyDBType_Binary:
                         {
-                            if (remaining < blob_size) return HAL_ERROR_RPC_PACKET_OVERFLOW;
-                            else remaining -= blob_size;
+                            std::istream *blob_stream = res->getBlob(index);
+                            blob_stream->seekg(std::ios::end);
+                            uint32_t blob_size = blob_stream->tellg();
+                            blob_stream->seekg(std::ios::beg);
 
-                            uint8_t buffer[blob_size];
-                            for (int i = 0; i < blob_size; ++i)
-                                buffer[i] = blob_stream->get();
+                            if(buffer_len == 0)
+                            {
+                                opacket.encode_int(blob_size);
+                            }
+                            else
+                            {
+                                if (remaining < blob_size) return HAL_ERROR_RPC_PACKET_OVERFLOW;
+                                else remaining -= blob_size;
 
-                            opacket.encode_variable_opaque(buffer, blob_size);
+                                uint8_t buffer[blob_size];
+                                for (int i = 0; i < blob_size; ++i)
+                                    buffer[i] = blob_stream->get();
+
+                                opacket.encode_variable_opaque(buffer, blob_size);
+
+                                std::cout << type << ": BINARY LENGTH == " << blob_size << std::endl;
+                            }
                         }
-                    }
-                    break;
+                        break;
+                }
             }
+            else
+            {
+                // nothing, this should only be reached if the field is NULL
+                opacket.encode_int(0);
+            }   
         }
-        else
+    }
+    else
+    {
+        for (auto it = cached_attributes.begin(); it < cached_attributes.end(); ++it)
         {
-            // nothing, this should only be reached if the field is NULL
+            uint32_t type = *it;
+            opacket.encode_int(type);
             opacket.encode_int(0);
-        }   
+        }
     }
 
     for (auto it = uncached_attributes.begin(); it < uncached_attributes.end(); ++it)
@@ -573,6 +593,8 @@ hal_error_t keydb_con::parse_get_keyattribute_packet(const uuids::uuid_t master_
     }
 
     opacket.shrink_to_fit();
+
+    return HAL_OK;
 }
 
 
