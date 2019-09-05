@@ -26,6 +26,7 @@
 #include "keydb_con.h"
 #include "keydb_shared.h"
 
+#include "../libhal/hal_internal.h"
 
 namespace diamond_hsm
 {
@@ -298,7 +299,6 @@ hal_error_t keydb_con::parse_set_keyattribute_packet(const uuids::uuid_t master_
                                 case KeyDBType_Boolean:
                                     pstmt->setNull(index, sql::DataType::TINYINT);
                                     break;
-                                case KeyDBType_UUID:
                                 case KeyDBType_Binary:
                                     pstmt->setNull(index, sql::DataType::VARBINARY);
                                     break;
@@ -355,9 +355,224 @@ hal_error_t keydb_con::parse_set_keyattribute_packet(const uuids::uuid_t master_
     return HAL_OK;
 }
 
-hal_error_t parse_get_keyattribute_packet(const uuids::uuid_t master_uuid, const uint32_t session_client_handle,
-                                            const libhal::rpc_packet &ipacket, libhal::rpc_packet &opacket)
+hal_error_t keydb_con::parse_get_keyattribute_packet(const uuids::uuid_t master_uuid, const uint32_t session_client_handle,
+                                                     const libhal::rpc_packet &ipacket, libhal::rpc_packet &opacket)
 {
+    const uint8_t *ptr;
+
+    //  -----------------  0 - code
+    //  -----------------  4 - client
+    //  -----------------  8 - handle
+    //  ----------------- 12 - attr_len
+    //  ----------------- 16 - list of attribute types
+    // (16 + (attr_len * 4)) - buffer len <- if 0, return size of data only
+
+    // go to the beginning of the data that we care about
+    const size_t attr_len_pos = 12;
+    ipacket.decode_start(attr_len_pos, &ptr);
+
+    // get the number of attributes
+    uint32_t attr_len;
+    ipacket.decode_int(&attr_len, &ptr);
+
+    // get the size of the buffer
+    const size_t buffer_len_pos = 16 + (attr_len * 4);
+    uint32_t buffer_len;
+    ipacket.decode_int_peak_at(&buffer_len, buffer_len_pos);
+
+    // counter for remaing data
+    uint32_t remaining = buffer_len;
+
+    // create the result packet
+    // 0 - code
+    // 4 - result
+    // 8 - attr_len
+    // 12 - list of attributes
+    //      uint32_t type
+    //      uint32_t length
+    //      uint8_t  fixed size data
+    opacket.create((3 * 4) + (attr_len * 8) + buffer_len + 12);
+    opacket.encode_int(RPC_FUNC_PKEY_GET_ATTRIBUTES);
+    opacket.encode_int(HAL_OK);
+    opacket.encode_int(attr_len);
+
+    // query sql
+    std::unique_ptr<sql::PreparedStatement> pstmt;
+    std::unique_ptr<sql::ResultSet> res;
+
+    std::string sql_expression = "SELECT ";
+    bool first = true;
+
+    std::vector<uint32_t> cached_attributes;
+    std::vector<uint32_t> uncached_attributes;
+
+    for (uint32_t i = 0; i < attr_len; ++i)
+    {
+        uint32_t type;
+        ipacket.decode_int(&type, &ptr);
+
+        auto it = shared_data->get_pkcs11attr_to_dbkey().find(type);
+        if (it != shared_data->get_pkcs11attr_to_dbkey().end())
+        {
+            if (!first) sql_expression += ", ";
+            else first = false;
+
+            sql_expression += it->second;
+
+            cached_attributes.push_back(type);
+        }
+        else
+        {
+            std::cout << "uncached attribute: " << type << std::endl;
+            uncached_attributes.push_back(type);
+        }
+    }
+
+    sql_expression += "FROM domainkeys WHERE uuid=?;";
+    std::cout << sql_expression << std::endl;
+
+    try
+    {
+        pstmt.reset(con->prepareStatement(sql_expression));
+    }
+    catch(sql::SQLException &e)
+    {
+        std::cout << "# ERR: SQLException in " << __FILE__;
+        std::cout << "(" << __FUNCTION__ << ") on line " << __LINE__ << std::endl;
+        std::cout << "# ERR: " << e.what();
+        std::cout << " (MySQL error code: " << e.getErrorCode();
+        std::cout << ", SQLState: " << e.getSQLState() << " )" << std::endl;
+
+        return HAL_ERROR_RPC_PROTOCOL_ERROR;
+    }
+    
+    // prepare the uuid
+    std::vector<unsigned char> convertedID;
+    master_uuid.get_bytes_vector(convertedID);
+    std::stringstream uuid_blob_stream (std::string(convertedID.begin(), convertedID.end()));
+    pstmt->setBlob(1, &uuid_blob_stream);
+
+    // execute the query with the uuid
+    try
+    {
+        res.reset(pstmt->executeQuery());
+    }
+    catch(sql::SQLException &e)
+    {
+        std::cout << "# ERR: SQLException in " << __FILE__;
+        std::cout << "(" << __FUNCTION__ << ") on line " << __LINE__ << std::endl;
+        std::cout << "# ERR: " << e.what();
+        std::cout << " (MySQL error code: " << e.getErrorCode();
+        std::cout << ", SQLState: " << e.getSQLState() << " )" << std::endl;
+
+        return HAL_ERROR_RPC_PROTOCOL_ERROR;
+    }
+
+    // read back and build the result
+    int index = 0;
+    for (auto it = cached_attributes.begin(); it < cached_attributes.end(); ++it)
+    {
+        ++index;
+
+        uint32_t type = *it;
+
+        // save the type
+        opacket.encode_int(type);
+
+        auto type_it = shared_data->get_db_attr_types().find(type);
+        if (type_it != shared_data->get_db_attr_types().end() || res->isNull(index))
+        {
+            KeyDBTypes datatype = type_it->second;
+            switch (datatype)
+            {
+                case KeyDBType_Int:
+                    if (buffer_len == 0)
+                    {
+                        opacket.encode_int(sizeof(uint32_t));
+                    }
+                    else
+                    {
+                        if (remaining < sizeof(uint32_t)) return HAL_ERROR_RPC_PACKET_OVERFLOW;
+                        else remaining -= sizeof(uint32_t);
+
+                        uint32_t value = (uint32_t)res->getInt(index);
+                        opacket.encode_variable_opaque((const uint8_t *)&value, sizeof(uint32_t));
+                    }
+                    break;
+                case KeyDBType_Boolean:
+                    if (buffer_len == 0)
+                    {
+                        opacket.encode_int(sizeof(uint8_t));
+                    }
+                    else
+                    {
+                        if (remaining < sizeof(uint8_t)) return HAL_ERROR_RPC_PACKET_OVERFLOW;
+                        else remaining -= sizeof(uint8_t);
+
+                        uint8_t value = res->getBoolean(index);
+                        opacket.encode_variable_opaque((const uint8_t *)&value, sizeof(uint8_t));
+                    }
+                    
+                    break;
+                case KeyDBType_Text:
+                    {
+                        std::string text = res->getString(index);
+
+                        if(buffer_len == 0)
+                        {
+                            opacket.encode_int(text.size());
+                        }
+                        else
+                        {
+                            if (remaining < text.size()) return HAL_ERROR_RPC_PACKET_OVERFLOW;
+                            else remaining -= text.size();
+
+                            opacket.encode_variable_opaque((const uint8_t *)text.c_str(), text.size());
+                        }
+                        
+                    }
+                    break;
+                case KeyDBType_Binary:
+                    {
+                        std::istream *blob_stream = res->getBlob(index);
+                        blob_stream->seekg(std::ios::end);
+                        int blob_size = blob_stream->tellg();
+                        blob_stream->seekg(std::ios::beg);
+
+                        if(buffer_len == 0)
+                        {
+                            opacket.encode_int(blob_size);
+                        }
+                        else
+                        {
+                            if (remaining < blob_size) return HAL_ERROR_RPC_PACKET_OVERFLOW;
+                            else remaining -= blob_size;
+
+                            uint8_t buffer[blob_size];
+                            for (int i = 0; i < blob_size; ++i)
+                                buffer[i] = blob_stream->get();
+
+                            opacket.encode_variable_opaque(buffer, blob_size);
+                        }
+                    }
+                    break;
+            }
+        }
+        else
+        {
+            // nothing, this should only be reached if the field is NULL
+            opacket.encode_int(0);
+        }   
+    }
+
+    for (auto it = uncached_attributes.begin(); it < uncached_attributes.end(); ++it)
+    {
+        uint32_t type = *it;
+        opacket.encode_int(type);
+        opacket.encode_int(0);
+    }
+
+    opacket.shrink_to_fit();
 }
 
 
