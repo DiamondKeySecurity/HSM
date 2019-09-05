@@ -29,7 +29,6 @@ enum KeyDBTypes
     KeyDBType_Boolean,
     KeyDBType_UUID,
     KeyDBType_Text,
-    KeyDBType_TextB64,
     KeyDBType_Binary,
 };
 

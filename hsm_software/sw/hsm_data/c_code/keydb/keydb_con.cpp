@@ -112,6 +112,10 @@ hal_error_t keydb_con::get_key_id(const uuids::uuid_t master_uuid, uint32_t &id)
 
 hal_error_t keydb_con::parse_set_keyattribute_packet(const uuids::uuid_t master_uuid, const libhal::rpc_packet &ipacket)
 {
+    uint32_t id = 0;
+    get_key_id(master_uuid, id);
+    std::string id_str = std::to_string(id);
+
     // attributes must be fed to the keydb
     // 0 - code
     // 4 - client
@@ -127,9 +131,6 @@ hal_error_t keydb_con::parse_set_keyattribute_packet(const uuids::uuid_t master_
 
     std::cout << "parse_set_keyattribute_packet" << std::endl;
 
-    // the attributes in the packet and the location of the variable data
-    std::map<uint32_t, uint32_t> attributes_and_loc;
-
     // go to num attribute position
     ipacket.decode_start(num_attr_pos, &ptr);
 
@@ -138,6 +139,7 @@ hal_error_t keydb_con::parse_set_keyattribute_packet(const uuids::uuid_t master_
 
     if (num_attributes > 0 && num_attributes < 100)
     {
+        // PASS #1 :go through the elements to build the sql statement
         std::string sql_expression = "UPDATE domainkeys SET ";
         bool first = true;
 
@@ -161,18 +163,180 @@ hal_error_t keydb_con::parse_set_keyattribute_packet(const uuids::uuid_t master_
                 std::cout << "uncached attribute: " << type << std::endl;
             }
             
-
-            attributes_and_loc.insert(std::pair<uint32_t, uint32_t>(type, ipacket.getpos(ptr)));
-
-            // move to the next variable
+            // move to the next variable skipping padding
             uint32_t len;
             ipacket.decode_int(&len, &ptr);
             int padding = (4 - len % 4) % 4;
             ptr += len + padding;
         }
-        sql_expression += " WHERE uuid = ?;";
+        sql_expression += " WHERE id = " + id_str + ";";
 
         std::cout << sql_expression << std::endl;
+
+        std::unique_ptr<sql::PreparedStatement> pstmt;
+
+        // create prepared statement
+        try
+        {
+            pstmt.reset(con->prepareStatement(sql_expression));
+        }
+        catch(sql::SQLException &e)
+        {
+            std::cout << "# ERR: SQLException in " << __FILE__;
+            std::cout << "(" << __FUNCTION__ << ") on line " << __LINE__ << std::endl;
+            std::cout << "# ERR: " << e.what();
+            std::cout << " (MySQL error code: " << e.getErrorCode();
+            std::cout << ", SQLState: " << e.getSQLState() << " )" << std::endl;
+
+            return HAL_ERROR_ALLOCATION_FAILURE;
+        }
+
+        // PASS #2 - get values for prepared statement
+        ipacket.decode_start(num_attr_pos+4, &ptr);
+
+        int index = 0;
+        // decode to attributes and location
+        for (uint32_t i = 0; i < num_attributes; ++i)
+        {
+            uint8_t buffer[256];
+
+            // type
+            uint32_t type;
+            ipacket.decode_int(&type, &ptr);
+
+            auto it = shared_data->get_pkcs11attr_to_dbkey().find(type);
+            if (it != shared_data->get_pkcs11attr_to_dbkey().end())
+            {
+                ++index;
+                auto type_it = shared_data->get_db_attr_types().find(type);
+                if (type_it != shared_data->get_db_attr_types().end())
+                {
+                    KeyDBTypes datatype = type_it->second;
+
+                    uint32_t len;
+                    size_t olen;
+                    ipacket.decode_int_peak(&len, &ptr);
+                    if (len > 0 && len <= 256)
+                    {
+                        ipacket.decode_variable_opaque(buffer, &olen, sizeof(buffer), &ptr);
+
+                        try
+                        {
+                            switch (datatype)
+                            {
+                                case KeyDBType_Int:
+                                    std::cout << "INT: index == " << index << " type == " << std::endl;
+                                    if (len == 1) pstmt->setInt(index, (int32_t)buffer[0]);
+                                    else if (len == 4)
+                                    {
+                                        uint32_t value;
+                                        const uint8_t *buf = buffer;
+                                        hal_xdr_decode_int(&buf, &buffer[4], &value);
+                                        pstmt->setInt(index, (int32_t)value);
+                                    }
+                                    else pstmt->setNull(index, sql::DataType::INTEGER);
+                                    break;
+                                case KeyDBType_Boolean:
+                                    std::cout << "BOOL: index == " << index << " type == " << std::endl;
+                                    if (len == 1) pstmt->setBoolean(index, buffer[0] != 0);
+                                    else if (len == 4)
+                                    {
+                                        uint32_t value;
+                                        const uint8_t *buf = buffer;
+                                        hal_xdr_decode_int(&buf, &buffer[4], &value);
+                                        pstmt->setBoolean(index, value != 0);
+                                    }
+                                    else pstmt->setNull(index, sql::DataType::TINYINT);
+                                    break;
+                                case KeyDBType_Text:
+                                    {
+                                        std::string text((char *)buffer, olen);
+                                        std::cout << "Text: index == " << index << " type == " << type << "; text == " << text << std::endl;
+                                        pstmt->setString(index, text);
+                                    }
+                                    break;
+                                case KeyDBType_Binary:
+                                    {
+                                        std::vector<uint8_t> temp_buffer;
+                                        std::cout << "Binary: index == " << index << " type == " << type << "; binary olen == " << olen << std::endl;
+                                        for (int i = 0; i < olen; ++i) temp_buffer.push_back(buffer[i]);
+                                        std::stringstream binary_stream(std::string(temp_buffer.begin(), temp_buffer.end()));
+                                        pstmt->setBlob(index, &binary_stream);
+                                    }
+                                    break;
+                                default:
+                                    std::cout << "NOTHING: index == " << index << " type == " << std::endl;
+                            }
+                        }
+                        catch(sql::SQLException &e)
+                        {
+                            std::cout << "# ERR: SQLException in " << __FILE__;
+                            std::cout << "(" << __FUNCTION__ << ") on line " << __LINE__ << std::endl;
+                            std::cout << "# ERR: " << e.what();
+                            std::cout << " (MySQL error code: " << e.getErrorCode();
+                            std::cout << ", SQLState: " << e.getSQLState() << " )" << std::endl;
+
+                            return HAL_ERROR_BAD_ARGUMENTS;
+                        }
+                        continue;
+                    }
+                    else if (len == 0)
+                    {
+                        std::cout << "EMPTY: index == " << index << " type == " << std::endl;
+                        // we're deleting an attribute
+                        // we still need to read the value
+                        ipacket.decode_int(&len, &ptr);
+
+                        try
+                        {
+                            // set to NULL
+                            switch (datatype)
+                            {
+                                case KeyDBType_Int:
+                                    pstmt->setNull(index, sql::DataType::INTEGER);
+                                    break;
+                                case KeyDBType_Boolean:
+                                    pstmt->setNull(index, sql::DataType::TINYINT);
+                                    break;
+                                case KeyDBType_UUID:
+                                case KeyDBType_Binary:
+                                    pstmt->setNull(index, sql::DataType::VARBINARY);
+                                    break;
+                                case KeyDBType_Text:
+                                    pstmt->setNull(index, sql::DataType::VARCHAR);
+                                    break;
+                            }
+                        }
+                        catch(sql::SQLException &e)
+                        {
+                            std::cout << "# ERR: SQLException in " << __FILE__;
+                            std::cout << "(" << __FUNCTION__ << ") on line " << __LINE__ << std::endl;
+                            std::cout << "# ERR: " << e.what();
+                            std::cout << " (MySQL error code: " << e.getErrorCode();
+                            std::cout << ", SQLState: " << e.getSQLState() << " )" << std::endl;
+
+                            return HAL_ERROR_BAD_ARGUMENTS;
+                        }
+                        continue;
+                    }
+                }
+            }
+
+            // something happened so we need to skip
+            {
+                std::cout << "uncached attribute: " << type << std::endl;
+
+                // move to the next variable skipping padding
+                uint32_t len;
+                ipacket.decode_int(&len, &ptr);
+                int padding = (4 - len % 4) % 4;
+                ptr += len + padding;
+            }
+        }
+
+        int rows_updated = pstmt->executeUpdate();
+        std::cout << "rows_updated == " << rows_updated << " uuid index == " << index << std::endl;
+        std::cout << "master uuid == " << (std::string)master_uuid << std::endl;
     }
 }
 
