@@ -16,7 +16,7 @@
 
 import subprocess
 
-from settings import HSMSettings, WEB_PORT, RPC_IP_PORT, CTY_IP_PORT
+from settings import HSMSettings, WEB_PORT, RPC_IP_PORT, CTY_IP_PORT, SSH_PORT
 
 class Firewall(object):
     IP_TABLE_HEADER = ['#!/bin/bash\n',
@@ -65,10 +65,15 @@ class Firewall(object):
     def add_ip_rules(rules_list, netiface, port, setting):
         if ((setting is None) or (setting is True)):
             Firewall.add_ip_rules_any(rules_list, netiface, port)
+            print ("port: %i set to accept all."%port)           
         elif isinstance(setting, tuple):
             Firewall.add_ip_rules_range(rules_list, netiface, port, setting)
+            print ("port: %i set to range."%port)
         elif isinstance(setting, list):
             Firewall.add_ip_rules_list(rules_list, netiface, port, setting)
+            print ("port: %i set to list."%port)
+        else:
+            print ("port: %i is blocked."%port)
 
     @staticmethod
     def generate_iptable_settings(settings, netiface):
@@ -88,6 +93,7 @@ class Firewall(object):
         Firewall.add_ip_rules(rules_list, netiface, RPC_IP_PORT, settings[HSMSettings.DATA_FIREWALL_SETTINGS])
         Firewall.add_ip_rules(rules_list, netiface, CTY_IP_PORT, settings[HSMSettings.MGMT_FIREWALL_SETTINGS])
         Firewall.add_ip_rules(rules_list, netiface, WEB_PORT, settings[HSMSettings.WEB_FIREWALL_SETTINGS])
+        Firewall.add_ip_rules(rules_list, netiface, SSH_PORT, settings[HSMSettings.SSH_FIREWALL_SETTINGS])
 
         # allow all direct connections to CTY
         Firewall.add_ip_rules(rules_list, '%s:1'%netiface, CTY_IP_PORT, None)
@@ -100,12 +106,24 @@ class Firewall(object):
         set_list = [HSMSettings.ZERO_CONFIG_ENABLED,
                     HSMSettings.DATA_FIREWALL_SETTINGS,
                     HSMSettings.MGMT_FIREWALL_SETTINGS,
-                    HSMSettings.WEB_FIREWALL_SETTINGS]
+                    HSMSettings.WEB_FIREWALL_SETTINGS,
+                    HSMSettings.SSH_FIREWALL_SETTINGS,
+                    HSMSettings.ALLOW_SSH]
 
         # extract from settings
         firewall_settings = {}
         for setting in set_list:
             firewall_settings[setting] = settings.get_setting(setting)
+
+        # allow zero conf by default
+        if (firewall_settings[HSMSettings.ZERO_CONFIG_ENABLED] is None):
+            firewall_settings[HSMSettings.ZERO_CONFIG_ENABLED] = True
+
+        # allow SSH
+        allow_ssh = firewall_settings[HSMSettings.ALLOW_SSH]
+        if ((allow_ssh is None) or (allow_ssh is False)):
+            print 'SSH not allowed'
+            firewall_settings[HSMSettings.SSH_FIREWALL_SETTINGS] = False
 
         # generate our rules
         rules_list = Firewall.generate_iptable_settings(firewall_settings, 'eth0')

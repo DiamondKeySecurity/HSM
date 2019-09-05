@@ -22,8 +22,10 @@ false errors. This file attempts to remedy these problems =  but will need
 to be updated if the CrypTech libhal.py interface changes.
 """
 
-from enum import IntEnum
+import xdrlib
 
+
+from enum import IntEnum
 from cryptech.cryptech.libhal import *
 
 class DKS_HALError(IntEnum):
@@ -73,9 +75,13 @@ class DKS_HALError(IntEnum):
     HAL_ERROR_KEYSTORE_WRONG_BLOCK_TYPE = 43
     HAL_ERROR_RPC_PROTOCOL_ERROR        = 44
     HAL_ERROR_NOT_IMPLEMENTED           = 45
+    HAL_ERROR_CORE_REASSIGNED           = 46
+    HAL_ERROR_ASSERTION_FAILED          = 47
+    HAL_ERROR_HASHSIG_KEY_EXHAUSTED     = 48
+    HAL_ERROR_NOT_READY                 = 49
 
-    # non-standard order 66. Give some space in case CrypTech adds more error codes
-    HAL_ERROR_TAMPER                    = 66
+    # non-standard tamper error
+    HAL_ERROR_TAMPER                    = 50
 
     @classmethod
     def to_mkm_string(cls, error):
@@ -119,6 +125,10 @@ class DKS_RPCFunc(IntEnum):
     RPC_FUNC_PKEY_EXPORT                  = 29
     RPC_FUNC_PKEY_IMPORT                  = 30
     RPC_FUNC_PKEY_GENERATE_HASHSIG        = 31
+
+    # non-CrypTech RPC handled by the CrypTech device
+    # non-standard order 66. Give some space in case CrypTech
+    RPC_FUNC_CHECK_TAMPER                 = 66
 
     # non-CrypTech RPCs. Handled by the Diamond-HSM
     RPC_FUNC_GET_HSM_STATE                = 1979
@@ -255,6 +265,21 @@ class DKS_HSM(HSM):
     def rpc_set_device(self, rpc_index):
         with self.rpc(DKS_RPCFunc.RPC_FUNC_SET_RPC_DEVICE, rpc_index):
             return
+
+    def rpc_check_tamper(self):
+        client = 0
+        code = DKS_RPCFunc.RPC_FUNC_CHECK_TAMPER
+
+        # use code from libhal.py to send the RPC directly
+        # and don't throw exception
+        packer = xdrlib.Packer()
+        packer.pack_uint(code)
+        packer.pack_uint(client)
+        self._send(packer)
+        unpacker = self._recv(code)
+        client = unpacker.unpack_uint()
+
+        return unpacker.unpack_uint()
 
     def rpc_use_incoming_device_uuids(self, client = 0):
         with self.rpc(DKS_RPCFunc.RPC_FUNC_USE_INCOMING_DEVICE_UUIDS, client = client):

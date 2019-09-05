@@ -30,6 +30,14 @@ from scripts.sync_import_setup import SyncImportSetup
 
 from console.file_transfer import MGMTCodes, FileTransfer
 
+# the file name to use when receiving from a remote host
+REMOTE_SETUP_JSON = "remote-setup.json"
+REMOTE_EXPORT_JSON = "remote-export.json"
+
+# the file name to use when sending to a remote host
+LOCAL_SETUP_JSON = "local-setup.json"
+LOCAL_EXPORT_JSON = "local-export.json"
+
 def dks_sync_cache(console_object, args):
     console_object.build_cache(0, console_object.rpc_preprocessor.device_count())
     return True
@@ -116,14 +124,20 @@ def on_remote_backup_prepared(cmd, results):
     console_object = results[0]
     result = results[1]
 
-    export_json_path = console_object.temp_object
+    export_json_path_remote = console_object.temp_object
 
     console_object.temp_object = None
 
     if (result == None):
         console_object.allow_user_input("Sync: Did not return any data to export.")
     else:
-        json_to_send = json.dumps(result)
+        json_to_send = LOCAL_EXPORT_JSON
+        with console_object.tmpfs.unprotected_fopen(filename = json_to_send,
+                                                    mode = "r",
+                                                    erase_on_exit = True,
+                                                    open_mode = None,
+                                                    contents = json.dumps(result)) as _:
+            pass
 
         # stop excepting normal user data
         console_object.set_ignore_user('The HSM is exporting data.')
@@ -132,14 +146,19 @@ def on_remote_backup_prepared(cmd, results):
 
         # setup a file transfer object
         ft = FileTransfer(mgmt_code=mgmt_code,
+                          tmpfs = console_object.tmpfs,
+                          requested_file_path=export_json_path_remote,
                           json_to_send=json_to_send,
                           finished_callback=on_sent_remote_backup_data,
                           data_context=console_object)
 
         console_object.file_transfer = ft
-        # tell dks_setup_console that it can send the data now
-        msg = "%s:SEND:{%s}{%i}\r" % (mgmt_code, export_json_path, len(json_to_send))
-        console_object.cty_direct_call(msg)
+
+        ft.start(console_object)
+
+        # the file transfer object will signal what to do
+        return True
+
 
 def on_received_remote_kekek(console_object, result, msg):
     """Receive kekek for a remote backup"""
@@ -148,10 +167,8 @@ def on_received_remote_kekek(console_object, result, msg):
     console_object.file_transfer = None
 
     if(result is True):
-        json_file = "%s/%s"%(console_object.args.uploads, 'remote-setup.json')
-
-        # read the json file that we just received. It contains the KEKEK
-        with open(json_file, "rt") as json_fp:
+        # need to use unprotected_fopen because the will was sent and for fopen is write only
+        with console_object.tmpfs.unprotected_fopen(REMOTE_SETUP_JSON, "rt") as json_fp:
             db = json.load(json_fp)
 
         src = console_object.temp_object[0]
@@ -187,20 +204,23 @@ def got_export_options(console_object, results):
         console_object.set_ignore_user('The HSM is preparing an eport')
 
         mgmt_code = MGMTCodes.MGMTCODE_RECEIVE_RMT_KEKEK.value
-        remote_setup = 'remote-setup.json'
+        remote_setup = REMOTE_SETUP_JSON
 
         # setup a file transfer object
         ft = FileTransfer(mgmt_code=mgmt_code,
-                          requested_file_path=remote_setup,
-                          uploads_dir=console_object.args.uploads,
+                          tmpfs = console_object.tmpfs,
+                          requested_file_path=setup_json_path,
                           finished_callback=on_received_remote_kekek,
                           destination_file=remote_setup,
                           data_context=console_object)
 
         console_object.file_transfer = ft
-        # tell dks_setup_console that it can send the data now
-        msg = "%s:RECV:{%s}\r" % (mgmt_code, setup_json_path)
-        console_object.cty_direct_call(msg)
+
+        ft.start(console_object)
+
+        # the file transfer object will signal what to do
+        return True
+
     except Exception as e:
         console_object.cty_direct_call('\nThere was an error while receiving the'
                                        ' update.\r\n\r\n%s' % e.message)
@@ -252,11 +272,11 @@ def on_recv_data_to_import(console_object, result, msg):
     console_object.temp_object = None
 
     if(result is True):
-        json_file = "%s/%s"%(console_object.args.uploads, 'export.json')
+        json_file = REMOTE_EXPORT_JSON
 
         try:
             # read the json file that we just received. It contains the KEKEK
-            with open(json_file, "rt") as json_fp:
+            with console_object.tmpfs.unprotected_fopen(json_file, "rt") as json_fp:
                 db = json.load(json_fp)
         except:
             console_object.allow_user_input("HSM: There was an error processing the import data.")
@@ -278,27 +298,28 @@ def on_recv_data_to_import(console_object, result, msg):
 
 def got_import_options(console_object, results):
     device = results['device_index']
-    export_json_path = results['export_json_path'] # this is the path on the host computer
+    export_json_path_remote = results['export_json_path'] # this is the path on the host computer
 
     # save option that we'll need later
     console_object.temp_object = device
 
     mgmt_code = MGMTCodes.MGMTCODE_RECEIVE_IMPORT_DATA.value
-    export_json = 'export.json' # this is the file that will be saved on the HSM
+    export_json = REMOTE_EXPORT_JSON # this is the file that will be saved on the HSM
 
     # setup a file transfer object
     ft = FileTransfer(mgmt_code=mgmt_code,
-                      requested_file_path=export_json_path,
-                      uploads_dir=console_object.args.uploads,
+                      tmpfs = console_object.tmpfs,
+                      requested_file_path=export_json_path_remote,
                       finished_callback=on_recv_data_to_import,
                       destination_file=export_json,
                       data_context=console_object)
 
     console_object.file_transfer = ft
-    # tell dks_setup_console that it can send the data now
-    msg = "%s:RECV:{%s}\r" % (mgmt_code, export_json_path)
-    console_object.cty_direct_call(msg)
 
+    ft.start(console_object)
+
+    # the file transfer object will signal what to do
+    return True
 
 def dks_start_import_script(console_object, pin, username):
     if (username.lower() != 'wheel' and username.lower() != 'so'):
@@ -342,11 +363,19 @@ def send_local_kekek_after_sync(cmd, results):
     console_object = results[0]
     db = results[1]
 
-    setup_json_path = console_object.temp_object
+    setup_json = LOCAL_SETUP_JSON
 
-    json_to_send = json.dumps(db)
+    setup_json_path_remote = console_object.temp_object # this is the file name and path on the remote computer to save to
 
     try:
+        # write the file that FileTransfer will use
+        with console_object.tmpfs.unprotected_fopen(filename = setup_json,
+                                                    mode = "r", # after we write this, it can only be opened for reading
+                                                    erase_on_exit = True,
+                                                    open_mode = None,
+                                                    contents = json.dumps(db)) as _:
+            pass
+
         # stop excepting normal user data
         console_object.set_ignore_user('The HSM is sending the public KEKEK.')
 
@@ -354,14 +383,18 @@ def send_local_kekek_after_sync(cmd, results):
 
         # setup a file transfer object
         ft = FileTransfer(mgmt_code=mgmt_code,
-                          json_to_send=json_to_send,
+                          tmpfs = console_object.tmpfs,
+                          json_to_send=setup_json,
+                          requested_file_path=setup_json_path_remote,
                           finished_callback=on_sent_local_kekek,
                           data_context=console_object)
 
         console_object.file_transfer = ft
-        # tell dks_setup_console that it can send the data now
-        msg = "%s:SEND:{%s}{%i}\r" % (mgmt_code, setup_json_path, len(json_to_send))
-        console_object.cty_direct_call(msg)
+
+        ft.start(console_object)
+
+        # the file transfer object will signal what to do
+        return True
     except Exception as e:
         console_object.cty_direct_call('\nThere was an error while receiving the'
                                        ' update.\r\n\r\n%s' % e.message)

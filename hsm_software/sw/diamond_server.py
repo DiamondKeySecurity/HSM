@@ -77,7 +77,13 @@ from cache import HSMCache
 from rpc_handling import RPCPreprocessor
 
 from ipconfig import NetworkInterfaces
-from settings import Settings, RPC_IP_PORT, CTY_IP_PORT, HSMSettings
+from settings import Settings, RPC_IP_PORT, CTY_IP_PORT, HSMSettings, HSM_SOFTWARE_VERSION
+
+try:
+    from ssh_server import SSHServer
+    ssh_available = True
+except Exception:
+    ssh_available = False
 
 from safe_shutdown import SafeShutdown
 
@@ -87,9 +93,12 @@ from security import HSMSecurity
 
 from tamper import TamperDetector
 
+import accounts.db
+
 synchronizer = None
 safe_shutdown = None
 tamper = None
+ssh_cty_server = None
 
 
 def start_leds(use_leds):
@@ -220,30 +229,9 @@ def main():
                         gpio_available=args.gpio_available,
                         safe_shutdown=safe_shutdown)
 
+
     # LEDs -------------------------------------------
     led_container = start_leds(settings.get_setting(HSMSettings.GPIO_LEDS))
-
-    # Tamper -----------------------------------------
-    # pull global tamper variable
-    global tamper
-
-    # initialize the tamper system
-    tamper = TamperDetector(settings)
-
-    safe_shutdown.addOnShutdown(tamper.stop)
-
-    if(led_container is not None):
-        tamper.add_observer(led_container.on_tamper_notify)
-
-    # does this HSM support GPIO tamper?
-    gpio_tamper_setter = None
-    if(settings.get_setting(HSMSettings.GPIO_TAMPER)):
-        try:
-            import tampersetter_gpio
-            gpio_tamper_setter = tampersetter_gpio.tampersetter_gpio()
-        except Exception as e:
-            print 'GPIO Exception %s'%e.message
-            pass
 
     # Make sure the certs exist ----------------------
     HSMSecurity().create_certs_if_not_exist(private_key_name=args.keyfile,
@@ -262,10 +250,14 @@ def main():
                              "%Y-%m-%d %H:%M:%S"))
 
     global log_rpc_codes_to_stdin
+    global ssh_cty_server
+    global ssh_available
 
     if args.verbose:
         level = logging.DEBUG if args.verbose > 1 else logging.INFO
         logging.getLogger().setLevel(level)
+    else:
+        logging.getLogger().setLevel(logging.WARNING)
 
     # network interface ------------------------------
     if(led_container is not None):
@@ -296,8 +288,17 @@ def main():
     my_zero_conf = None
     ip = netiface.get_ip()
     if(ip != None):
-        my_zero_conf = HSMZeroConfSetup(ip, args.serial_number)
-            
+        # give extra info so maintainer can see if an upgrade is needed from findHSM
+        if (ssh_available):
+            sd_version = "0.1"
+        else:
+            sd_version = "0.0"
+
+        my_zero_conf = HSMZeroConfSetup(ip_addr = ip,
+                                        serial = args.serial_number,
+                                        firmware_version = HSM_SOFTWARE_VERSION,
+                                        sd_version = sd_version)
+
     # Prove for the devices --------------------------
     if(led_container is not None):
         led_container.led_probe_for_cryptech()
@@ -327,13 +328,15 @@ def main():
     if(not args.no_delay):
         time.sleep(30)
 
+    # db with domain information
+    db = accounts.db.DBContext(dbpath=args.cache_save)
+
     # start the cache
     cache = HSMCache(len(rpc_list), cache_folder=args.cache_save)
     safe_shutdown.addOnShutdown(cache.backup)
 
     # start the load balancer
-    rpc_preprocessor = RPCPreprocessor(rpc_list, cache, settings, netiface,
-                                       tamper)
+    rpc_preprocessor = RPCPreprocessor(rpc_list, cache, settings, netiface)
     # Listen for incoming TCP/IP connections from remove cryptech.muxd_client
     rpc_server = RPCTCPServer(rpc_preprocessor, RPC_IP_PORT, ssl_options)
     # set the futures for all of our devices
@@ -344,14 +347,35 @@ def main():
                                                      args.rpc_socket,
                                                      args.rpc_socket_mode)
 
+    # Tamper -----------------------------------------
+    # pull global tamper variable
+    global tamper
+
     # only start synchronizer if we have connected RPC and CTYs
     if(len(cty_list) > 0 and len(rpc_list) > 0):
+        # Synchronizer -----------------------------------
         # connect to the secondary socket for mirroring
         global synchronizer
         synchronizer = Synchronizer(args.rpc_socket, cache)
 
         # start the mirrorer
         synchronizer.append_future(futures)
+
+        # Tamper -----------------------------------------
+        # initialize the tamper system
+        if(settings.get_setting(HSMSettings.DATAPORT_TAMPER)):
+            tamper = TamperDetector(args.rpc_socket, len(rpc_list))
+
+            safe_shutdown.addOnShutdown(tamper.stop)
+
+            if(led_container is not None):
+                tamper.add_observer(led_container.on_tamper_notify)
+
+            if (rpc_preprocessor is not None):
+                tamper.add_observer(rpc_preprocessor.on_tamper_event)
+
+            # start the listener
+            tamper.append_future(futures)
 
     # start the console
     # holy, large number of parameters Batman!!!
@@ -365,11 +389,18 @@ def main():
                                    safe_shutdown = safe_shutdown,
                                    led = led_container,
                                    zero_conf_object = my_zero_conf,
-                                   tamper = tamper,
-                                   gpio_tamper_setter = gpio_tamper_setter)
+                                   tamper = tamper)
 
     # Listen for incoming TCP/IP connections from remove cryptech.muxd_client
     cty_server = CTYTCPServer(cty_stream, port=CTY_IP_PORT, ssl=ssl_options)
+
+    if ((settings.get_setting(HSMSettings.ALLOW_SSH) is True) and ssh_available):
+        try:
+            ssh_cty_server = SSHServer(cty_stream, db)
+            ssh_cty_server.start()
+        except Exception:
+            ssh_available = False
+            ssh_cty_server = None
 
     # register for zeroconf if we are connected to a network
     if((my_zero_conf is not None) and 
@@ -409,7 +440,7 @@ def main():
             try:
                 result = yield wait_iterator.next()
             except Exception as e:
-                muxd.logger.info("Error {} from {}".format(e,
+                muxd.logger.exception("Error {} from {}".format(e,
                                  wait_iterator.current_future))
             else:
                 muxd.logger.info("Result {} received from {} at {}".format(
@@ -421,6 +452,8 @@ if __name__ == "__main__":
     try:
         tornado.ioloop.IOLoop.current().run_sync(main)
     except (SystemExit, KeyboardInterrupt):
+        if(ssh_cty_server is not None):
+            ssh_cty_server.stop()
         if(synchronizer is not None):
             synchronizer.stop()
         if(tamper is not None):

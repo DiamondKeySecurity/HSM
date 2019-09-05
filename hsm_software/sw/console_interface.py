@@ -404,7 +404,7 @@ class ConsoleInterface(CommandNode, StatusObject):
                 try:
                     self.attached_cty.write(message)
                 except:
-                    self.attached_cty = None
+                    pass
 
     def handle_login(self):
         if(not self.banner_shown):
@@ -442,18 +442,23 @@ class ConsoleInterface(CommandNode, StatusObject):
                 self.cty_direct_call(self.prompt)
 
 
-    def handle_password_entered(self, data):
+    def handle_password_entered(self, data, login_only = False):
         pin = data.rstrip('\r\n')
+
+        result = False
 
         if (len(pin) > 0):
             result = self.on_login_pin_entered(pin, self.current_user)
 
-            if(result == False):
-                self.cty_direct_call("\r\nIncorrect password. Please try again\r\n\r\nPassword: ")
-            else:
-                self.hide_input = False
-                self.console_state.value = ConsoleState.LoggedIn
-                self.on_login(pin, self.current_user)
+            if(login_only is False):
+                if(result == False):
+                    self.cty_direct_call("\r\nIncorrect password. Please try again\r\n\r\nPassword: ")
+                else:
+                    self.hide_input = False
+                    self.console_state.value = ConsoleState.LoggedIn
+                    self.on_login(pin, self.current_user)
+
+        return result
 
     def process_user_input(self, data):
         if(self.console_state.value == ConsoleState.LoggedOut):

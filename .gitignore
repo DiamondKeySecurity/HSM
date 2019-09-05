@@ -1,6 +1,5 @@
 hsm_software/certs/
 *.pyc
-*.elf
 *.a
 *.tmp
 .vscode/

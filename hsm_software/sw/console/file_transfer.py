@@ -34,9 +34,8 @@ class MGMTCodes(str, Enum):
 class FileTransfer(object):
     """Utility object for uploading files to the HSM"""
 
-    def __init__(self, mgmt_code,
+    def __init__(self, mgmt_code, tmpfs,
                  requested_file_path = None,
-                 uploads_dir = None,
                  restart_file = None,
                  public_key = None,
                  finished_callback = None,
@@ -46,6 +45,7 @@ class FileTransfer(object):
         self.mgmt_code = mgmt_code
         self.error = ""
         self.file_obj = None
+        self.tmpfs = tmpfs
 
         # what are we doing
         if (mgmt_code == MGMTCodes.MGMTCODE_RECEIVEHSM_UPDATE.value or
@@ -57,20 +57,34 @@ class FileTransfer(object):
 
         # members required for receiving data
         self.requested_file_path = requested_file_path
-        self.uploads_dir = uploads_dir
         self.restart_file = restart_file
         self.public_key = public_key
-        self.destination_file = '%s/%s'%(self.uploads_dir, destination_file)
+        self.destination_file = destination_file
 
         self.file_size = None
         self.bytes_copied = 0
         self.file_buffer = ""
 
-        # members required for sending data
-        self.json_to_send = json_to_send
+        # create the file in the tmpfs
+        if (self.receiving_mode):
+            with self.tmpfs.unprotected_fopen(filename = destination_file,
+                                              mode = "w", # remote computer wants to write a file
+                                              erase_on_exit = mgmt_code != MGMTCodes.MGMTCODE_RECEIVEHSM_UPDATE.value,
+                                              open_mode = "w") as _:
+                pass
 
-        if (self.receiving_mode is False):
-            self.file_size = len(json_to_send)
+            if (mgmt_code == MGMTCodes.MGMTCODE_RECEIVEHSM_UPDATE.value):
+                # for compatibility with older versions of dks_setup_console
+                self.start_message="%s:RECV:%s\r" % (mgmt_code, self.requested_file_path)
+            else:
+                self.start_message="%s:RECV:{%s}\r" % (mgmt_code, self.requested_file_path)
+        else:
+            # get the contents of the file that we'll send
+            with self.tmpfs.fopen(filename = json_to_send,
+                                  mode = "r") as fp:
+                self.json_to_send = fp.read()
+            self.file_size = len(self.json_to_send)
+            self.start_message="%s:SEND:{%s}{%i}\r" % (mgmt_code, self.requested_file_path, self.file_size)
 
         # context
         self.data_context = data_context
@@ -80,6 +94,14 @@ class FileTransfer(object):
     def __del__(self):
         """backup to make sure the file has been closed"""
         self.close()
+
+    def start(self, console):
+        # send message to start transfer
+        if (self.start_message is not None):
+            msg = self.start_message
+            self.start_message = None
+
+            console.quick_write(msg)
 
     def close(self):
         if(self.file_obj is not None):
@@ -103,15 +125,11 @@ class FileTransfer(object):
                 if(self.mgmt_code == MGMTCodes.MGMTCODE_RECEIVEHSM_UPDATE.value or
                     self.mgmt_code == MGMTCodes.MGMTCODE_RECEIVE_RMT_KEKEK.value or
                     self.mgmt_code == MGMTCodes.MGMTCODE_RECEIVE_IMPORT_DATA.value):
-                    # make sure the path exist
-                    try:
-                        os.makedirs(self.uploads_dir)
-                    except OSError:
-                        pass
 
                     filename = self.destination_file
 
-                self.file_obj = open(filename, "wb")
+                # get the file from the tmpfs to track
+                self.file_obj = self.tmpfs.fopen(filename, "wb")
 
         if(self.file_size is not None and self.file_size > 0):
             data_size = len(self.file_buffer)
@@ -211,10 +229,10 @@ class FileTransfer(object):
             self.stop_transfer(lambda : self.finished_callback(self.data_context, True, "Transfer complete\r\n"))
 
     def ExtractHSMUpdate(self):
-        filename_signed = self.destination_file
-        filename = self.uploads_dir + "/update.tar.gz"
-        digest = self.uploads_dir + "/digest"
-        ext_dir = self.uploads_dir + "/files"
+        filename_signed = os.path.join(self.tmpfs.directory(), self.destination_file)
+        filename = os.path.join(self.tmpfs.directory(), "update.tar.gz")
+        digest = os.path.join(self.tmpfs.directory(), "digest")
+        ext_dir = os.path.join(self.tmpfs.directory(), "files")
 
         print "Extraction Folder:%s"%ext_dir
 

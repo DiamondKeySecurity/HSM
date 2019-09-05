@@ -33,10 +33,11 @@ import cryptech.muxd
 
 class UploadArgs(object):
     """Used to match interface in CrypTech code"""
-    def __init__(self, fpga = False, firmware = False, bootloader = False, pin = None, username='wheel'):
+    def __init__(self, fpga = False, firmware = False, bootloader = False, tamper = False, pin = None, username='wheel'):
         self.fpga = fpga
         self.firmware = firmware
         self.bootloader = bootloader
+        self.tamper = tamper
         self.username = username
 
         # this will be changed by the user
@@ -111,7 +112,8 @@ class HSMPortInfo:
     def unlock_port(self):
         """If the port is locked, set it to ready"""
         with self.state_lock:
-            if(self.state == CrypTechDeviceState.HSMLocked):
+            if(self.state == CrypTechDeviceState.HSMLocked or
+               self.state == CrypTechDeviceState.TAMPER_RESET):
                 self.state = CrypTechDeviceState.HSMReady
 
     def clear_tamper(self, new_state):
