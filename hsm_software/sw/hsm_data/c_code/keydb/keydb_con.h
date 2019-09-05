@@ -42,6 +42,9 @@ class keydb_con
 
         hal_error_t parse_set_keyattribute_packet(const uuids::uuid_t master_uuid, const libhal::rpc_packet &ipacket);
 
+        hal_error_t parse_get_keyattribute_packet(const uuids::uuid_t master_uuid, const uint32_t session_client_handle,
+                                                  const libhal::rpc_packet &ipacket, libhal::rpc_packet &opacket);
+
     private:
         std::shared_ptr<::sql::Connection> con;
 

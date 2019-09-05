@@ -334,11 +334,32 @@ hal_error_t keydb_con::parse_set_keyattribute_packet(const uuids::uuid_t master_
             }
         }
 
-        int rows_updated = pstmt->executeUpdate();
-        std::cout << "rows_updated == " << rows_updated << " uuid index == " << index << std::endl;
-        std::cout << "master uuid == " << (std::string)master_uuid << std::endl;
+        try
+        {            
+            int rows_updated = pstmt->executeUpdate();
+            std::cout << "rows_updated == " << rows_updated << " uuid index == " << index << std::endl;
+            std::cout << "master uuid == " << (std::string)master_uuid << std::endl;
+        }
+        catch(sql::SQLException &e)
+        {
+            std::cout << "# ERR: SQLException in " << __FILE__;
+            std::cout << "(" << __FUNCTION__ << ") on line " << __LINE__ << std::endl;
+            std::cout << "# ERR: " << e.what();
+            std::cout << " (MySQL error code: " << e.getErrorCode();
+            std::cout << ", SQLState: " << e.getSQLState() << " )" << std::endl;
+
+            return HAL_ERROR_RPC_PROTOCOL_ERROR;
+        }
     }
+
+    return HAL_OK;
 }
+
+hal_error_t parse_get_keyattribute_packet(const uuids::uuid_t master_uuid, const uint32_t session_client_handle,
+                                            const libhal::rpc_packet &ipacket, libhal::rpc_packet &opacket)
+{
+}
+
 
 }
 

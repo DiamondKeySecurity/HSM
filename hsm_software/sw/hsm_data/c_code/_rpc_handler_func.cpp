@@ -612,17 +612,34 @@ void rpc_handler::handle_rpc_pkey(const uint32_t code, const uint32_t session_cl
         return;
     }
 
-    int rpc_index = session->key_rpcs[handle].rpc_index;
-
-    std::shared_ptr<SafeQueue<libhal::rpc_packet>> myqueue = session->myqueue;
+    // result of sending to Cryptech device or handling with keydb
+    hal_error_t result = HAL_OK;
 
     if (code == RPC_FUNC_PKEY_SET_ATTRIBUTES)
     {
-        session->keydb_connection->parse_set_keyattribute_packet(session->key_rpcs[handle].master_uuid,
+        result = session->keydb_connection->parse_set_keyattribute_packet(session->key_rpcs[handle].master_uuid,
                                                                  ipacket);
     }
 
-    hal_error_t result = sendto_cryptech_device(ipacket, opacket, rpc_index, session_client_handle, code, myqueue);
+    if (result == HAL_OK)
+    {    
+        if (code == RPC_FUNC_PKEY_GET_ATTRIBUTES)
+        {
+            // process on our own
+            result = session->keydb_connection->parse_get_keyattribute_packet(session->key_rpcs[handle].master_uuid,
+                                                                            session_client_handle, ipacket, opacket);
+        }
+        else
+        {
+            int rpc_index = session->key_rpcs[handle].rpc_index;
+
+            std::shared_ptr<SafeQueue<libhal::rpc_packet>> myqueue = session->myqueue;
+
+            // send to the cryptech device
+            result = sendto_cryptech_device(ipacket, opacket, rpc_index, session_client_handle, code, myqueue);    
+        }
+    }
+    
     if (result != HAL_OK)
     {
         opacket.create_error_response(code, session_client_handle, result);
@@ -643,7 +660,7 @@ void rpc_handler::handle_rpc_pkey(const uint32_t code, const uint32_t session_cl
             {
                 // get the details about the key so we can delete from the cache
                 uuids::uuid_t uuid_to_remove = session->key_rpcs[handle].device_uuid;
-                rpc_index = session->key_rpcs[handle].rpc_index;
+                int rpc_index = session->key_rpcs[handle].rpc_index;
                 c_cache_object->remove_key_from_device_only(rpc_index, uuid_to_remove);
             }
 
