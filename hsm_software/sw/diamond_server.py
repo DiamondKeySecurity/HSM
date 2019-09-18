@@ -320,6 +320,10 @@ def main():
     rpc_path.create_rpc_objects(rpc_list, settings, netiface, ssl_options, RPC_IP_PORT)
     rpc_path.create_internal_listener(args.rpc_socket, args.rpc_socket_mode)
 
+    # Tamper -----------------------------------------
+    # pull global tamper variable
+    global tamper
+
     # only start synchronizer if we have connected RPC and CTYs
     if(len(cty_list) > 0 and len(rpc_list) > 0):
         # Synchronizer -----------------------------------
@@ -341,6 +345,22 @@ def main():
     
     rpc_preprocessor = rpc_path.get_interface_handling()
     rpc_preprocessor.append_futures(futures)
+
+    # Tamper -----------------------------------------
+    # initialize the tamper system
+    if(settings.get_setting(HSMSettings.DATAPORT_TAMPER)):
+        tamper = TamperDetector(args.rpc_socket, len(rpc_list))
+
+        safe_shutdown.addOnShutdown(tamper.stop)
+
+        if(led_container is not None):
+            tamper.add_observer(led_container.on_tamper_notify)
+
+        if (rpc_preprocessor is not None):
+            tamper.add_observer(rpc_preprocessor.on_tamper_event)
+
+        # start the listener
+        tamper.append_future(futures)
 
     # start the console
     # holy, large number of parameters Batman!!!
